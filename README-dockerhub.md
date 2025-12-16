@@ -68,8 +68,9 @@ toys_api
 | `DEFAULT_LOCALE` | `fr-FR` | Langue par défaut |
 | `CACHE_TTL` | `300000` | Durée cache (ms) |
 | `API_ENCRYPTION_KEY` | - | Clé chiffrement AES |
-| `FSR_AMAZON_URL` | - | FlareSolverr dédié Amazon (VPN) |
-| `GLUETUN_CONTROL_URL` | - | Control gluetun (VPN) |
+| `VPN_PROXY_URL` | - | Proxy HTTP gluetun pour Puppeteer (Amazon) |
+| `PUPPETEER_USE_VPN` | `true` | Activer proxy VPN pour Puppeteer |
+| `GLUETUN_CONTROL_URL` | - | Control gluetun (rotation IP) |
 
 ## 🔌 Endpoints Principaux
 

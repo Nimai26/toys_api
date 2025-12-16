@@ -116,8 +116,9 @@ docker run -d \
 | `USER_AGENT` | Chrome UA | User-Agent personnalisé |
 | `API_ENCRYPTION_KEY` | - | Clé secrète pour chiffrement des clés API (AES-256-GCM) |
 | `LOG_LEVEL` | `info` | Niveau de log (debug, info, warn, error) |
-| `FSR_AMAZON_URL` | - | URL FlareSolverr dédié Amazon (via VPN) |
-| `GLUETUN_CONTROL_URL` | - | URL du control server gluetun pour vérifier le VPN |
+| `VPN_PROXY_URL` | - | Proxy HTTP gluetun pour Puppeteer (ex: `http://gluetun-toys:8888`) |
+| `PUPPETEER_USE_VPN` | `true` | Activer le proxy VPN pour Puppeteer (Amazon) |
+| `GLUETUN_CONTROL_URL` | - | URL du control server gluetun pour rotation IP |
 
 ### � Bypass du Cache
 
@@ -144,16 +145,23 @@ curl -H "Cache-Control: no-cache" "http://localhost:3000/lego/search?q=star"
 
 Pour éviter les bans IP lors du scraping Amazon, vous pouvez utiliser un VPN dédié :
 
-#### Architecture VPN
+#### Architecture VPN v2.2.0
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   toys_api      │────▶│  gluetun (VPN)   │────▶│  Amazon.fr/com  │
-│                 │     │  + FlareSolverr  │     │                 │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                              │
-                        Kill Switch
-                        IP Rotation
+┌─────────────────┐                              ┌─────────────────┐
+│   toys_api      │                              │   Sites Web     │
+│                 │                              │                 │
+│  ┌───────────┐  │     ┌──────────────────┐     │  Amazon.fr/com  │
+│  │ Puppeteer │──┼────▶│ Proxy HTTP :8888 │────▶│                 │
+│  │ Stealth   │  │     │                  │     │  Coleka, JVC,   │
+│  └───────────┘  │     │   gluetun-toys   │     │  LEGO, etc.     │
+│                 │     │      (VPN)       │     │                 │
+│  ┌───────────┐  │     │                  │     │                 │
+│  │FlareSolverr│─┼────▶│ FSR :8191        │────▶│                 │
+│  └───────────┘  │     └──────────────────┘     └─────────────────┘
+└─────────────────┘            │
+                         Kill Switch
+                         IP Rotation (30 min)
 ```
 
 #### Fonctionnalités VPN
@@ -189,11 +197,16 @@ Variables d'environnement requises dans votre stack :
 
 ```yaml
 environment:
-  - FSR_AMAZON_URL=http://gluetun-amazon:8191/v1
-  - GLUETUN_CONTROL_URL=http://gluetun-amazon:8000
+  # FlareSolverr via VPN (tous les providers)
+  - FSR_URL=http://gluetun-toys:8191/v1
+  # Proxy VPN pour Puppeteer Stealth (Amazon)
+  - VPN_PROXY_URL=http://gluetun-toys:8888
+  - PUPPETEER_USE_VPN=true
+  # Control gluetun pour rotation IP
+  - GLUETUN_CONTROL_URL=http://gluetun-toys:8000
 ```
 
-Voir [portainer-stack-unified.yml](portainer-stack-unified.yml) pour un exemple complet avec gluetun + kill switch.
+Voir [portainer-stack.yml](portainer-stack.yml) pour un exemple complet avec gluetun + kill switch + vpn-monitor.
 
 ---
 
