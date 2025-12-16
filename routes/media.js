@@ -15,7 +15,7 @@ import {
   getImdbTitleById,
   browseImdbTitles
 } from '../lib/providers/imdb.js';
-import { addCacheHeaders, asyncHandler, requireParam, requireApiKey } from '../lib/utils/index.js';
+import { addCacheHeaders, asyncHandler, requireParam, requireApiKey, isAutoTradEnabled } from '../lib/utils/index.js';
 import { TVDB_DEFAULT_MAX, TMDB_DEFAULT_MAX, IMDB_DEFAULT_MAX } from '../lib/config.js';
 
 // ============================================================================
@@ -113,7 +113,7 @@ imdbRouter.get("/search", requireParam('q'), asyncHandler(async (req, res) => {
 imdbRouter.get("/title/:id", asyncHandler(async (req, res) => {
   const titleId = req.params.id;
   const lang = req.query.lang || 'en';
-  const autoTrad = req.query.autoTrad === '1' || req.query.autoTrad === 'true';
+  const autoTrad = isAutoTradEnabled(req.query);
   
   if (!titleId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
