@@ -212,6 +212,8 @@ services:
       - CACHE_TTL=${CACHE_TTL:-300000}
       - CACHE_MAX_SIZE=${CACHE_MAX_SIZE:-100}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Traduction automatique (optionnel)
+      - AUTO_TRAD_URL=${AUTO_TRAD_URL:-http://auto_trad:3255}
     volumes:
       - ${Dockerap:-/Docker_Data/}toys_api/data:/app/data
     networks:

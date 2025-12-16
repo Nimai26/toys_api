@@ -119,8 +119,23 @@ docker run -d \
 | `VPN_PROXY_URL` | - | Proxy HTTP gluetun pour Puppeteer (ex: `http://gluetun-toys:8888`) |
 | `PUPPETEER_USE_VPN` | `true` | Activer le proxy VPN pour Puppeteer (Amazon) |
 | `GLUETUN_CONTROL_URL` | - | URL du control server gluetun pour rotation IP |
+| `AUTO_TRAD_URL` | - | URL du service auto_trad pour traduction (ex: `http://auto_trad:3255`) |
 
-### � Bypass du Cache
+### 🌍 Traduction automatique IMDB
+
+Pour les résultats IMDB, le synopsis (plot) est généralement en anglais. Vous pouvez activer la traduction automatique via le service [auto_trad](../auto_trad/) :
+
+```bash
+# Sans traduction (par défaut)
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR"
+
+# Avec traduction automatique du plot
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR&autoTrad=1"
+```
+
+⚠️ **Prérequis** : Définir `AUTO_TRAD_URL` pointant vers le service auto_trad.
+
+### 🔁 Bypass du Cache
 
 Pour forcer une requête fraîche (ignorer le cache), ajoutez un des paramètres suivants :
 
