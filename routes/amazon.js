@@ -15,7 +15,8 @@ import {
   checkVpnStatus,
   rotateVpnIp,
   getSupportedMarketplaces,
-  getSupportedCategories
+  getSupportedCategories,
+  isAmazonAvailable
 } from '../lib/providers/amazon.js';
 
 const router = Router();
@@ -24,6 +25,19 @@ const log = createLogger('Route:Amazon');
 // -----------------------------
 // Endpoints Amazon (via FlareSolverr + VPN)
 // -----------------------------
+
+// Statut de disponibilité Amazon (circuit breaker)
+router.get("/status", (req, res) => {
+  const availability = isAmazonAvailable();
+  res.json({
+    available: availability.available,
+    reason: availability.reason,
+    retryAfter: availability.retryAfter,
+    message: availability.available 
+      ? "Amazon est disponible" 
+      : `Amazon temporairement désactivé. Retry dans ${availability.retryAfter}s`
+  });
+});
 
 // Recherche Amazon
 router.get("/search", asyncHandler(async (req, res) => {
