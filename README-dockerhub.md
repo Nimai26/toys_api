@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **v2.1.0** - Cache bypass & retry automatique Amazon
+> **v2.2.0** - Puppeteer Stealth + Protection VPN intégrée
 
 API REST Docker pour rechercher et obtenir des informations produits depuis de multiples sources.
 
@@ -9,7 +9,7 @@ API REST Docker pour rechercher et obtenir des informations produits depuis de m
 | Catégorie | Sources |
 |-----------|---------|
 | **🧱 Jouets** | LEGO, Mega Construx, Rebrickable |
-| **🛒 Marketplace** | Amazon (FR, US, UK, DE, ES, IT, JP, CA) 🆕 |
+| **🛒 Marketplace** | Amazon (FR, US, UK, DE, ES, IT, JP, CA) |
 | **📚 Livres** | Google Books, OpenLibrary |
 | **🎮 Jeux vidéo** | RAWG, IGDB, JeuxVideo.com |
 | **📺 Films/Séries** | TVDB, TMDB, IMDB |
@@ -24,12 +24,15 @@ API REST Docker pour rechercher et obtenir des informations produits depuis de m
 - 🔍 Recherche multi-sources avec cache intelligent
 - 🛡️ Contournement Cloudflare via FlareSolverr
 - 🔐 Support clés API chiffrées (AES-256-GCM)
-- 🛒 **Amazon** : Scraping multi-pays avec protection VPN
+- 🛒 **Amazon** : Puppeteer Stealth avec protection VPN 🆕
+- 🔒 **VPN intégré** : Gluetun + Kill switch + Rotation IP 🆕
 - 🏷️ **Barcode** : Identification automatique UPC/EAN/ISBN
 - 🌍 Multi-langues (fr-FR, en-US, de-DE, etc.)
 - 📊 Métriques et monitoring intégrés
 
 ## 🚀 Démarrage Rapide
+
+### Méthode simple (sans VPN)
 
 ```bash
 docker pull nimai24/toys_api:latest
@@ -41,6 +44,20 @@ docker run -d \
   -e DEFAULT_LOCALE=fr-FR \
   nimai24/toys_api:latest
 ```
+
+### Méthode recommandée (avec VPN) 🔒
+
+Utiliser `docker-compose.portainer.yml` pour un déploiement complet avec protection VPN :
+
+```
+toys_api
+  ├── Amazon → Puppeteer Stealth → Proxy VPN (gluetun:8888) → Internet
+  └── Autres → FlareSolverr → VPN (gluetun:8191) → Internet
+```
+
+**Votre IP réelle n'est JAMAIS exposée** aux sites scrapés.
+
+📥 **[docker-compose.portainer.yml](https://github.com/nimai24/toys_api)**
 
 ## ⚙️ Variables d'Environnement
 
@@ -159,8 +176,19 @@ MIT
 
 ---
 
-### Changelog v2.1.0
+### Changelog
+
+#### v2.2.0 🆕
+- 🥷 **Puppeteer Stealth** : Remplace FlareSolverr pour Amazon (anti-détection)
+- 🔒 **Proxy VPN intégré** : Tout le trafic Amazon passe par le VPN
+- 🛡️ **VPN Monitor** : Auto-restart + rotation IP automatique
+- 📦 **docker-compose.portainer.yml** : Stack complète avec VPN
+- ✂️ Simplification : Plus besoin de FlareSolverr dédié Amazon
+
+#### v2.1.0
 - 🔄 **noCache/fresh** : Ignorer le cache sur n'importe quelle requête
+- 🔌 Circuit breaker Amazon
+- 🔁 Retry automatique avec rotation IP
 - 🤖 **Amazon** : Retry automatique avec rotation IP si robot détecté
 
 ### Changelog v2.0.0

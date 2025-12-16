@@ -1,0 +1,227 @@
+# =============================================================================
+# TOYS API v2.2.0 - Portainer Stack
+# =============================================================================
+# Stack Portainer pour Toys API avec VPN + FlareSolverr + Puppeteer Stealth
+# 
+# Architecture:
+#   toys_api
+#     ├── Amazon → Puppeteer Stealth → Proxy HTTP (gluetun-toys:8888) → VPN
+#     └── Autres → FlareSolverr (gluetun-toys:8191) → VPN
+#
+# Services inclus:
+#   - gluetun-toys: VPN PIA + Proxy HTTP (8888) + Kill switch
+#   - flaresolverr-vpn: FlareSolverr via VPN (network_mode)
+#   - vpn-monitor: Health check + Auto-restart + Rotation IP (30 min)
+#   - toys_api: API de scraping multi-providers
+#
+# Prérequis:
+#   - Réseau Docker "swag" existant
+#   - Compte VPN Private Internet Access (PIA)
+#
+# Variables d'environnement requises:
+#   - PIA_USER: Nom d'utilisateur PIA
+#   - PIA_PASS: Mot de passe PIA
+#   - Dockerap: Chemin vers les données Docker (ex: /Docker_Data/)
+#   - PUID, PGID, TZ: Variables système
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ============================================
+  # VPN Gluetun (Private Internet Access)
+  # Protection: Kill switch + Proxy HTTP + FlareSolverr
+  # ============================================
+  gluetun-toys:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun-toys
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # Provider VPN
+      - VPN_SERVICE_PROVIDER=private internet access
+      - OPENVPN_USER=${PIA_USER}
+      - OPENVPN_PASSWORD=${PIA_PASS}
+      # Région - France par défaut
+      - SERVER_REGIONS=${VPN_REGION:-France}
+      # Paramètres de connexion
+      - VPN_TYPE=openvpn
+      - OPENVPN_PROTOCOL=udp
+      # ========== KILL SWITCH ==========
+      - FIREWALL=on
+      - FIREWALL_VPN_INPUT_PORTS=8191
+      - FIREWALL_OUTBOUND_SUBNETS=10.110.1.0/24,172.16.0.0/12
+      # ========== PROXY HTTP pour Puppeteer ==========
+      - HTTPPROXY=on
+      - HTTPPROXY_LOG=off
+      # Health check
+      - HEALTH_VPN_DURATION_INITIAL=30s
+      - TZ=${TZ:-Europe/Paris}
+    ports:
+      # Control server gluetun (pour rotation IP)
+      - "${GLUETUN_CONTROL_PORT:-8193}:8000"
+    volumes:
+      - ${Dockerap:-/Docker_Data/}gluetun-toys:/gluetun
+    networks:
+      - swag
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ============================================
+  # FlareSolverr via VPN (pour TOUS les providers)
+  # Utilise le réseau gluetun = kill switch automatique
+  # ============================================
+  flaresolverr-vpn:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr-vpn
+    # IMPORTANT: Utilise le réseau du container gluetun
+    # = Tout le trafic passe par le VPN + Kill switch si VPN down
+    network_mode: "service:gluetun-toys"
+    environment:
+      - LOG_LEVEL=${FSR_LOG_LEVEL:-info}
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=${TZ:-Europe/Paris}
+      - BROWSER_TIMEOUT=${FSR_TIMEOUT:-60000}
+    depends_on:
+      gluetun-toys:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================
+  # VPN Health Monitor + Rotation IP automatique
+  # - Vérifie le VPN toutes les 60 secondes
+  # - Relance si problème détecté (3 échecs consécutifs)
+  # - Rotation IP toutes les 30 minutes
+  # ============================================
+  vpn-monitor:
+    image: alpine:latest
+    container_name: vpn-monitor
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache curl
+        echo "🛡️ VPN Monitor démarré"
+        echo "   - Health check: toutes les 60s"
+        echo "   - Rotation IP: toutes les ${ROTATION_INTERVAL:-1800}s"
+        
+        ROTATION_INTERVAL=${ROTATION_INTERVAL:-1800}
+        HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-60}
+        MAX_FAILURES=${MAX_FAILURES:-3}
+        last_rotation=$$(date +%s)
+        consecutive_failures=0
+        
+        while true; do
+          sleep $$HEALTH_CHECK_INTERVAL
+          now=$$(date +%s)
+          
+          # === HEALTH CHECK ===
+          VPN_STATUS=$$(curl -sf http://gluetun-toys:8000/v1/openvpn/status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+          VPN_IP=$$(curl -sf http://gluetun-toys:8000/v1/publicip/ip 2>/dev/null | grep -o '"public_ip":"[^"]*"' | cut -d'"' -f4)
+          
+          if [ "$$VPN_STATUS" != "running" ] || [ -z "$$VPN_IP" ]; then
+            consecutive_failures=$$((consecutive_failures + 1))
+            echo "[$(date)] ⚠️ VPN problème détecté ($$consecutive_failures/$$MAX_FAILURES) - Status: $$VPN_STATUS, IP: $$VPN_IP"
+            
+            if [ $$consecutive_failures -ge $$MAX_FAILURES ]; then
+              echo "[$(date)] 🔄 Redémarrage VPN..."
+              curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"stopped"}' > /dev/null 2>&1
+              sleep 5
+              curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"running"}' > /dev/null 2>&1
+              sleep 20
+              consecutive_failures=0
+              
+              # Vérifier si ça a marché
+              NEW_STATUS=$$(curl -sf http://gluetun-toys:8000/v1/openvpn/status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+              NEW_IP=$$(curl -sf http://gluetun-toys:8000/v1/publicip/ip 2>/dev/null | grep -o '"public_ip":"[^"]*"' | cut -d'"' -f4)
+              if [ "$$NEW_STATUS" = "running" ] && [ -n "$$NEW_IP" ]; then
+                echo "[$(date)] ✅ VPN relancé avec succès - IP: $$NEW_IP"
+              else
+                echo "[$(date)] ❌ Échec relance VPN - Status: $$NEW_STATUS"
+              fi
+            fi
+          else
+            if [ $$consecutive_failures -gt 0 ]; then
+              echo "[$(date)] ✅ VPN rétabli - IP: $$VPN_IP"
+            fi
+            consecutive_failures=0
+          fi
+          
+          # === ROTATION IP AUTOMATIQUE ===
+          elapsed=$$((now - last_rotation))
+          if [ $$elapsed -ge $$ROTATION_INTERVAL ]; then
+            echo "[$(date)] 🔄 Rotation IP programmée..."
+            OLD_IP=$$VPN_IP
+            curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"stopped"}' > /dev/null 2>&1
+            sleep 5
+            curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"running"}' > /dev/null 2>&1
+            sleep 15
+            NEW_IP=$$(curl -sf http://gluetun-toys:8000/v1/publicip/ip 2>/dev/null | grep -o '"public_ip":"[^"]*"' | cut -d'"' -f4)
+            echo "[$(date)] ✅ IP changée: $$OLD_IP -> $$NEW_IP"
+            last_rotation=$$now
+          fi
+        done
+    environment:
+      - ROTATION_INTERVAL=${ROTATION_INTERVAL:-1800}
+      - HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-60}
+      - MAX_FAILURES=${MAX_FAILURES:-3}
+    networks:
+      - swag
+    depends_on:
+      gluetun-toys:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================
+  # Toys API v2.2.0 - Scraping via Puppeteer + VPN
+  # ============================================
+  toys_api:
+    image: nimai24/toys_api:latest
+    container_name: toys_api
+    restart: unless-stopped
+    ports:
+      - "${TOYS_API_PORT:-3000}:3000"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-100}
+      - TZ=${TZ:-Europe/Paris}
+      # ========== TOUT PASSE PAR LE VPN ==========
+      # FlareSolverr via VPN (pour tous les providers sauf Amazon)
+      - FSR_URL=http://gluetun-toys:8191/v1
+      # Proxy VPN pour Puppeteer (Amazon uniquement)
+      - VPN_PROXY_URL=http://gluetun-toys:8888
+      - PUPPETEER_USE_VPN=${PUPPETEER_USE_VPN:-true}
+      # Control Gluetun pour rotation IP
+      - GLUETUN_CONTROL_URL=http://gluetun-toys:8000
+      # Paramètres API
+      - PORT=3000
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - DEFAULT_LOCALE=${DEFAULT_LOCALE:-fr-FR}
+      - CACHE_TTL=${CACHE_TTL:-300000}
+      - CACHE_MAX_SIZE=${CACHE_MAX_SIZE:-100}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ${Dockerap:-/Docker_Data/}toys_api/data:/app/data
+    networks:
+      - swag
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      gluetun-toys:
+        condition: service_healthy
+
+networks:
+  swag:
+    external: true

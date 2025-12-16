@@ -50,7 +50,13 @@ backup/
 *.backup*
 *.bak
 
-# Fichiers Docker locaux
+# Fichiers Docker locaux (sauf templates publics)
 .dockerignore
-docker-compose*.yml
-portainer-stack*.yml
+docker-compose.yml
+docker-compose.amazon-vpn.yml
+portainer-stack-unified.yml
+
+# Templates publics autorisés:
+# - docker-compose.portainer.yml (template générique)
+# - portainer-stack.yml (stack de déploiement)
+# - .env.example (exemple de variables)

@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **Version 2.1.0** - Cache bypass, retry automatique Amazon
+> **Version 2.2.0** - Puppeteer Stealth + Protection VPN intégrée
 
 A Docker-based REST API to search and retrieve product information from multiple sources:
 - **LEGO** - Official LEGO website (lego.com)
