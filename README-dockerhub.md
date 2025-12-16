@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **v2.0.0** - Architecture modulaire avec middlewares de validation
+> **v2.1.0** - Cache bypass & retry automatique Amazon
 
 API REST Docker pour rechercher et obtenir des informations produits depuis de multiples sources.
 
@@ -158,6 +158,10 @@ curl "http://localhost:3000/rawg/search?q=zelda" \
 MIT
 
 ---
+
+### Changelog v2.1.0
+- 🔄 **noCache/fresh** : Ignorer le cache sur n'importe quelle requête
+- 🤖 **Amazon** : Retry automatique avec rotation IP si robot détecté
 
 ### Changelog v2.0.0
 - 🏗️ Architecture modulaire (`lib/providers`, `lib/utils`, `routes/`)

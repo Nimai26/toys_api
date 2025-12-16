@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **Version 2.0.0** - Architecture modulaire avec middlewares de validation
+> **Version 2.1.0** - Cache bypass, retry automatique Amazon
 
 A Docker-based REST API to search and retrieve product information from multiple sources:
 - **LEGO** - Official LEGO website (lego.com)
@@ -119,7 +119,28 @@ docker run -d \
 | `FSR_AMAZON_URL` | - | URL FlareSolverr dédié Amazon (via VPN) |
 | `GLUETUN_CONTROL_URL` | - | URL du control server gluetun pour vérifier le VPN |
 
-### 🛡️ Protection VPN Amazon (Optionnel)
+### � Bypass du Cache
+
+Pour forcer une requête fraîche (ignorer le cache), ajoutez un des paramètres suivants :
+
+```bash
+# Via query parameter
+curl "http://localhost:3000/lego/search?q=star&noCache"
+curl "http://localhost:3000/lego/search?q=star&fresh"
+
+# Via header HTTP
+curl -H "X-No-Cache: 1" "http://localhost:3000/lego/search?q=star"
+curl -H "Cache-Control: no-cache" "http://localhost:3000/lego/search?q=star"
+```
+
+| Paramètre | Description |
+|-----------|-------------|
+| `noCache` | Ignorer le cache pour cette requête |
+| `fresh` | Alias de noCache |
+| `X-No-Cache` header | Header HTTP alternatif |
+| `Cache-Control: no-cache` | Header HTTP standard |
+
+### �🛡️ Protection VPN Amazon (Optionnel)
 
 Pour éviter les bans IP lors du scraping Amazon, vous pouvez utiliser un VPN dédié :
 
@@ -4670,6 +4691,11 @@ Licence MIT
 ---
 
 ## 📦 Changelog
+
+### v2.1.0 (2025)
+- 🔄 **Paramètre noCache/fresh** : Ignorer le cache sur n'importe quelle requête
+- 🤖 **Amazon retry automatique** : Rotation IP automatique si robot détecté
+- 🛡️ **Détection robot améliorée** : Patterns FR/EN pour captchas Amazon
 
 ### v2.0.0 (2025)
 - 🏗️ **Architecture modulaire** : Code refactorisé en `lib/` (providers, utils) et `routes/`
