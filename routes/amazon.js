@@ -16,26 +16,25 @@ import {
   rotateVpnIp,
   getSupportedMarketplaces,
   getSupportedCategories,
-  isAmazonAvailable
+  isAmazonAvailable,
+  getAmazonStatus
 } from '../lib/providers/amazon.js';
 
 const router = Router();
 const log = createLogger('Route:Amazon');
 
 // -----------------------------
-// Endpoints Amazon (via FlareSolverr + VPN)
+// Endpoints Amazon (Puppeteer Stealth + FlareSolverr fallback)
 // -----------------------------
 
-// Statut de disponibilité Amazon (circuit breaker)
+// Statut complet du provider Amazon
 router.get("/status", (req, res) => {
-  const availability = isAmazonAvailable();
+  const status = getAmazonStatus();
   res.json({
-    available: availability.available,
-    reason: availability.reason,
-    retryAfter: availability.retryAfter,
-    message: availability.available 
-      ? "Amazon est disponible" 
-      : `Amazon temporairement désactivé. Retry dans ${availability.retryAfter}s`
+    ...status,
+    message: status.available 
+      ? `Amazon disponible (${status.puppeteer.available ? 'Puppeteer Stealth' : 'FlareSolverr'})`
+      : `Amazon temporairement désactivé. Retry dans ${status.retryAfter}s`
   });
 });
 
