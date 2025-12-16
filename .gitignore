@@ -32,3 +32,25 @@ temp/
 
 # Data directory (runtime)
 data/
+
+# ==============================================
+# Fichiers internes - Ne pas publier sur GitHub
+# ==============================================
+
+# Scripts de déploiement (contiennent des infos sensibles)
+deploy.sh
+
+# Documentation interne / développement
+.ai-instructions.md
+AUDIT.md
+README_new.md
+
+# Backups de développement
+backup/
+*.backup*
+*.bak
+
+# Fichiers Docker locaux
+.dockerignore
+docker-compose*.yml
+portainer-stack*.yml

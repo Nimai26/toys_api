@@ -1,8 +1,0 @@
-/**
- * lib/utils.js - FICHIER DE RÉEXPORTATION
- * 
- * Le module a été déplacé vers ./utils/helpers.js
- * Ce fichier maintient la rétrocompatibilité des imports existants.
- */
-
-export * from './utils/helpers.js';
