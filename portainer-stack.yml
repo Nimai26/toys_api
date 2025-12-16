@@ -90,6 +90,10 @@ services:
       - CAPTCHA_SOLVER=none
       - TZ=${TZ:-Europe/Paris}
       - BROWSER_TIMEOUT=${FSR_TIMEOUT:-60000}
+    volumes:
+      # Volumes nommés pour éviter les volumes anonymes
+      - flaresolverr-vpn-data:/tmp
+      - flaresolverr-vpn-config:/config
     depends_on:
       gluetun-toys:
         condition: service_healthy
@@ -225,3 +229,11 @@ services:
 networks:
   swag:
     external: true
+
+volumes:
+  # Volumes nommés pour FlareSolverr (cache Chromium)
+  # Évite la création de volumes anonymes avec hash
+  flaresolverr-vpn-data:
+    name: flaresolverr-vpn-data
+  flaresolverr-vpn-config:
+    name: flaresolverr-vpn-config

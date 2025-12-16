@@ -112,6 +112,8 @@ imdbRouter.get("/search", requireParam('q'), asyncHandler(async (req, res) => {
 
 imdbRouter.get("/title/:id", asyncHandler(async (req, res) => {
   const titleId = req.params.id;
+  const lang = req.query.lang || 'en';
+  
   if (!titleId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
   if (!/^tt\d{7,}$/.test(titleId)) {
@@ -121,7 +123,7 @@ imdbRouter.get("/title/:id", asyncHandler(async (req, res) => {
     });
   }
 
-  const result = await getImdbTitleById(titleId);
+  const result = await getImdbTitleById(titleId, { lang });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));
