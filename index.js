@@ -15,7 +15,8 @@ import {
   CACHE_MAX_SIZE,
   createLogger,
   logger,
-  errorHandler
+  errorHandler,
+  handleCacheControl
 } from './lib/utils/index.js';
 
 // Import de la configuration centralisée (seulement ce qui est nécessaire pour index.js)
@@ -109,6 +110,9 @@ app.use((req, res, next) => {
   
   next();
 });
+
+// Middleware pour gérer le bypass du cache (paramètre noCache ou fresh)
+app.use(handleCacheControl);
 
 log.info("=========================================");
 log.info(`🧸 Toys API v${API_VERSION}`);
