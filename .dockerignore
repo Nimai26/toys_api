@@ -1,0 +1,52 @@
+# ==============================================
+# .dockerignore - Fichiers exclus de l'image Docker
+# ==============================================
+
+# Fichiers de configuration locale / Portainer
+docker-compose*.yml
+portainer-stack*.yml
+
+# Scripts de déploiement (contiennent des références credentials)
+deploy.sh
+
+# Fichiers de backup
+*.backup*
+*.bak
+
+# Documentation de développement
+.ai-instructions.md
+harmonisation*.txt
+README_new.md
+
+# Fichiers de développement
+*.log
+*.tmp
+.env
+.env.*
+
+# Git
+.git
+.gitignore
+
+# IDE / Editeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules (installés pendant le build)
+node_modules/
+
+# Tests
+backup/
+test/
+tests/
+*.test.js
+*.spec.js
+
+# PHP non utilisé par l'API Node
+*.php
+
+# Fichiers système
+.DS_Store
+Thumbs.db

@@ -1,0 +1,203 @@
+version: "3.9"
+
+services:
+  # ============================================
+  # VPN Gluetun pour Amazon (Private Internet Access)
+  # Protection: Kill switch + Rotation IP automatique
+  # ============================================
+  gluetun-amazon:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun-amazon
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # Provider VPN
+      - VPN_SERVICE_PROVIDER=private internet access
+      - OPENVPN_USER=${PIA_USER}
+      - OPENVPN_PASSWORD=${PIA_PASS}
+      # Région - France par défaut, changeable via API
+      - SERVER_REGIONS=France
+      # Paramètres de connexion
+      - VPN_TYPE=openvpn
+      - OPENVPN_PROTOCOL=udp
+      # ========== KILL SWITCH ==========
+      # Bloque TOUT le trafic si le VPN tombe
+      - FIREWALL=on
+      - FIREWALL_VPN_INPUT_PORTS=8191
+      - FIREWALL_OUTBOUND_SUBNETS=10.110.1.0/24,172.16.0.0/12
+      # ========== ROTATION IP AUTOMATIQUE ==========
+      # Reconnexion automatique toutes les 30 minutes pour changer d'IP
+      - VPN_PORT_FORWARDING=off
+      - UPDATER_PERIOD=24h
+      # Health check strict
+      - HEALTH_VPN_DURATION_INITIAL=30s
+      - HEALTH_VPN_DURATION_ADDITION=10s
+      - HEALTH_TARGET_ADDRESS=1.1.1.1:443
+      - TZ=${TZ}
+    ports:
+      # FlareSolverr Amazon accessible depuis l'hôte
+      - "8192:8191"
+      # Control server gluetun (pour changer de région dynamiquement)
+      - "8193:8000"
+    volumes:
+      - ${Dockerap}gluetun-amazon:/gluetun
+    networks:
+      - swag
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ============================================
+  # FlareSolverr dédié Amazon (via VPN)
+  # Ne démarre QUE si le VPN est healthy
+  # ============================================
+  flaresolverr-amazon:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr-amazon
+    # IMPORTANT: Utilise le réseau du container gluetun
+    # = Kill switch automatique (pas de réseau si VPN down)
+    network_mode: "service:gluetun-amazon"
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=${TZ}
+      # Timeout plus long pour Amazon (pages lourdes)
+      - BROWSER_TIMEOUT=60000
+    depends_on:
+      gluetun-amazon:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================
+  # Rotation IP automatique (toutes les 30 min)
+  # ============================================
+  vpn-ip-rotator:
+    image: alpine:latest
+    container_name: vpn-ip-rotator
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache curl
+        echo "🔄 VPN IP Rotator démarré - Rotation toutes les 30 minutes"
+        while true; do
+          sleep 1800
+          echo "[$(date)] Demande de nouvelle IP..."
+          # Récupérer l'IP actuelle
+          OLD_IP=$$(curl -sf http://gluetun-amazon:8000/v1/publicip/ip 2>/dev/null || echo "unknown")
+          # Demander une reconnexion VPN
+          curl -sf -X PUT http://gluetun-amazon:8000/v1/openvpn/status -d '{"status":"stopped"}' > /dev/null
+          sleep 5
+          curl -sf -X PUT http://gluetun-amazon:8000/v1/openvpn/status -d '{"status":"running"}' > /dev/null
+          sleep 15
+          # Vérifier la nouvelle IP
+          NEW_IP=$$(curl -sf http://gluetun-amazon:8000/v1/publicip/ip 2>/dev/null || echo "unknown")
+          echo "[$(date)] IP changée: $$OLD_IP -> $$NEW_IP"
+        done
+    networks:
+      - swag
+    depends_on:
+      gluetun-amazon:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================
+  # Toys API - Scraping (Node.js)
+  # ============================================
+  toys_api:
+    image: nimai24/toys_api:latest
+    container_name: toys_api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Utilisateurs système
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      # FlareSolverr principal (sans VPN)
+      - FSR_URL=http://10.110.1.1:8191/v1
+      # FlareSolverr Amazon via VPN (évite les bans IP)
+      - FSR_AMAZON_URL=http://gluetun-amazon:8191/v1
+      # URL du control server gluetun pour vérifier l'IP VPN
+      - GLUETUN_CONTROL_URL=http://gluetun-amazon:8000
+      # Paramètres API
+      - PORT=3000
+      - MAX_RETRIES=3
+      - DEFAULT_LOCALE=fr-FR
+      # Cache en mémoire
+      - CACHE_TTL=300000
+      - CACHE_MAX_SIZE=100
+      - LOG_LEVEL=info
+      # Clés API
+      - API_ENCRYPTION_KEY=${API_ENCRYPTION_KEY:-alapifdodidogdg57fd5327_i}
+    volumes:
+      - ${Dockerap}toys_api/data:/app/data
+    networks:
+      - swag
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      gluetun-amazon:
+        condition: service_healthy
+
+  # ============================================
+  # Snow Shelf API - Image unifiée
+  # ============================================
+  snow_shelf_api:
+    image: nimai24/snow_shelf_api:latest
+    container_name: snow_shelf_api
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      # Service externe
+      - TOYS_API_URL=http://toys_api:3000
+      # Fonctionnalités
+      - ENABLE_CLIP=true
+      - ENABLE_OCR=true
+      # Performance CPU
+      - OMP_NUM_THREADS=4
+      - MKL_NUM_THREADS=4
+      - CLIP_THREADS=4
+      # Cache
+      - CACHE_TTL=300
+    volumes:
+      - ${Dockerap}snow_shelf_api/logs:/app/logs
+      - ${Dockerap}snow_shelf_api/uploads:/app/uploads
+      - ${Dockerap}snow_shelf_api/tmp:/app/tmp
+    networks:
+      - swag
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+    depends_on:
+      - toys_api
+
+networks:
+  swag:
+    external: true

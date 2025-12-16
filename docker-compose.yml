@@ -1,0 +1,38 @@
+  toys_api:
+    image: nimai24/toys_api:latest
+    container_name: toys_api
+    network_mode: swag
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Utilisateurs système
+      - PUID=${PUID:?error}
+      - PGID=${PGID:?error}
+      - TZ=${TZ:?error}
+      # FlareSolverr (requis)
+      - FSR_URL=http://10.110.1.1:8191/v1
+      # FlareSolverr Amazon via VPN (optionnel - évite les bans IP)
+      # Déployer d'abord docker-compose.amazon-vpn.yml puis décommenter:
+      - FSR_AMAZON_URL=http://10.110.1.1:8192/v1
+      # Paramètres API
+      - PORT=3000                # Port d'écoute (default: 3000)
+      - MAX_RETRIES=3            # Tentatives max en cas d'erreur
+      - DEFAULT_LOCALE=fr-FR     # Langue par défaut
+      # - USER_AGENT=...         # User-Agent personnalisé (optionnel)
+      # Cache en mémoire
+      - CACHE_TTL=300000         # 5 minutes en ms
+      - CACHE_MAX_SIZE=100       # Max 100 entrées
+      - LOG_LEVEL=debug          # debug, info, warn, error
+      # Clés API (optionnelles - certaines APIs fonctionnent sans)
+      # - COMICVINE_API_KEY=...  # Comic Vine API key (gratuite sur comicvine.gamespot.com)
+      - API_ENCRYPTION_KEY=${API_ENCRYPTION_KEY:-alapifdodidogdg57fd5327_i} # Clé secrète (via variable env)
+    # Volume optionnel pour logs ou données temporaires
+    volumes:
+      - ${Dockerap:?error}/toys_api/data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

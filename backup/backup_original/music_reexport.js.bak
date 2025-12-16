@@ -1,0 +1,40 @@
+/**
+ * lib/music.js - Module Musique (MusicBrainz + Deezer + Discogs + iTunes)
+ * 
+ * FICHIER DE RÉEXPORTATION
+ * Les implémentations sont dans ./providers/
+ * Ce fichier maintient la rétrocompatibilité des imports existants.
+ * 
+ * @module music
+ */
+
+// ============================================================================
+// Réexportations depuis les providers
+// ============================================================================
+
+// MusicBrainz API
+export {
+  formatDuration,
+  searchMusicBrainz,
+  getMusicBrainzAlbum,
+  searchMusicBrainzByBarcode
+} from './providers/musicbrainz.js';
+
+// Deezer API
+export {
+  searchDeezer,
+  getDeezerAlbum,
+  getDeezerArtist
+} from './providers/deezer.js';
+
+// Discogs API
+export {
+  searchDiscogs,
+  getDiscogsRelease,
+  searchDiscogsByBarcode
+} from './providers/discogs.js';
+
+// iTunes API
+export {
+  searchItunes
+} from './providers/itunes.js';

@@ -1,0 +1,38 @@
+/**
+ * lib/rebrickable.js - Module Rebrickable API
+ * 
+ * FICHIER DE RÉEXPORTATION
+ * Les implémentations sont dans ./providers/rebrickable.js
+ * Ce fichier maintient la rétrocompatibilité des imports existants.
+ * 
+ * @module rebrickable
+ */
+
+// ============================================================================
+// Réexportations depuis le provider Rebrickable
+// ============================================================================
+
+export {
+  // Injection de dépendances (évite les imports circulaires)
+  setLegoFunctions,
+  
+  // API
+  rebrickableRequest,
+  searchRebrickable,
+  getRebrickableSet,
+  getRebrickableSetParts,
+  getRebrickableSetMinifigs,
+  getRebrickableThemes,
+  getRebrickableColors,
+  getRebrickableSetFull,
+  smartRebrickableSearch,
+  
+  // Enrichissement
+  enrichLegoWithRebrickable,
+  enrichRebrickableWithLego,
+  
+  // Utilitaires
+  legoIdToRebrickable,
+  rebrickableIdToLego,
+  isSetNumber
+} from './providers/rebrickable.js';

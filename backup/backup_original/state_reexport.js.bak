@@ -1,0 +1,8 @@
+/**
+ * lib/state.js - FICHIER DE RÉEXPORTATION
+ * 
+ * Le module a été déplacé vers ./utils/state.js
+ * Ce fichier maintient la rétrocompatibilité des imports existants.
+ */
+
+export * from './utils/state.js';

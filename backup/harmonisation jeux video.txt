@@ -1,0 +1,203 @@
+🎮 Exemples JSON - Jeux Vidéo v1.23.0
+======================================
+
+📋 RECHERCHE (/igdb/search, /rawg/search, /jvc/search)
+------------------------------------------------------
+
+Les recherches gardent un format spécifique à chaque source (non harmonisé) :
+
+GET /igdb/search?q=zelda&max=1
+{
+  "source": "igdb",
+  "query": "zelda",
+  "count": 1,
+  "games": [
+    {
+      "id": 7346,
+      "slug": "the-legend-of-zelda-breath-of-the-wild",
+      "name": "The Legend of Zelda: Breath of the Wild",
+      "image": ["https://images.igdb.com/igdb/image/upload/t_cover_big/co3p2d.jpg"],
+      "summary": "The Legend of Zelda: Breath of the Wild is the first 3D open-world game...",
+      "rating": 92.6,
+      "releaseDate": "2017-03-03",
+      "genres": ["Puzzle", "Adventure"],
+      "platforms": [{"name": "Nintendo Switch", "abbreviation": "Switch"}],
+      "developers": ["Nintendo EPD Production Group No. 3"],
+      "url": "https://www.igdb.com/games/the-legend-of-zelda-breath-of-the-wild"
+    }
+  ]
+}
+
+
+📄 DÉTAILS (/igdb/game/:id, /rawg/game/:id, /jvc/game/:id) - HARMONISÉ
+----------------------------------------------------------------------
+
+=== IGDB ===
+GET /igdb/game/7346
+
+{
+  "source": "igdb",
+  "id": 7346,
+  "slug": "the-legend-of-zelda-breath-of-the-wild",
+  "title": "The Legend of Zelda: Breath of the Wild",
+  "image": [
+    "https://images.igdb.com/igdb/image/upload/t_cover_big/co3p2d.jpg",
+    "https://images.igdb.com/igdb/image/upload/t_720p/fgubhnuapjmdbxwqxhsq.jpg",
+    "https://images.igdb.com/igdb/image/upload/t_screenshot_big/sckj69.jpg"
+  ],
+  "synopsis": "The Legend of Zelda: Breath of the Wild is the first 3D open-world game in the Zelda series...",
+  "releaseDate": "2017-03-03",
+  "platforms": ["Wii U", "Nintendo Switch"],
+  "genres": ["Puzzle", "Adventure"],
+  "developers": ["Nintendo EPD Production Group No. 3"],
+  "publishers": ["Nintendo"],
+  "pegi": "PEGI 12",
+  "minAge": 12,
+  "isMultiplayer": false,
+  "rating": 95,
+  "url": "https://www.igdb.com/games/the-legend-of-zelda-breath-of-the-wild",
+  "_raw": {
+    "storyline": "Link is awakened in a room by a voice calling him...",
+    "aggregatedRating": 97.6,
+    "ratingCount": 2693,
+    "cover": {"imageId": "co3p2d", "thumbnail": "...", "coverBig": "..."},
+    "artworks": [{"imageId": "...", "hd": "..."}],
+    "screenshots": [{"imageId": "...", "big": "..."}],
+    "gameModes": ["Single player"],
+    "themes": ["Action", "Fantasy", "Open world"],
+    "franchises": ["The Legend of Zelda"],
+    "ageRatings": [
+      {"system": "PEGI", "rating": "PEGI 12", "minAge": 12},
+      {"system": "ESRB", "rating": "E10+", "minAge": 10}
+    ],
+    "videos": [{"name": "Trailer", "youtubeUrl": "https://www.youtube.com/watch?v=zw47_q9wbBE"}],
+    "similarGames": [{"name": "God of War", "slug": "god-of-war--1"}],
+    "dlcs": [{"name": "The Champions' Ballad", "slug": "..."}]
+  }
+}
+
+
+=== RAWG ===
+GET /rawg/game/22511
+
+{
+  "source": "rawg",
+  "id": 22511,
+  "slug": "the-legend-of-zelda-breath-of-the-wild",
+  "title": "The Legend of Zelda: Breath of the Wild",
+  "image": [
+    "https://media.rawg.io/media/games/cc1/cc196a5ad763955d6532cdba236f730c.jpg",
+    "https://media.rawg.io/media/screenshots/1e5/1e58e8a064da6906f09dba1edb3fdea6.jpg"
+  ],
+  "synopsis": "The Legend of Zelda: Breath of the Wild is an adventure game developed by Nintendo...",
+  "releaseDate": "2017-03-03",
+  "platforms": ["Nintendo Switch", "Wii U"],
+  "genres": ["Action", "Adventure", "RPG"],
+  "developers": ["Nintendo"],
+  "publishers": ["Nintendo"],
+  "pegi": "Everyone 10+",
+  "minAge": 10,
+  "isMultiplayer": false,
+  "rating": 89,
+  "url": "https://rawg.io/games/the-legend-of-zelda-breath-of-the-wild",
+  "_raw": {
+    "nameOriginal": "The Legend of Zelda: Breath of the Wild",
+    "metacritic": 97,
+    "playtime": 121,
+    "achievementsCount": 0,
+    "ratingsCount": 3155,
+    "tags": [{"id": 36, "name": "Open World", "slug": "open-world"}],
+    "esrbRating": {"id": 2, "name": "Everyone 10+", "slug": "everyone-10-plus"},
+    "stores": [{"id": 6, "name": "Nintendo Store"}]
+  }
+}
+
+
+=== JVC (JeuxVideo.com) ===
+GET /jvc/game/77113
+
+{
+  "source": "jvc",
+  "id": 77113,
+  "slug": null,
+  "title": "The Legend of Zelda : Breath of the Wild",
+  "image": ["https://image.jeuxvideo.com/medias/149432/1494322310-8900-jaquette-avant.jpg"],
+  "synopsis": "The Legend of Zelda : Breath of the Wild est un jeu d'action/aventure...",
+  "releaseDate": "2017-03-03",
+  "platforms": ["Nintendo Switch", "Nintendo Switch 2", "Wii U"],
+  "genres": ["Aventure", "Action", "RPG"],
+  "developers": [],
+  "publishers": ["Nintendo"],
+  "pegi": "+12 ans",
+  "minAge": 12,
+  "isMultiplayer": false,
+  "rating": 100,
+  "url": "https://www.jeuxvideo.com/jeux/jeu-77113/",
+  "_raw": {
+    "cover": "https://image.jeuxvideo.com/medias/149432/1494322310-8900-jaquette-avant.jpg",
+    "nbPlayers": null,
+    "ratings": {"test": 20, "users": 17.1},
+    "testUrl": "https://www.jeuxvideo.com/test/617770/..."
+  }
+}
+
+
+📊 COMPARAISON DES CHAMPS HARMONISÉS
+------------------------------------
+
+| Champ         | IGDB                          | RAWG                          | JVC                           |
+|---------------|-------------------------------|-------------------------------|-------------------------------|
+| title         | ✅                            | ✅                            | ✅                            |
+| platforms[]   | ["Wii U", "Nintendo Switch"]  | ["Nintendo Switch", "Wii U"]  | ["Nintendo Switch", "Wii U"]  |
+| genres[]      | ["Puzzle", "Adventure"]       | ["Action", "Adventure", "RPG"]| ["Aventure", "Action", "RPG"] |
+| rating        | 95 (0-100)                    | 89 (0-100, normalisé)         | 100 (0-100, normalisé)        |
+| pegi          | "PEGI 12"                     | "Everyone 10+" (ESRB)         | "+12 ans" (FR)                |
+
+
+📝 STRUCTURE HARMONISÉE
+-----------------------
+
+Tous les endpoints de détails retournent ces champs communs :
+
+| Champ          | Type           | Description                                    |
+|----------------|----------------|------------------------------------------------|
+| source         | string         | Source des données (igdb, rawg, jvc)           |
+| id             | number         | ID unique dans la source                       |
+| slug           | string|null    | Slug URL-friendly                              |
+| title          | string         | Titre du jeu                                   |
+| image[]        | string[]       | Liste d'URLs d'images                          |
+| synopsis       | string|null    | Description/résumé du jeu                      |
+| releaseDate    | string|null    | Date de sortie (format ISO YYYY-MM-DD)         |
+| platforms[]    | string[]       | Liste des noms de plateformes                  |
+| genres[]       | string[]       | Liste des noms de genres                       |
+| developers[]   | string[]       | Liste des noms de développeurs                 |
+| publishers[]   | string[]       | Liste des noms d'éditeurs                      |
+| pegi           | string|null    | Classification d'âge (format source)           |
+| minAge         | number|null    | Âge minimum recommandé                         |
+| isMultiplayer  | boolean        | Support multijoueur                            |
+| rating         | number|null    | Note normalisée (0-100)                        |
+| url            | string         | URL de la fiche sur le site source             |
+| _raw           | object         | Données spécifiques à la source                |
+
+
+🔧 DONNÉES SPÉCIFIQUES (_raw)
+-----------------------------
+
+IGDB (_raw):
+- storyline, aggregatedRating, ratingCount
+- cover, artworks, screenshots
+- gameModes, themes, playerPerspectives, keywords
+- franchises, collection, ageRatings
+- videos, websites, similarGames, dlcs, expansions, parentGame
+
+RAWG (_raw):
+- nameOriginal, metacritic, metacriticPlatforms
+- playtime, achievementsCount, ratingsCount, reviewsCount
+- ratings, stores, tags, esrbRating
+- clip, website, backgroundImage, backgroundImageAdditional
+- tba, updated
+
+JVC (_raw):
+- cover, nbPlayers
+- ratings (test, users)
+- testUrl

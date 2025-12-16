@@ -1,0 +1,33 @@
+/**
+ * lib/barcode.js - Module de détection et recherche par code-barres
+ * 
+ * FICHIER DE RÉEXPORTATION
+ * Les implémentations sont dans ./providers/barcode.js
+ * Ce fichier maintient la rétrocompatibilité des imports existants.
+ * 
+ * @module barcode
+ */
+
+// ============================================================================
+// Réexportations depuis le provider Barcode
+// ============================================================================
+
+export {
+  // Détection
+  detectBarcodeType,
+  isbn10ToIsbn13,
+  
+  // Sources individuelles
+  searchUpcItemDb,
+  searchOpenFoodFacts,
+  searchBnfByIsbn,
+  searchBookByIsbn,
+  
+  // Identification
+  tryIdentifyVideoGame,
+  tryIdentifyMusic,
+  searchMusicByBarcode,
+  
+  // Recherche complète
+  searchByBarcode
+} from './providers/barcode.js';

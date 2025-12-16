@@ -1,0 +1,24 @@
+/**
+ * lib/index.js - Point d'entrée pour tous les modules de toys_api
+ * 
+ * Ce fichier regroupe et réexporte tous les modules pour simplifier les imports
+ */
+
+// Utilitaires (logger, state, helpers, flaresolverr)
+export * from './utils/index.js';
+
+// Configuration
+export * from './config.js';
+
+// Sources de données
+export * from './amazon.js';
+export * from './lego.js';
+export * from './rebrickable.js';
+export * from './books.js';
+export * from './videogames.js';
+export * from './media.js';
+export * from './anime.js';
+export * from './comics.js';
+export * from './collectibles.js';
+export * from './music.js';
+export * from './barcode.js';

@@ -1,0 +1,8 @@
+/**
+ * lib/flaresolverr.js - FICHIER DE RÉEXPORTATION
+ * 
+ * Le module a été déplacé vers ./utils/flaresolverr.js
+ * Ce fichier maintient la rétrocompatibilité des imports existants.
+ */
+
+export * from './utils/flaresolverr.js';

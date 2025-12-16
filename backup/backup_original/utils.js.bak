@@ -1,0 +1,271 @@
+/**
+ * lib/utils.js - Fonctions utilitaires communes
+ * toys_api v1.26.0
+ * 
+ * Contient: Crypto, Helpers, Décodage HTML
+ * 
+ * NOTE: Le cache et les métriques sont maintenant dans state.js
+ * Ce module re-exporte ces éléments pour la compatibilité
+ */
+
+import crypto from 'crypto';
+import { createLogger } from './utils/logger.js';
+
+const log = createLogger('Crypto');
+
+// Re-export depuis state.js pour compatibilité avec l'ancien code
+export {
+  getCached,
+  setCache,
+  addCacheHeaders,
+  clearCache,
+  getCacheStats,
+  metrics,
+  CACHE_TTL,
+  CACHE_MAX_SIZE
+} from './state.js';
+
+// ========================================
+// Configuration Crypto
+// ========================================
+const API_ENCRYPTION_KEY = process.env.API_ENCRYPTION_KEY || null;
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
+const AUTH_TAG_LENGTH = 16;
+
+// Export de la config crypto pour les routes qui vérifient si le chiffrement est activé
+export { API_ENCRYPTION_KEY };
+
+// ========================================
+// Fonctions de décodage HTML
+// ========================================
+
+/**
+ * Décoder les entités HTML courantes
+ * @param {string} text - Texte avec entités HTML
+ * @returns {string} Texte décodé
+ */
+export function decodeHtmlEntities(text) {
+  if (!text) return text;
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#160;/g, ' ')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
+// ========================================
+// Fonctions Crypto (AES-256-GCM)
+// ========================================
+
+/**
+ * Vérifie si le chiffrement est activé
+ * @returns {boolean}
+ */
+export function isEncryptionEnabled() {
+  return !!API_ENCRYPTION_KEY;
+}
+
+/**
+ * Déchiffre une clé API chiffrée en AES-256-GCM
+ * Format attendu: base64(iv + authTag + ciphertext)
+ * @param {string} encryptedData - Données chiffrées en base64
+ * @returns {string|null} - Clé déchiffrée ou null si erreur
+ */
+export function decryptApiKey(encryptedData) {
+  if (!API_ENCRYPTION_KEY) {
+    log.error("API_ENCRYPTION_KEY non configurée");
+    return null;
+  }
+  
+  try {
+    const buffer = Buffer.from(encryptedData, 'base64');
+    const iv = buffer.subarray(0, IV_LENGTH);
+    const authTag = buffer.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
+    const ciphertext = buffer.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
+    
+    const key = crypto.createHash('sha256').update(API_ENCRYPTION_KEY).digest();
+    const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(ciphertext, null, 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  } catch (err) {
+    log.error("Erreur déchiffrement", { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Chiffre une clé API en AES-256-GCM
+ * Retourne: base64(iv + authTag + ciphertext)
+ * @param {string} plainKey - Clé en clair
+ * @returns {string|null} - Données chiffrées en base64 ou null si erreur
+ */
+export function encryptApiKey(plainKey) {
+  if (!API_ENCRYPTION_KEY) {
+    log.error("API_ENCRYPTION_KEY non configurée");
+    return null;
+  }
+  
+  try {
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const key = crypto.createHash('sha256').update(API_ENCRYPTION_KEY).digest();
+    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+    
+    let ciphertext = cipher.update(plainKey, 'utf8');
+    ciphertext = Buffer.concat([ciphertext, cipher.final()]);
+    
+    const authTag = cipher.getAuthTag();
+    const result = Buffer.concat([iv, authTag, ciphertext]);
+    
+    return result.toString('base64');
+  } catch (err) {
+    log.error("Erreur chiffrement", { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Extrait et déchiffre la clé API depuis les headers
+ * Supporte: X-Encrypted-Key (chiffrée) ou X-Api-Key (clair)
+ * @param {object} req - Request Express
+ * @returns {string|null} - Clé API déchiffrée ou null
+ */
+export function extractApiKey(req) {
+  // Priorité 1: Clé chiffrée dans X-Encrypted-Key
+  const encryptedKey = req.headers['x-encrypted-key'];
+  if (encryptedKey) {
+    const decrypted = decryptApiKey(encryptedKey);
+    if (decrypted) return decrypted;
+    log.warn("Échec déchiffrement de X-Encrypted-Key");
+    return null;
+  }
+  
+  // Priorité 2: Clé en clair dans X-Api-Key (seulement si chiffrement désactivé)
+  const plainKey = req.headers['x-api-key'];
+  if (plainKey) {
+    if (API_ENCRYPTION_KEY) {
+      log.warn("X-Api-Key ignorée car chiffrement activé");
+      return null;
+    }
+    return plainKey;
+  }
+  
+  // Priorité 3: Paramètre query 'api_key'
+  const queryKey = req.query.api_key;
+  if (queryKey) {
+    if (API_ENCRYPTION_KEY) {
+      log.warn("api_key query ignorée car chiffrement activé");
+      return null;
+    }
+    return queryKey;
+  }
+  
+  return null;
+}
+
+// ========================================
+// Fonctions Helper
+// ========================================
+
+/**
+ * Génère un UUID v4
+ * @returns {string}
+ */
+export function generateUUID() {
+  return crypto.randomUUID();
+}
+
+/**
+ * Génère un ID de session aléatoire (21 chars)
+ * @returns {string}
+ */
+export function generateSessionId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 21; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * Nettoie un ID en retirant les préfixes courants
+ * @param {string} id - L'ID à nettoyer
+ * @param {string} source - La source attendue
+ * @returns {string} - L'ID nettoyé
+ */
+export function cleanSourceId(id, source) {
+  if (!id) return id;
+  
+  const prefixes = {
+    openlibrary: ['olib_', 'openlibrary_', 'ol_'],
+    bedetheque: ['bedetheque_', 'bede_', 'bdtheque_'],
+    googlebooks: ['googlebooks_', 'gbooks_', 'gb_'],
+    comicvine: ['comicvine_', 'cv_'],
+    jikan: ['jikan_', 'mal_', 'myanimelist_'],
+    mangadex: ['mangadex_', 'mdex_', 'md_']
+  };
+  
+  const sourcePrefixes = prefixes[source] || [];
+  for (const prefix of sourcePrefixes) {
+    if (id.toLowerCase().startsWith(prefix.toLowerCase())) {
+      return id.substring(prefix.length);
+    }
+  }
+  
+  return id;
+}
+
+/**
+ * Normalise une chaîne pour comparaison
+ * @param {string} str - Chaîne à normaliser
+ * @returns {string} - Chaîne normalisée
+ */
+export function normalizeString(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Calcule la similarité entre deux chaînes (Dice coefficient)
+ * @param {string} str1 - Première chaîne
+ * @param {string} str2 - Deuxième chaîne
+ * @returns {number} - Score de similarité (0-1)
+ */
+export function stringSimilarity(str1, str2) {
+  const s1 = normalizeString(str1);
+  const s2 = normalizeString(str2);
+  
+  if (s1 === s2) return 1;
+  if (s1.length < 2 || s2.length < 2) return 0;
+  
+  const bigrams1 = new Set();
+  for (let i = 0; i < s1.length - 1; i++) {
+    bigrams1.add(s1.substring(i, i + 2));
+  }
+  
+  let intersectionSize = 0;
+  for (let i = 0; i < s2.length - 1; i++) {
+    if (bigrams1.has(s2.substring(i, i + 2))) {
+      intersectionSize++;
+    }
+  }
+  
+  return (2 * intersectionSize) / (s1.length - 1 + s2.length - 1);
+}

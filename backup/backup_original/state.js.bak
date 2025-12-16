@@ -1,0 +1,202 @@
+/**
+ * lib/state.js - État global partagé entre tous les modules
+ * toys_api v1.26.0
+ * 
+ * Ce module centralise :
+ * - Les sessions FlareSolverr
+ * - Le cache LRU partagé
+ * - Les métriques globales
+ * 
+ * Tous les modules doivent importer depuis ce fichier pour éviter
+ * les duplications d'état.
+ */
+
+import { createLogger } from './utils/logger.js';
+
+const log = createLogger('Cache');
+
+// ========================================
+// Configuration
+// ========================================
+const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 300000; // 5 minutes par défaut
+const CACHE_MAX_SIZE = parseInt(process.env.CACHE_MAX_SIZE) || 100;
+const LEGO_SESSION_TTL = 10 * 60 * 1000; // 10 minutes
+
+// ========================================
+// État FlareSolverr
+// ========================================
+let _fsrSessionId = null;
+let _lastLegoHomeVisit = 0;
+
+// Getters
+export function getFsrSessionId() {
+  return _fsrSessionId;
+}
+
+export function getLastLegoHomeVisit() {
+  return _lastLegoHomeVisit;
+}
+
+// Setters
+export function setFsrSessionId(id) {
+  _fsrSessionId = id;
+}
+
+export function setLastLegoHomeVisit(timestamp) {
+  _lastLegoHomeVisit = timestamp;
+}
+
+// Vérification validité cookies LEGO
+export function areLegoSessionCookiesValid() {
+  return _fsrSessionId && (Date.now() - _lastLegoHomeVisit < LEGO_SESSION_TTL);
+}
+
+// Reset session
+export function resetFsrSession() {
+  _fsrSessionId = null;
+  _lastLegoHomeVisit = 0;
+}
+
+// ========================================
+// Cache LRU partagé
+// ========================================
+const cache = new Map();
+
+/**
+ * Récupère une valeur du cache
+ * @param {string} key - Clé du cache
+ * @returns {any|null} - Valeur ou null si absente/expirée
+ */
+export function getCached(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    cache.delete(key);
+    return null;
+  }
+  // Mise à jour du lastAccess pour LRU
+  entry.lastAccess = Date.now();
+  log.debug(`HIT: ${key.substring(0, 50)}...`);
+  metrics.requests.cached++;
+  return entry.data;
+}
+
+/**
+ * Stocke une valeur dans le cache
+ * @param {string} key - Clé du cache
+ * @param {any} data - Données à stocker
+ * @param {number} customTtl - TTL personnalisé (optionnel)
+ */
+export function setCache(key, data, customTtl = null) {
+  // Nettoyer le cache si trop grand (LRU: supprimer le moins récemment utilisé)
+  if (cache.size >= CACHE_MAX_SIZE) {
+    let oldestKey = null;
+    let oldestAccess = Infinity;
+    for (const [k, v] of cache) {
+      if (v.lastAccess < oldestAccess) {
+        oldestAccess = v.lastAccess;
+        oldestKey = k;
+      }
+    }
+    if (oldestKey) cache.delete(oldestKey);
+  }
+  const ttl = customTtl || CACHE_TTL;
+  const now = Date.now();
+  cache.set(key, { data, expiry: now + ttl, lastAccess: now });
+  log.debug(`SET: ${key.substring(0, 50)}...`, { ttl: `${ttl/1000}s` });
+}
+
+/**
+ * Supprime une entrée du cache
+ * @param {string} key - Clé à supprimer
+ */
+export function clearCacheKey(key) {
+  cache.delete(key);
+}
+
+/**
+ * Vide tout le cache
+ */
+export function clearCache() {
+  cache.clear();
+  log.info('Cleared all entries');
+}
+
+/**
+ * Retourne les statistiques du cache
+ */
+export function getCacheStats() {
+  let validEntries = 0;
+  let expiredEntries = 0;
+  const now = Date.now();
+  
+  for (const [, entry] of cache) {
+    if (now > entry.expiry) {
+      expiredEntries++;
+    } else {
+      validEntries++;
+    }
+  }
+  
+  return {
+    size: cache.size,
+    validEntries,
+    expiredEntries,
+    maxSize: CACHE_MAX_SIZE,
+    ttl: CACHE_TTL
+  };
+}
+
+/**
+ * Middleware Express pour ajouter les headers Cache-Control
+ */
+export function addCacheHeaders(res, maxAge = 300) {
+  res.set('Cache-Control', `public, max-age=${maxAge}`);
+  res.set('X-Cache-TTL', `${maxAge}s`);
+}
+
+// ========================================
+// Métriques globales
+// ========================================
+export const metrics = {
+  startTime: Date.now(),
+  requests: { total: 0, cached: 0, errors: 0 },
+  responseTimeSum: 0,
+  responseTimeCount: 0,
+  sources: {
+    lego: { requests: 0, errors: 0 },
+    coleka: { requests: 0, errors: 0 },
+    luluberlu: { requests: 0, errors: 0 },
+    transformerland: { requests: 0, errors: 0 },
+    paninimania: { requests: 0, errors: 0 },
+    rebrickable: { requests: 0, errors: 0 },
+    googlebooks: { requests: 0, errors: 0 },
+    openlibrary: { requests: 0, errors: 0 },
+    rawg: { requests: 0, errors: 0 },
+    igdb: { requests: 0, errors: 0 },
+    tvdb: { requests: 0, errors: 0 },
+    tmdb: { requests: 0, errors: 0 },
+    imdb: { requests: 0, errors: 0 },
+    jikan: { requests: 0, errors: 0 },
+    comicvine: { requests: 0, errors: 0 },
+    mangadex: { requests: 0, errors: 0 },
+    bedetheque: { requests: 0, errors: 0 },
+    jvc: { requests: 0, errors: 0 },
+    mega: { requests: 0, errors: 0 },
+    consolevariations: { requests: 0, errors: 0 },
+    amazon: { requests: 0, errors: 0 },
+    barcode: { requests: 0, errors: 0 },
+    musicbrainz: { requests: 0, errors: 0 },
+    discogs: { requests: 0, errors: 0 },
+    deezer: { requests: 0, errors: 0 }
+  }
+};
+
+// ========================================
+// Exports de configuration
+// ========================================
+export {
+  CACHE_TTL,
+  CACHE_MAX_SIZE,
+  LEGO_SESSION_TTL
+};

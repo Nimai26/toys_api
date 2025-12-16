@@ -1,0 +1,70 @@
+# Stack FlareSolverr dédié Amazon via VPN (Private Internet Access)
+# Ce FlareSolverr est isolé derrière le VPN pour éviter les bans IP Amazon
+#
+# Usage:
+#   - Déployer cette stack séparément (ou l'intégrer à la stack principale)
+#   - toys_api utilisera FSR_AMAZON_URL pour les requêtes Amazon
+#
+# Ports:
+#   - 8192: FlareSolverr Amazon (via VPN)
+#   - 8193: Health check gluetun (optionnel)
+
+services:
+  gluetun-amazon:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun-amazon
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # Provider VPN
+      - VPN_SERVICE_PROVIDER=private internet access
+      - OPENVPN_USER=${PIA_USER}
+      - OPENVPN_PASSWORD=${PIA_PASS}
+      # Région - on peut changer selon le marketplace Amazon ciblé
+      # Options: France, Netherlands, Germany, UK London, US East, US West, etc.
+      - SERVER_REGIONS=France
+      # Paramètres de connexion
+      - VPN_TYPE=openvpn
+      - OPENVPN_PROTOCOL=udp
+      # Health check
+      - HEALTH_VPN_DURATION_INITIAL=30s
+      - HEALTH_VPN_DURATION_ADDITION=10s
+    ports:
+      # FlareSolverr Amazon accessible depuis l'hôte
+      - "8192:8191"
+      # Control server gluetun (optionnel, pour changer de région dynamiquement)
+      - "8193:8000"
+    volumes:
+      - ${Dockerap:-/Docker_Data}/gluetun-amazon:/gluetun
+    networks:
+      - amazon-vpn
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  flaresolverr-amazon:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr-amazon
+    # IMPORTANT: Utilise le réseau du container gluetun (tout passe par le VPN)
+    network_mode: "service:gluetun-amazon"
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=${TZ:-Europe/Paris}
+      # Timeout plus long pour Amazon (pages lourdes)
+      - BROWSER_TIMEOUT=60000
+    depends_on:
+      gluetun-amazon:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  amazon-vpn:
+    driver: bridge
