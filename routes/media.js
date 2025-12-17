@@ -39,9 +39,10 @@ tvdbRouter.get("/search", requireParam('q'), tvdbAuth, asyncHandler(async (req, 
 tvdbRouter.get("/series/:id", tvdbAuth, asyncHandler(async (req, res) => {
   const seriesId = req.params.id;
   const lang = req.query.lang || null;
+  const autoTrad = isAutoTradEnabled(req);
   if (!seriesId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
-  const result = await getTvdbSeriesById(seriesId, req.apiKey, lang);
+  const result = await getTvdbSeriesById(seriesId, req.apiKey, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));
@@ -49,9 +50,10 @@ tvdbRouter.get("/series/:id", tvdbAuth, asyncHandler(async (req, res) => {
 tvdbRouter.get("/movie/:id", tvdbAuth, asyncHandler(async (req, res) => {
   const movieId = req.params.id;
   const lang = req.query.lang || null;
+  const autoTrad = isAutoTradEnabled(req);
   if (!movieId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
-  const result = await getTvdbMovieById(movieId, req.apiKey, lang);
+  const result = await getTvdbMovieById(movieId, req.apiKey, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));
@@ -79,9 +81,10 @@ tmdbRouter.get("/search", requireParam('q'), tmdbAuth, asyncHandler(async (req, 
 tmdbRouter.get("/movie/:id", tmdbAuth, asyncHandler(async (req, res) => {
   const movieId = req.params.id;
   const lang = req.query.lang || 'fr-FR';
+  const autoTrad = isAutoTradEnabled(req);
   if (!movieId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
-  const result = await getTmdbMovieById(movieId, req.apiKey, lang);
+  const result = await getTmdbMovieById(movieId, req.apiKey, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));
@@ -89,9 +92,10 @@ tmdbRouter.get("/movie/:id", tmdbAuth, asyncHandler(async (req, res) => {
 tmdbRouter.get("/tv/:id", tmdbAuth, asyncHandler(async (req, res) => {
   const tvId = req.params.id;
   const lang = req.query.lang || 'fr-FR';
+  const autoTrad = isAutoTradEnabled(req);
   if (!tvId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
-  const result = await getTmdbTvById(tvId, req.apiKey, lang);
+  const result = await getTmdbTvById(tvId, req.apiKey, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));

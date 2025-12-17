@@ -1,4 +1,4 @@
-// index.js - toys_api v1.27.0
+// index.js - toys_api v2.3.0
 import express from "express";
 import crypto from "crypto";
 import compression from "compression";

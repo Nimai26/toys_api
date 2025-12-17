@@ -5,7 +5,7 @@
 
 import { Router } from 'express';
 import { createLogger } from '../lib/utils/logger.js';
-import { addCacheHeaders, asyncHandler } from '../lib/utils/index.js';
+import { addCacheHeaders, asyncHandler, isAutoTradEnabled } from '../lib/utils/index.js';
 import { MEGA_DEFAULT_MAX, MEGA_DEFAULT_LANG } from '../lib/config.js';
 
 import {
@@ -46,14 +46,16 @@ router.get("/search", asyncHandler(async (req, res) => {
  * Récupère les détails d'un produit Mega Construx par ID ou SKU
  * @param id - ID Shopify ou SKU du produit
  * @queryparam lang - Langue
+ * @queryparam autoTrad - Traduction automatique (1 = activer)
  */
 router.get("/product/:id", asyncHandler(async (req, res) => {
   const productId = req.params.id;
   const lang = req.query.lang || MEGA_DEFAULT_LANG;
+  const autoTrad = isAutoTradEnabled(req);
   
   if (!productId) return res.status(400).json({ error: "ID ou SKU manquant" });
   
-  const result = await getMegaProductByIdLib(productId, { lang });
+  const result = await getMegaProductByIdLib(productId, { lang, autoTrad });
   if (!result || !result.title) {
     return res.status(404).json({ error: `Produit ${productId} non trouvé` });
   }

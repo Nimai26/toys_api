@@ -9,7 +9,7 @@ import {
   searchOpenLibrary,
   getOpenLibraryById
 } from '../lib/providers/openlibrary.js';
-import { cleanSourceId, addCacheHeaders, asyncHandler, requireParam, requireApiKey } from '../lib/utils/index.js';
+import { cleanSourceId, addCacheHeaders, asyncHandler, requireParam, requireApiKey, isAutoTradEnabled } from '../lib/utils/index.js';
 import { GOOGLE_BOOKS_DEFAULT_MAX, OPENLIBRARY_DEFAULT_MAX } from '../lib/config.js';
 
 const router = Router();
@@ -35,7 +35,10 @@ router.get("/book/:volumeId", googleAuth, asyncHandler(async (req, res) => {
   
   volumeId = cleanSourceId(volumeId, 'googlebooks');
   
-  const result = await getGoogleBookById(volumeId, req.apiKey);
+  const autoTrad = isAutoTradEnabled(req);
+  const lang = req.query.lang || null;
+  
+  const result = await getGoogleBookById(volumeId, req.apiKey, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));

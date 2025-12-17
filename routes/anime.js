@@ -6,7 +6,7 @@ import {
   getJikanAnimeById,
   getJikanMangaById
 } from '../lib/providers/jikan.js';
-import { cleanSourceId, addCacheHeaders, metrics, asyncHandler } from '../lib/utils/index.js';
+import { cleanSourceId, addCacheHeaders, metrics, asyncHandler, isAutoTradEnabled } from '../lib/utils/index.js';
 import { JIKAN_DEFAULT_MAX } from '../lib/config.js';
 
 const router = Router();
@@ -71,6 +71,8 @@ router.get("/manga", asyncHandler(async (req, res) => {
 // Détails d'un anime
 router.get("/anime/:id", asyncHandler(async (req, res) => {
   let animeId = req.params.id;
+  const lang = req.query.lang || null;
+  const autoTrad = isAutoTradEnabled(req);
   if (!animeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
   animeId = cleanSourceId(animeId, 'jikan');
@@ -79,7 +81,7 @@ router.get("/anime/:id", asyncHandler(async (req, res) => {
   }
 
   metrics.requests.total++;
-  const result = await getJikanAnimeById(parseInt(animeId, 10));
+  const result = await getJikanAnimeById(parseInt(animeId, 10), { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));
@@ -87,6 +89,8 @@ router.get("/anime/:id", asyncHandler(async (req, res) => {
 // Détails d'un manga
 router.get("/manga/:id", asyncHandler(async (req, res) => {
   let mangaId = req.params.id;
+  const lang = req.query.lang || null;
+  const autoTrad = isAutoTradEnabled(req);
   if (!mangaId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
   mangaId = cleanSourceId(mangaId, 'jikan');
@@ -95,7 +99,7 @@ router.get("/manga/:id", asyncHandler(async (req, res) => {
   }
 
   metrics.requests.total++;
-  const result = await getJikanMangaById(parseInt(mangaId, 10));
+  const result = await getJikanMangaById(parseInt(mangaId, 10), { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));

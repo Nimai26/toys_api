@@ -14,7 +14,7 @@ import {
   searchJVC,
   getJVCGameById
 } from '../lib/providers/jvc.js';
-import { addCacheHeaders, asyncHandler, requireParam, requireApiKey } from '../lib/utils/index.js';
+import { addCacheHeaders, asyncHandler, requireParam, requireApiKey, isAutoTradEnabled } from '../lib/utils/index.js';
 import {
   RAWG_DEFAULT_MAX,
   RAWG_MAX_LIMIT,
@@ -48,7 +48,10 @@ rawgRouter.get("/game/:id", rawgAuth, asyncHandler(async (req, res) => {
   const gameId = req.params.id;
   if (!gameId) return res.status(400).json({ error: "paramètre 'id' manquant" });
   
-  const result = await getRawgGameDetails(gameId, req.apiKey);
+  const autoTrad = isAutoTradEnabled(req);
+  const lang = req.query.lang || null;
+  
+  const result = await getRawgGameDetails(gameId, req.apiKey, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));
@@ -80,7 +83,10 @@ igdbRouter.get("/game/:id", igdbAuth, asyncHandler(async (req, res) => {
   const { clientId, clientSecret } = parseIgdbCredentials(req.apiKey);
   const accessToken = await getIgdbToken(clientId, clientSecret);
   
-  const result = await getIgdbGameDetails(gameId, clientId, accessToken);
+  const autoTrad = isAutoTradEnabled(req);
+  const lang = req.query.lang || null;
+  
+  const result = await getIgdbGameDetails(gameId, clientId, accessToken, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));

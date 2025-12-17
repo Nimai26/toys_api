@@ -15,7 +15,7 @@ import {
   getBedethequeSerieById,
   getBedethequeAlbumById
 } from '../lib/providers/bedetheque.js';
-import { cleanSourceId, addCacheHeaders, asyncHandler } from '../lib/utils/index.js';
+import { cleanSourceId, addCacheHeaders, asyncHandler, isAutoTradEnabled } from '../lib/utils/index.js';
 import { COMICVINE_DEFAULT_MAX, COMICVINE_MAX_LIMIT, MANGADEX_DEFAULT_MAX, MANGADEX_MAX_LIMIT, BEDETHEQUE_DEFAULT_MAX } from '../lib/config.js';
 
 // ============================================================================
@@ -45,7 +45,10 @@ comicvineRouter.get("/volume/:id", asyncHandler(async (req, res) => {
   if (!volumeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
   if (!/^\d+$/.test(volumeId)) return res.status(400).json({ error: "Format d'ID invalide" });
 
-  const result = await getComicVineVolume(parseInt(volumeId, 10));
+  const autoTrad = isAutoTradEnabled(req);
+  const lang = req.query.lang || 'en';
+  
+  const result = await getComicVineVolume(parseInt(volumeId, 10), { lang, autoTrad });
   if (!result) return res.status(404).json({ error: `Volume ${volumeId} non trouvé` });
   addCacheHeaders(res, 3600);
   res.json(result);
@@ -56,7 +59,10 @@ comicvineRouter.get("/issue/:id", asyncHandler(async (req, res) => {
   if (!issueId) return res.status(400).json({ error: "paramètre 'id' manquant" });
   if (!/^\d+$/.test(issueId)) return res.status(400).json({ error: "Format d'ID invalide" });
 
-  const result = await getComicVineIssue(parseInt(issueId, 10));
+  const autoTrad = isAutoTradEnabled(req);
+  const lang = req.query.lang || 'en';
+  
+  const result = await getComicVineIssue(parseInt(issueId, 10), { lang, autoTrad });
   if (!result) return res.status(404).json({ error: `Issue ${issueId} non trouvé` });
   addCacheHeaders(res, 3600);
   res.json(result);
@@ -81,13 +87,15 @@ mangadexRouter.get("/search", asyncHandler(async (req, res) => {
 
 mangadexRouter.get("/manga/:id", asyncHandler(async (req, res) => {
   let mangaId = cleanSourceId(req.params.id, 'mangadex');
+  const lang = req.query.lang || null;
+  const autoTrad = isAutoTradEnabled(req);
   if (!mangaId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mangaId)) {
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un UUID" });
   }
 
-  const result = await getMangaDexById(mangaId);
+  const result = await getMangaDexById(mangaId, { lang, autoTrad });
   if (!result) return res.status(404).json({ error: `Manga ${mangaId} non trouvé` });
   addCacheHeaders(res, 3600);
   res.json(result);

@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import { metrics, addCacheHeaders, asyncHandler } from '../lib/utils/index.js';
+import { metrics, addCacheHeaders, asyncHandler, isAutoTradEnabled } from '../lib/utils/index.js';
 import { COLEKA_DEFAULT_NBPP, LULUBERLU_DEFAULT_MAX, CONSOLEVARIATIONS_DEFAULT_MAX, TRANSFORMERLAND_DEFAULT_MAX, PANINIMANIA_DEFAULT_MAX } from '../lib/config.js';
 
 import {
@@ -125,8 +125,11 @@ consolevariationsRouter.get("/item/:slug", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Paramètre 'slug' manquant" });
   }
   
+  const autoTrad = isAutoTradEnabled(req);
+  const lang = req.query.lang || 'en';
+  
   metrics.sources.consolevariations.requests++;
-  const result = await getConsoleVariationsItem(slug);
+  const result = await getConsoleVariationsItem(slug, undefined, { lang, autoTrad });
   addCacheHeaders(res, 300);
   res.json(result);
 }));
@@ -175,8 +178,21 @@ transformerlandRouter.get("/search", asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-// NOTE: L'endpoint /transformerland/item est désactivé car la fonction getTransformerlandItemDetails
-// n'a jamais été implémentée. Seule la recherche /transformerland/search est disponible.
+transformerlandRouter.get("/item/:id", asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  if (!id) {
+    return res.status(400).json({ error: "Paramètre 'id' manquant" });
+  }
+  
+  const autoTrad = isAutoTradEnabled(req);
+  const lang = req.query.lang || 'en';
+  
+  metrics.sources.transformerland.requests++;
+  const result = await getTransformerlandItemDetails(id, undefined, { lang, autoTrad });
+  addCacheHeaders(res, 300);
+  res.json(result);
+}));
 
 // ============================================================================
 // PANINIMANIA ROUTER

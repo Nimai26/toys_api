@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **Version 2.2.0** - Puppeteer Stealth + Protection VPN intégrée
+> **Version 2.3.0** - Traduction automatique étendue à tous les providers
 
 A Docker-based REST API to search and retrieve product information from multiple sources:
 - **LEGO** - Official LEGO website (lego.com)
@@ -121,9 +121,28 @@ docker run -d \
 | `GLUETUN_CONTROL_URL` | - | URL du control server gluetun pour rotation IP |
 | `AUTO_TRAD_URL` | - | URL du service auto_trad pour traduction (ex: `http://auto_trad:3255`) |
 
-### 🌍 Traduction automatique IMDB
+### 🌍 Traduction automatique
 
-Pour les résultats IMDB, le synopsis (plot) et les genres sont généralement en anglais. Vous pouvez activer la traduction automatique via le paramètre `autoTrad=1` :
+Pour de nombreuses sources, le synopsis/description et les genres sont souvent en anglais. Vous pouvez activer la traduction automatique via le paramètre `autoTrad=1` :
+
+#### Sources supportées
+
+| Source | Champs traduits | Dictionnaire genres |
+|--------|-----------------|---------------------|
+| **IMDB** | `plot`, `genres` | media |
+| **TVDB** | `synopsis`, `genres` | media |
+| **TMDB** | `synopsis`, `genres` | media |
+| **Jikan** | `synopsis`, `genres` | media |
+| **MangaDex** | `synopsis`, `tags` | media |
+| **Comic Vine** | `synopsis` | - |
+| **Google Books** | `synopsis`, `genres` | book |
+| **IGDB** | `summary`, `genres` | videogame |
+| **RAWG** | `description`, `genres` | videogame |
+| **Mega Construx** | `description` | - |
+| **ConsoleVariations** | `name` | - |
+| **Transformerland** | `name`, `description` | - |
+
+#### Exemple d'utilisation
 
 ```bash
 # Sans traduction (par défaut)
@@ -131,6 +150,12 @@ curl "http://localhost:3000/imdb/title/tt0076759?lang=fr-FR"
 
 # Avec traduction automatique du plot et des genres
 curl "http://localhost:3000/imdb/title/tt0076759?lang=fr-FR&autoTrad=1"
+
+# Google Books avec traduction
+curl "http://localhost:3000/googlebooks/book/ABC123?lang=fr&autoTrad=1" -H "X-Api-Key: VOTRE_CLE"
+
+# IGDB avec traduction
+curl "http://localhost:3000/igdb/game/123?lang=fr&autoTrad=1" -H "X-Api-Key: clientId:clientSecret"
 ```
 
 **Réponse avec `autoTrad=1` :**
@@ -139,25 +164,25 @@ curl "http://localhost:3000/imdb/title/tt0076759?lang=fr-FR&autoTrad=1"
   "title": "Star Wars: Episode IV - A New Hope",
   "plot": "Luke Skywalker rejoint des forces rebelles...",
   "plotOriginal": "Luke Skywalker joins rebel forces...",
-  "plotTranslated": true,
+  "plotTranslated": "Luke Skywalker rejoint des forces rebelles...",
   "genres": ["Action", "Aventure", "Fantastique", "Science-Fiction"],
   "genresOriginal": ["Action", "Adventure", "Fantasy", "Sci-Fi"],
-  "genresTranslated": true
+  "genresTranslated": ["Action", "Aventure", "Fantastique", "Science-Fiction"]
 }
 ```
 
 | Champ | Description |
 |-------|-------------|
-| `plot` | Synopsis traduit (ou original si échec) |
-| `plotOriginal` | Synopsis original (si traduit) |
-| `plotTranslated` | `true` si le plot a été traduit |
+| `plot`/`synopsis`/`description` | Texte traduit (ou original si échec) |
+| `*Original` | Texte original (toujours présent) |
+| `*Translated` | Texte traduit (null si non traduit) |
 | `genres` | Genres traduits |
 | `genresOriginal` | Genres originaux (si traduits) |
-| `genresTranslated` | `true` si les genres ont été traduits |
+| `genresTranslated` | Genres traduits (null si non traduits) |
 
 **Langues supportées pour les genres :** `fr`, `de`, `es`, `it`, `pt`
 
-⚠️ **Prérequis** : Définir `AUTO_TRAD_URL` pointant vers le service auto_trad (pour la traduction du plot).
+⚠️ **Prérequis** : Définir `AUTO_TRAD_URL` pointant vers le service auto_trad (pour la traduction des textes longs).
 
 ### 🔁 Bypass du Cache
 
