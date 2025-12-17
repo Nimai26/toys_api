@@ -218,14 +218,19 @@ curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR&autoTrad=1"
 **Response with `autoTrad=1`:**
 ```json
 {
-  "title": "Lost",
-  "plot": "Les survivants d'un accident d'avion sont obligés de travailler ensemble...",
-  "plotOriginal": "The survivors of a plane crash are forced to work together...",
-  "plotTranslated": true
+  "title": "Star Wars: Episode IV - A New Hope",
+  "plot": "Luke Skywalker rejoint des forces rebelles...",
+  "plotOriginal": "Luke Skywalker joins rebel forces...",
+  "plotTranslated": true,
+  "genres": ["Action", "Aventure", "Fantastique", "Science-Fiction"],
+  "genresOriginal": ["Action", "Adventure", "Fantasy", "Sci-Fi"],
+  "genresTranslated": true
 }
 ```
 
-⚠️ **Prerequisite**: Set `AUTO_TRAD_URL` pointing to the auto_trad service.
+**Supported languages for genres:** `fr`, `de`, `es`, `it`, `pt`
+
+⚠️ **Prerequisite**: Set `AUTO_TRAD_URL` pointing to the auto_trad service (for plot translation).
 
 ---
 

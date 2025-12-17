@@ -123,17 +123,41 @@ docker run -d \
 
 ### 🌍 Traduction automatique IMDB
 
-Pour les résultats IMDB, le synopsis (plot) est généralement en anglais. Vous pouvez activer la traduction automatique via le service [auto_trad](../auto_trad/) :
+Pour les résultats IMDB, le synopsis (plot) et les genres sont généralement en anglais. Vous pouvez activer la traduction automatique via le paramètre `autoTrad=1` :
 
 ```bash
 # Sans traduction (par défaut)
-curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR"
+curl "http://localhost:3000/imdb/title/tt0076759?lang=fr-FR"
 
-# Avec traduction automatique du plot
-curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR&autoTrad=1"
+# Avec traduction automatique du plot et des genres
+curl "http://localhost:3000/imdb/title/tt0076759?lang=fr-FR&autoTrad=1"
 ```
 
-⚠️ **Prérequis** : Définir `AUTO_TRAD_URL` pointant vers le service auto_trad.
+**Réponse avec `autoTrad=1` :**
+```json
+{
+  "title": "Star Wars: Episode IV - A New Hope",
+  "plot": "Luke Skywalker rejoint des forces rebelles...",
+  "plotOriginal": "Luke Skywalker joins rebel forces...",
+  "plotTranslated": true,
+  "genres": ["Action", "Aventure", "Fantastique", "Science-Fiction"],
+  "genresOriginal": ["Action", "Adventure", "Fantasy", "Sci-Fi"],
+  "genresTranslated": true
+}
+```
+
+| Champ | Description |
+|-------|-------------|
+| `plot` | Synopsis traduit (ou original si échec) |
+| `plotOriginal` | Synopsis original (si traduit) |
+| `plotTranslated` | `true` si le plot a été traduit |
+| `genres` | Genres traduits |
+| `genresOriginal` | Genres originaux (si traduits) |
+| `genresTranslated` | `true` si les genres ont été traduits |
+
+**Langues supportées pour les genres :** `fr`, `de`, `es`, `it`, `pt`
+
+⚠️ **Prérequis** : Définir `AUTO_TRAD_URL` pointant vers le service auto_trad (pour la traduction du plot).
 
 ### 🔁 Bypass du Cache
 

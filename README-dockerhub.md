@@ -26,7 +26,7 @@ API REST Docker pour rechercher et obtenir des informations produits depuis de m
 - 🔐 Support clés API chiffrées (AES-256-GCM)
 - 🛒 **Amazon** : Puppeteer Stealth avec protection VPN 🆕
 - 🔒 **VPN intégré** : Gluetun + Kill switch + Rotation IP 🆕
-- � **Traduction IMDB** : Plot traduit via auto_trad (`autoTrad=1`) 🆕
+- 🌍 **Traduction IMDB** : Plot + genres traduits (`autoTrad=1`) 🆕
 - �🏷️ **Barcode** : Identification automatique UPC/EAN/ISBN
 - 🌍 Multi-langues (fr-FR, en-US, de-DE, etc.)
 - 📊 Métriques et monitoring intégrés
@@ -133,10 +133,11 @@ curl "http://localhost:3000/barcode/lookup/5702017421384"
 ### Recherche IMDB (avec traduction)
 ```bash
 # Sans traduction (par défaut)
-curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR"
+curl "http://localhost:3000/imdb/title/tt0076759?lang=fr-FR"
 
-# Avec traduction automatique du plot
-curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR&autoTrad=1"
+# Avec traduction automatique du plot + genres
+curl "http://localhost:3000/imdb/title/tt0076759?lang=fr-FR&autoTrad=1"
+# Réponse: genres: ["Action", "Aventure", "Fantastique", "Science-Fiction"]
 ```
 
 ### Recherche Jeux Vidéo
