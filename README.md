@@ -1,10 +1,12 @@
 # Toys API 🧸
 
-> **Version 2.3.0** - Traduction automatique étendue à tous les providers
+> **Version 2.4.0** - Ajout des providers Playmobil et Klickypedia
 
 A Docker-based REST API to search and retrieve product information from multiple sources:
 - **LEGO** - Official LEGO website (lego.com)
-- **Mega Construx** - Mattel building blocks (shop.mattel.com) 🆕
+- **Playmobil** - Official Playmobil website (playmobil.com) 🆕
+- **Klickypedia** - Playmobil encyclopedia with translations (klickypedia.com) 🆕
+- **Mega Construx** - Mattel building blocks (shop.mattel.com)
 - **Rebrickable** - LEGO sets database with parts & minifigs (rebrickable.com) 🔑
 - **Google Books** - Books search & details (books.google.com) 🔑
 - **OpenLibrary** - Open books database (openlibrary.org)
@@ -31,7 +33,7 @@ This API uses FlareSolverr to bypass Cloudflare/anti-bot protection and provides
 
 ### ✨ Features
 
-- 🔍 Multi-source product search (LEGO, Mega Construx, Rebrickable, Google Books, OpenLibrary, RAWG, IGDB, TVDB, TMDB, IMDB, Jikan, ConsoleVariations, Coleka, Lulu-Berlu, Transformerland, Paninimania)
+- 🔍 Multi-source product search (LEGO, Playmobil, Mega Construx, Rebrickable, Google Books, OpenLibrary, RAWG, IGDB, TVDB, TMDB, IMDB, Jikan, ConsoleVariations, Coleka, Lulu-Berlu, Transformerland, Paninimania)
 - 🛒 **Amazon scraper** - Multi-country search (FR, US, UK, DE, ES, IT, JP, CA), price comparison, barcode lookup 🆕
 - 🧱 **Mega Construx search** multi-language (fr-FR, en-US, de-DE, etc.) with instructions 🆕
 - 🎮 **ConsoleVariations** - Console variations, bundles & accessories database (11K+ collectibles) 🆕
@@ -281,6 +283,8 @@ Ces services fonctionnent **sans authentification** :
 | Service | Endpoints |
 |---------|-----------|
 | LEGO | `/lego/search`, `/lego/product/:id`, `/lego/instructions/:id` |
+| Playmobil 🆕 | `/playmobil/search`, `/playmobil/product/:id`, `/playmobil/instructions/:id` |
+| Klickypedia 🆕 | `/klickypedia/search`, `/klickypedia/product/:id`, `/klickypedia/set/:slug` |
 | Mega Construx | `/mega/search`, `/mega/product/:id`, `/mega/instructions/:sku` |
 | Coleka | `/coleka/search`, `/coleka/item` |
 | Lulu-Berlu | `/luluberlu/search`, `/luluberlu/item/:id` |
@@ -409,6 +413,155 @@ X-Api-Key: votre-clé-rebrickable
 ```
 
 Ajoute les données Rebrickable au produit LEGO : pièces, minifigs, instructions alternatives.
+
+#### 🎭 Endpoints Playmobil 🆕
+
+##### Rechercher des Produits
+```bash
+GET /playmobil/search?q=asterix&lang=fr-FR&max=10
+```
+
+| Paramètre | Défaut | Description |
+|-----------|--------|-------------|
+| `q` | requis | Terme de recherche |
+| `lang` | `fr-FR` | Langue (fr-FR, en-US, de-DE, es-ES, it-IT, etc.) |
+| `max` | `24` | Nombre maximum de résultats (1-100) |
+
+**Réponse :**
+```json
+{
+  "products": [
+    {
+      "id": "71148",
+      "productCode": "71148",
+      "url": "https://www.playmobil.com/fr-fr/asterix-la-pyramide-du-pharaon/71148.html",
+      "thumb": "https://media.playmobil.com/i/playmobil/71148_product_detail?w=200&...",
+      "baseImgUrl": "https://media.playmobil.com/i/playmobil/71148_product_detail?w=512&..."
+    }
+  ],
+  "total": 5,
+  "count": 5,
+  "source": "playmobil"
+}
+```
+
+##### Obtenir les Détails d'un Produit
+```bash
+GET /playmobil/product/71148?lang=fr-FR
+```
+
+**Réponse :**
+```json
+{
+  "id": "71148",
+  "productCode": "71148",
+  "name": "Astérix : La Pyramide du Pharaon",
+  "description": "Set PLAYMOBIL Astérix – La Pyramide du Pharaon, 93 pièces...",
+  "price": 129.99,
+  "currency": "EUR",
+  "attributes": {
+    "pieceCount": 93,
+    "ageRange": "3+"
+  },
+  "images": [
+    "https://media.playmobil.com/i/playmobil/71148_product_detail",
+    "https://media.playmobil.com/i/playmobil/71148_product_box_front"
+  ],
+  "instructions": "https://playmobil.a.bigcontent.io/v1/static/71148_buildinginstruction",
+  "brand": "Playmobil",
+  "source": "playmobil"
+}
+```
+
+##### Obtenir les Instructions de Montage
+```bash
+GET /playmobil/product/71148/instructions
+# ou
+GET /playmobil/instructions/71148
+```
+
+##### Rechercher des Instructions
+```bash
+GET /playmobil/instructions/search?q=asterix&lang=fr-FR
+```
+
+Retourne une liste d'instructions disponibles pour la recherche.
+
+#### 📚 Endpoints Klickypedia 🆕
+
+Klickypedia est une encyclopédie Playmobil communautaire avec des noms traduits en plusieurs langues.
+
+##### Rechercher des Sets
+```bash
+GET /klickypedia/search?q=asterix&lang=fr&max=10
+```
+
+| Paramètre | Défaut | Description |
+|-----------|--------|-------------|
+| `q` | requis | Terme de recherche |
+| `lang` | `fr` | Langue (fr, es, de, en) |
+| `max` | `24` | Nombre maximum de résultats (1-100) |
+| `translate` | - | Langue cible pour traduction auto |
+
+**Réponse :**
+```json
+{
+  "products": [
+    {
+      "id": "71148",
+      "productCode": "71148",
+      "name": "pyramide astérix",
+      "fullName": "71148 - pyramide astérix",
+      "slug": "71148-asterix-pyramid",
+      "url": "https://www.klickypedia.com/sets/71148-asterix-pyramid/",
+      "thumb": "https://www.klickypedia.com/wp-content/uploads/2023/10/fcddfed.png",
+      "released": 2023,
+      "discontinued": null
+    }
+  ],
+  "total": 5,
+  "source": "klickypedia"
+}
+```
+
+##### Obtenir les Détails d'un Set
+```bash
+GET /klickypedia/product/71148?lang=fr
+```
+
+**Réponse :**
+```json
+{
+  "id": "71148",
+  "name": "pyramide astérix",
+  "translations": {
+    "en": "asterix pyramid",
+    "es": "pirámide de astérix",
+    "de": "Asterix: Pyramide des Pharao",
+    "fr": "pyramide astérix"
+  },
+  "description": "Thème: Asterix\nFormat: Standard Box\nFigurines: 5\nSortie: 2023",
+  "attributes": {
+    "figureCount": 5,
+    "theme": "Asterix",
+    "format": "Standard Box",
+    "tags": ["animaux domestiques", "antiquité", "aventuriers"]
+  },
+  "availability": {
+    "status": "unknown",
+    "released": 2023,
+    "discontinued": null
+  },
+  "images": ["https://www.klickypedia.com/wp-content/uploads/2023/10/fcddfed.png"],
+  "brand": "Playmobil",
+  "source": "klickypedia"
+}
+```
+
+##### Obtenir par Slug
+```bash
+GET /klickypedia/set/71148-asterix-pyramid?lang=de
+```
 
 #### 🧱 Endpoints Rebrickable
 

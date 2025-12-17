@@ -7,6 +7,8 @@ export { default as amazonRouter } from './amazon.js';
 export { default as legoRouter } from './lego.js';
 export { default as rebrickableRouter } from './rebrickable.js';
 export { default as megaRouter } from './mega.js';
+export { default as playmobilRouter } from './playmobil.js';
+export { default as klickypediaRouter } from './klickypedia.js';
 export { default as barcodeRouter } from './barcode.js';
 export { default as musicRouter } from './music.js';
 

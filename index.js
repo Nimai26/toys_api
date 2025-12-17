@@ -33,6 +33,8 @@ import {
   legoRouter,
   rebrickableRouter,
   megaRouter,
+  playmobilRouter,
+  klickypediaRouter,
   colekaRouter,
   luluberluRouter,
   consolevariationsRouter,
@@ -134,6 +136,8 @@ app.use('/amazon', amazonRouter);
 app.use('/lego', legoRouter);
 app.use('/rebrickable', rebrickableRouter);
 app.use('/mega', megaRouter);
+app.use('/playmobil', playmobilRouter);
+app.use('/klickypedia', klickypediaRouter);
 app.use('/barcode', barcodeRouter);
 app.use('/music', musicRouter);
 app.use('/googlebooks', googleBooksRouter);
