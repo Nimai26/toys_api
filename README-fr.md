@@ -117,6 +117,7 @@ docker run -d \
 | `VPN_PROXY_URL` | - | Proxy HTTP gluetun pour Puppeteer (ex: `http://gluetun-toys:8888`) |
 | `PUPPETEER_USE_VPN` | `true` | Activer le proxy VPN pour Puppeteer (Amazon) |
 | `GLUETUN_CONTROL_URL` | - | URL du control server gluetun pour rotation IP |
+| `AUTO_TRAD_URL` | - | URL du service auto_trad pour traduction (ex: `http://auto_trad:3255`) |
 
 ### 🛡️ Protection VPN Amazon (Optionnel)
 
@@ -184,6 +185,32 @@ environment:
 ```
 
 Voir [portainer-stack.yml](portainer-stack.yml) pour un exemple complet avec gluetun + kill switch + vpn-monitor.
+
+---
+
+### 🌍 Traduction automatique IMDB
+
+Pour les résultats IMDB, le synopsis (plot) est généralement en anglais. Vous pouvez activer la traduction automatique via le service [auto_trad](../auto_trad/) :
+
+```bash
+# Sans traduction (par défaut)
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR"
+
+# Avec traduction automatique du plot
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR&autoTrad=1"
+```
+
+**Réponse avec `autoTrad=1` :**
+```json
+{
+  "title": "Lost",
+  "plot": "Les survivants d'un accident d'avion sont obligés de travailler ensemble...",
+  "plotOriginal": "The survivors of a plane crash are forced to work together...",
+  "plotTranslated": true
+}
+```
+
+⚠️ **Prérequis** : Définir `AUTO_TRAD_URL` pointant vers le service auto_trad.
 
 ---
 

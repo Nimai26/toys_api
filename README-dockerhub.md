@@ -26,7 +26,8 @@ API REST Docker pour rechercher et obtenir des informations produits depuis de m
 - 🔐 Support clés API chiffrées (AES-256-GCM)
 - 🛒 **Amazon** : Puppeteer Stealth avec protection VPN 🆕
 - 🔒 **VPN intégré** : Gluetun + Kill switch + Rotation IP 🆕
-- 🏷️ **Barcode** : Identification automatique UPC/EAN/ISBN
+- � **Traduction IMDB** : Plot traduit via auto_trad (`autoTrad=1`) 🆕
+- �🏷️ **Barcode** : Identification automatique UPC/EAN/ISBN
 - 🌍 Multi-langues (fr-FR, en-US, de-DE, etc.)
 - 📊 Métriques et monitoring intégrés
 
@@ -71,6 +72,7 @@ toys_api
 | `VPN_PROXY_URL` | - | Proxy HTTP gluetun pour Puppeteer (Amazon) |
 | `PUPPETEER_USE_VPN` | `true` | Activer proxy VPN pour Puppeteer |
 | `GLUETUN_CONTROL_URL` | - | Control gluetun (rotation IP) |
+| `AUTO_TRAD_URL` | - | URL service auto_trad (traduction IMDB) |
 
 ## 🔌 Endpoints Principaux
 
@@ -128,6 +130,15 @@ curl "http://localhost:3000/amazon/multi-search?q=nintendo+switch&countries=fr,u
 curl "http://localhost:3000/barcode/lookup/5702017421384"
 ```
 
+### Recherche IMDB (avec traduction)
+```bash
+# Sans traduction (par défaut)
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR"
+
+# Avec traduction automatique du plot
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR&autoTrad=1"
+```
+
 ### Recherche Jeux Vidéo
 ```bash
 curl "http://localhost:3000/rawg/search?q=zelda" \
@@ -183,6 +194,7 @@ MIT
 - 🥷 **Puppeteer Stealth** : Remplace FlareSolverr pour Amazon (anti-détection)
 - 🔒 **Proxy VPN intégré** : Tout le trafic Amazon passe par le VPN
 - 🛡️ **VPN Monitor** : Auto-restart + rotation IP automatique
+- 🌍 **Traduction IMDB** : Plot traduit automatiquement via `autoTrad=1`
 - 📦 **docker-compose.portainer.yml** : Stack complète avec VPN
 - ✂️ Simplification : Plus besoin de FlareSolverr dédié Amazon
 

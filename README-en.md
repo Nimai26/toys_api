@@ -44,6 +44,7 @@ docker run -d \
 | `USER_AGENT` | Chrome UA | Custom User-Agent string |
 | `API_ENCRYPTION_KEY` | - | Secret key for API key encryption (AES-256-GCM) |
 | `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
+| `AUTO_TRAD_URL` | - | URL of auto_trad service for translation (e.g., `http://auto_trad:3255`) |
 
 ### 🔐 API Authentication
 
@@ -201,6 +202,32 @@ Content-Type: application/json
   "keyPreview": "abc1...xyz9"
 }
 ```
+
+### 🌍 Automatic IMDB Translation
+
+IMDB plot summaries are typically in English. You can enable automatic translation via the [auto_trad](../auto_trad/) service:
+
+```bash
+# Without translation (default)
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR"
+
+# With automatic plot translation
+curl "http://localhost:3000/imdb/title/tt0411008?lang=fr-FR&autoTrad=1"
+```
+
+**Response with `autoTrad=1`:**
+```json
+{
+  "title": "Lost",
+  "plot": "Les survivants d'un accident d'avion sont obligés de travailler ensemble...",
+  "plotOriginal": "The survivors of a plane crash are forced to work together...",
+  "plotTranslated": true
+}
+```
+
+⚠️ **Prerequisite**: Set `AUTO_TRAD_URL` pointing to the auto_trad service.
+
+---
 
 ### API Endpoints
 
