@@ -53,8 +53,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const source = req.query.source || 'deezer';
   const type = req.query.type || 'album';
   const country = locale ? locale.split('-')[1]?.toUpperCase() || 'FR' : 'FR';
-  // Token Discogs: query param > header > variable d'environnement
-  const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'] || process.env.DISCOGS_TOKEN;
+  const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'];
   
   const cacheKey = `music:search:${source}:${type}:${q}:${max}:${country}`;
   const cached = getCached(cacheKey);
@@ -147,8 +146,7 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
 router.get("/code", validateCodeParams, asyncHandler(async (req, res) => {
   const { code, lang, locale, autoTrad } = req.standardParams;
   const source = req.query.source || 'all';
-  // Token Discogs: query param > header > variable d'environnement
-  const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'] || process.env.DISCOGS_TOKEN;
+  const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'];
   
   if (code.length < 8) {
     return res.status(400).json({ error: "Code-barres invalide" });
@@ -282,8 +280,7 @@ router.get("/discogs/:id", asyncHandler(async (req, res) => {
 router.get("/barcode/:code", asyncHandler(async (req, res) => {
   const { code } = req.params;
   const source = req.query.source || 'all';
-  // Token Discogs: query param > header > variable d'environnement
-  const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'] || process.env.DISCOGS_TOKEN;
+  const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'];
   
   if (!code || code.length < 8) {
     return res.status(400).json({ error: "Code-barres invalide" });
