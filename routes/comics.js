@@ -1,4 +1,4 @@
-// routes/comics.js - Endpoints Comic Vine, MangaDex et Bedetheque (toys_api v3.0.0)
+// routes/comics.js - Endpoints Comic Vine, MangaDex et Bedetheque (toys_api v3.1.0)
 import { Router } from 'express';
 import {
   searchComicVine,
@@ -25,17 +25,19 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  requireApiKey
 } from '../lib/utils/index.js';
 import { COMICVINE_DEFAULT_MAX, COMICVINE_MAX_LIMIT, MANGADEX_DEFAULT_MAX, MANGADEX_MAX_LIMIT, BEDETHEQUE_DEFAULT_MAX } from '../lib/config.js';
 
 // ============================================================================
-// Comic Vine Router
+// Comic Vine Router (Requires API Key)
 // ============================================================================
 const comicvineRouter = Router();
+const comicvineAuth = requireApiKey('Comic Vine', 'https://comicvine.gamespot.com/api/');
 
 // Normalisé: /comicvine/search
-comicvineRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const type = req.query.type || 'volume';
   const effectiveMax = Math.min(Math.max(1, max), COMICVINE_MAX_LIMIT);
@@ -45,7 +47,7 @@ comicvineRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
     return res.status(400).json({ error: "Type de ressource invalide", validTypes, hint: "Utilisez 'volume' pour les séries" });
   }
 
-  const rawResult = await searchComicVine(q, { type, max: effectiveMax });
+  const rawResult = await searchComicVine(q, req.apiKey, { type, max: effectiveMax });
   
   const items = (rawResult.results || rawResult.volumes || []).map(item => ({
     type: type,
@@ -69,7 +71,7 @@ comicvineRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
 }));
 
 // Normalisé: /comicvine/details
-comicvineRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+comicvineRouter.get("/details", comicvineAuth, validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id, type } = req.parsedDetailUrl;
   
@@ -78,9 +80,9 @@ comicvineRouter.get("/details", validateDetailsParams, asyncHandler(async (req, 
 
   let result;
   if (type === 'issue') {
-    result = await getComicVineIssue(parseInt(cleanId, 10), { lang, autoTrad });
+    result = await getComicVineIssue(parseInt(cleanId, 10), req.apiKey, { lang, autoTrad });
   } else {
-    result = await getComicVineVolume(parseInt(cleanId, 10), { lang, autoTrad });
+    result = await getComicVineVolume(parseInt(cleanId, 10), req.apiKey, { lang, autoTrad });
   }
   
   if (!result) return res.status(404).json({ error: `${type} ${cleanId} non trouvé` });
@@ -90,7 +92,7 @@ comicvineRouter.get("/details", validateDetailsParams, asyncHandler(async (req, 
 }));
 
 // Legacy
-comicvineRouter.get("/volume/:id", asyncHandler(async (req, res) => {
+comicvineRouter.get("/volume/:id", comicvineAuth, asyncHandler(async (req, res) => {
   let volumeId = cleanSourceId(req.params.id, 'comicvine');
   if (!volumeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
   if (!/^\d+$/.test(volumeId)) return res.status(400).json({ error: "Format d'ID invalide" });
@@ -98,13 +100,13 @@ comicvineRouter.get("/volume/:id", asyncHandler(async (req, res) => {
   const autoTrad = isAutoTradEnabled(req);
   const lang = req.query.lang || 'en';
   
-  const result = await getComicVineVolume(parseInt(volumeId, 10), { lang, autoTrad });
+  const result = await getComicVineVolume(parseInt(volumeId, 10), req.apiKey, { lang, autoTrad });
   if (!result) return res.status(404).json({ error: `Volume ${volumeId} non trouvé` });
   addCacheHeaders(res, 3600);
   res.json(result);
 }));
 
-comicvineRouter.get("/issue/:id", asyncHandler(async (req, res) => {
+comicvineRouter.get("/issue/:id", comicvineAuth, asyncHandler(async (req, res) => {
   let issueId = cleanSourceId(req.params.id, 'comicvine');
   if (!issueId) return res.status(400).json({ error: "paramètre 'id' manquant" });
   if (!/^\d+$/.test(issueId)) return res.status(400).json({ error: "Format d'ID invalide" });
@@ -112,7 +114,7 @@ comicvineRouter.get("/issue/:id", asyncHandler(async (req, res) => {
   const autoTrad = isAutoTradEnabled(req);
   const lang = req.query.lang || 'en';
   
-  const result = await getComicVineIssue(parseInt(issueId, 10), { lang, autoTrad });
+  const result = await getComicVineIssue(parseInt(issueId, 10), req.apiKey, { lang, autoTrad });
   if (!result) return res.status(404).json({ error: `Issue ${issueId} non trouvé` });
   addCacheHeaders(res, 3600);
   res.json(result);
