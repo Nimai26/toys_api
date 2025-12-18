@@ -8,7 +8,7 @@
 
 import { Router } from 'express';
 import { asyncHandler } from '../lib/utils/index.js';
-import { runManualTest } from '../lib/monitoring/healthcheck.js';
+import { runManualTest, PROVIDER_TESTS } from '../lib/monitoring/healthcheck.js';
 import { isMailerConfigured, testSmtpConnection, sendEmail } from '../lib/utils/mailer.js';
 
 const router = Router();
@@ -18,9 +18,19 @@ const router = Router();
  * Retourne le statut du système de monitoring
  */
 router.get('/status', asyncHandler(async (req, res) => {
+  // Compter les providers uniques et les critiques
+  const uniqueProviders = [...new Set(PROVIDER_TESTS.map(t => t.provider))];
+  const criticalProviders = PROVIDER_TESTS.filter(t => t.critical).map(t => t.provider);
+  
   const status = {
     enabled: process.env.ENABLE_MONITORING === 'true',
     intervalHours: parseInt(process.env.HEALTHCHECK_INTERVAL_HOURS || '10', 10),
+    providers: {
+      totalTests: PROVIDER_TESTS.length,
+      uniqueProviders: uniqueProviders.length,
+      critical: criticalProviders,
+      list: uniqueProviders
+    },
     mailer: {
       configured: isMailerConfigured(),
       host: process.env.SMTP_HOST || 'non configuré',
