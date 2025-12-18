@@ -59,15 +59,44 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
   });
   
   // Transformer au format normalisé
-  const items = (rawResult.results || []).map(set => ({
-    type: 'construct_toy',
-    source: 'rebrickable',
-    sourceId: set.set_num,
-    name: set.name,
-    name_original: set.name,
-    image: set.set_img_url,
-    detailUrl: generateDetailUrl('rebrickable', set.set_num, 'set')
-  }));
+  // rawResult peut être: 
+  // - Un objet set unique (type: 'set_id') avec set_num, name, etc.
+  // - Un résultat de recherche (type: 'text_search') avec sets: [...]
+  let items = [];
+  let totalResults = 0;
+  let hasMore = false;
+  
+  if (rawResult.type === 'set_id') {
+    // Recherche par ID → un seul set retourné
+    items = [{
+      type: 'construct_toy',
+      source: 'rebrickable',
+      sourceId: rawResult.set_num,
+      name: rawResult.name,
+      name_original: rawResult.name,
+      image: rawResult.set_img_url,
+      year: rawResult.year,
+      num_parts: rawResult.num_parts,
+      num_minifigs: rawResult.minifigs?.length || 0,
+      detailUrl: generateDetailUrl('rebrickable', rawResult.set_num, 'set')
+    }];
+    totalResults = 1;
+  } else {
+    // Recherche texte → tableau de sets
+    items = (rawResult.sets || rawResult.results || []).map(set => ({
+      type: 'construct_toy',
+      source: 'rebrickable',
+      sourceId: set.set_num,
+      name: set.name,
+      name_original: set.name,
+      image: set.set_img_url,
+      year: set.year,
+      num_parts: set.num_parts,
+      detailUrl: generateDetailUrl('rebrickable', set.set_num, 'set')
+    }));
+    totalResults = rawResult.pagination?.total_count || rawResult.count || items.length;
+    hasMore = rawResult.pagination?.has_next || rawResult.next !== null;
+  }
   
   addCacheHeaders(res, rawResult.type === 'set_id' ? 3600 : 300);
   res.json(formatSearchResponse({
@@ -77,8 +106,8 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
     pagination: {
       page,
       pageSize: items.length,
-      totalResults: rawResult.count || items.length,
-      hasMore: rawResult.next !== null
+      totalResults,
+      hasMore
     },
     meta: { lang, locale, autoTrad, searchType: rawResult.type }
   }));

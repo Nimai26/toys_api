@@ -62,6 +62,10 @@ import {
   bedethequeRouter
 } from './routes/index.js';
 
+// Import du monitoring
+import monitoringRouter from './routes/monitoring.js';
+import { startMonitoringCron } from './lib/monitoring/healthcheck.js';
+
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
@@ -187,6 +191,9 @@ app.use('/luluberlu', luluberluRouter);
 app.use('/consolevariations', consolevariationsRouter);
 app.use('/transformerland', transformerlandRouter);
 app.use('/paninimania', paninimanaRouter);
+
+// Monitoring (tests de santé automatisés)
+app.use('/monitoring', monitoringRouter);
 
 // Middleware global de gestion d'erreurs (doit être monté après toutes les routes)
 app.use(errorHandler);
@@ -393,7 +400,15 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   log.info(`   - Anime: jikan`);
   log.info(`   - Comics: comicvine, mangadex, bedetheque`);
   log.info(`   - Collectibles: coleka, luluberlu, consolevariations, transformerland, paninimania`);
+  log.info(`   - Monitoring: /monitoring/status, /monitoring/test`);
   log.info(`   - Compression: gzip | CORS: enabled`);
+  
+  // Démarrer le cron de monitoring si activé
+  if (process.env.ENABLE_MONITORING === 'true') {
+    startMonitoringCron();
+  } else {
+    log.info(`   - Monitoring automatique: désactivé (ENABLE_MONITORING=false)`);
+  }
 });
 
 // Graceful shutdown - fermeture propre lors de l'arrêt
