@@ -1,4 +1,4 @@
-// routes/comics.js - Endpoints Comic Vine, MangaDex et Bedetheque
+// routes/comics.js - Endpoints Comic Vine, MangaDex et Bedetheque (toys_api v3.0.0)
 import { Router } from 'express';
 import {
   searchComicVine,
@@ -15,7 +15,18 @@ import {
   getBedethequeSerieById,
   getBedethequeAlbumById
 } from '../lib/providers/bedetheque.js';
-import { cleanSourceId, addCacheHeaders, asyncHandler, isAutoTradEnabled } from '../lib/utils/index.js';
+import { 
+  cleanSourceId, 
+  addCacheHeaders, 
+  asyncHandler, 
+  isAutoTradEnabled,
+  extractStandardParams,
+  validateSearchParams,
+  validateDetailsParams,
+  generateDetailUrl,
+  formatSearchResponse,
+  formatDetailResponse
+} from '../lib/utils/index.js';
 import { COMICVINE_DEFAULT_MAX, COMICVINE_MAX_LIMIT, MANGADEX_DEFAULT_MAX, MANGADEX_MAX_LIMIT, BEDETHEQUE_DEFAULT_MAX } from '../lib/config.js';
 
 // ============================================================================
@@ -23,23 +34,62 @@ import { COMICVINE_DEFAULT_MAX, COMICVINE_MAX_LIMIT, MANGADEX_DEFAULT_MAX, MANGA
 // ============================================================================
 const comicvineRouter = Router();
 
-comicvineRouter.get("/search", asyncHandler(async (req, res) => {
-  const q = req.query.q;
+// Normalisé: /comicvine/search
+comicvineRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
   const type = req.query.type || 'volume';
-  const max = req.query.max ? Math.min(Math.max(1, parseInt(req.query.max, 10)), COMICVINE_MAX_LIMIT) : COMICVINE_DEFAULT_MAX;
-
-  if (!q) return res.status(400).json({ error: "paramètre 'q' manquant" });
+  const effectiveMax = Math.min(Math.max(1, max), COMICVINE_MAX_LIMIT);
 
   const validTypes = ['volume', 'issue', 'character', 'person'];
   if (!validTypes.includes(type)) {
     return res.status(400).json({ error: "Type de ressource invalide", validTypes, hint: "Utilisez 'volume' pour les séries" });
   }
 
-  const result = await searchComicVine(q, { type, max });
+  const rawResult = await searchComicVine(q, { type, max: effectiveMax });
+  
+  const items = (rawResult.results || rawResult.volumes || []).map(item => ({
+    type: type,
+    source: 'comicvine',
+    sourceId: item.id,
+    name: item.name || item.title,
+    name_original: item.name || item.title,
+    image: item.image?.medium_url || item.image?.original_url,
+    publisher: item.publisher?.name,
+    startYear: item.start_year,
+    detailUrl: generateDetailUrl('comicvine', item.id, type)
+  }));
+  
   addCacheHeaders(res, 300);
-  res.json(result);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'comicvine',
+    query: q,
+    meta: { lang, locale, autoTrad, type }
+  }));
 }));
 
+// Normalisé: /comicvine/details
+comicvineRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id, type } = req.parsedDetailUrl;
+  
+  const cleanId = cleanSourceId(id, 'comicvine');
+  if (!/^\d+$/.test(cleanId)) return res.status(400).json({ error: "Format d'ID invalide" });
+
+  let result;
+  if (type === 'issue') {
+    result = await getComicVineIssue(parseInt(cleanId, 10), { lang, autoTrad });
+  } else {
+    result = await getComicVineVolume(parseInt(cleanId, 10), { lang, autoTrad });
+  }
+  
+  if (!result) return res.status(404).json({ error: `${type} ${cleanId} non trouvé` });
+  
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({ data: result, provider: 'comicvine', id: cleanId, meta: { lang, locale, autoTrad, type } }));
+}));
+
+// Legacy
 comicvineRouter.get("/volume/:id", asyncHandler(async (req, res) => {
   let volumeId = cleanSourceId(req.params.id, 'comicvine');
   if (!volumeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
@@ -73,18 +123,51 @@ comicvineRouter.get("/issue/:id", asyncHandler(async (req, res) => {
 // ============================================================================
 const mangadexRouter = Router();
 
-mangadexRouter.get("/search", asyncHandler(async (req, res) => {
-  const q = req.query.q;
-  const lang = req.query.lang || null;
-  const max = req.query.max ? Math.min(Math.max(1, parseInt(req.query.max, 10)), MANGADEX_MAX_LIMIT) : MANGADEX_DEFAULT_MAX;
+// Normalisé: /mangadex/search
+mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const effectiveMax = Math.min(Math.max(1, max), MANGADEX_MAX_LIMIT);
 
-  if (!q) return res.status(400).json({ error: "paramètre 'q' manquant" });
-
-  const result = await searchMangaDex(q, { lang, max });
+  const rawResult = await searchMangaDex(q, { lang, max: effectiveMax });
+  
+  const items = (rawResult.results || rawResult.mangas || rawResult.data || []).map(item => ({
+    type: 'manga',
+    source: 'mangadex',
+    sourceId: item.id,
+    name: item.attributes?.title?.en || item.title || item.name,
+    name_original: item.attributes?.title?.ja || item.title_original,
+    image: item.cover || item.coverUrl,
+    status: item.attributes?.status,
+    detailUrl: generateDetailUrl('mangadex', item.id, 'manga')
+  }));
+  
   addCacheHeaders(res, 300);
-  res.json(result);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'mangadex',
+    query: q,
+    meta: { lang, locale, autoTrad }
+  }));
 }));
 
+// Normalisé: /mangadex/details
+mangadexRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  
+  const cleanId = cleanSourceId(id, 'mangadex');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)) {
+    return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un UUID" });
+  }
+
+  const result = await getMangaDexById(cleanId, { lang, autoTrad });
+  if (!result) return res.status(404).json({ error: `Manga ${cleanId} non trouvé` });
+  
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({ data: result, provider: 'mangadex', id: cleanId, meta: { lang, locale, autoTrad } }));
+}));
+
+// Legacy
 mangadexRouter.get("/manga/:id", asyncHandler(async (req, res) => {
   let mangaId = cleanSourceId(req.params.id, 'mangadex');
   const lang = req.query.lang || null;
@@ -106,17 +189,62 @@ mangadexRouter.get("/manga/:id", asyncHandler(async (req, res) => {
 // ============================================================================
 const bedethequeRouter = Router();
 
-bedethequeRouter.get("/search", asyncHandler(async (req, res) => {
-  const q = req.query.q;
-  const max = req.query.max ? Math.min(Math.max(1, parseInt(req.query.max, 10)), 50) : BEDETHEQUE_DEFAULT_MAX;
+// Normalisé: /bedetheque/search
+bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const type = req.query.type || 'serie';
+  const effectiveMax = Math.min(Math.max(1, max), 50);
 
-  if (!q) return res.status(400).json({ error: "paramètre 'q' manquant" });
-
-  const result = await searchBedetheque(q, { max });
+  let rawResult;
+  if (type === 'album') {
+    const serieId = req.query.serieId || req.query.serie_id || null;
+    const serieName = req.query.serieName || req.query.serie_name || null;
+    rawResult = await searchBedethequeAlbums(q, { max: effectiveMax, serieId, serieName });
+  } else {
+    rawResult = await searchBedetheque(q, { max: effectiveMax });
+  }
+  
+  const items = (rawResult.results || rawResult.series || rawResult.albums || []).map(item => ({
+    type: type === 'album' ? 'album' : 'serie',
+    source: 'bedetheque',
+    sourceId: item.id,
+    name: item.name || item.title,
+    name_original: item.name || item.title,
+    image: item.image || item.cover,
+    author: item.author,
+    detailUrl: generateDetailUrl('bedetheque', item.id, type === 'album' ? 'album' : 'serie')
+  }));
+  
   addCacheHeaders(res, 600);
-  res.json(result);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'bedetheque',
+    query: q,
+    meta: { lang, locale, autoTrad, type }
+  }));
 }));
 
+// Normalisé: /bedetheque/details
+bedethequeRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id, type } = req.parsedDetailUrl;
+  
+  if (!/^\d+$/.test(id)) return res.status(400).json({ error: "Format d'ID invalide" });
+
+  let result;
+  if (type === 'album') {
+    result = await getBedethequeAlbumById(parseInt(id, 10));
+    if (!result || !result.title) return res.status(404).json({ error: `Album ${id} non trouvé` });
+  } else {
+    result = await getBedethequeSerieById(parseInt(id, 10));
+    if (!result || !result.name) return res.status(404).json({ error: `Série ${id} non trouvée` });
+  }
+  
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({ data: result, provider: 'bedetheque', id, meta: { lang, locale, autoTrad, type } }));
+}));
+
+// Legacy
 bedethequeRouter.get("/search/albums", asyncHandler(async (req, res) => {
   const q = req.query.q || '';
   const serieId = req.query.serieId || req.query.serie_id || '';

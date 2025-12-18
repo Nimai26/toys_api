@@ -1,11 +1,28 @@
 /**
- * Routes LEGO/Mega/Rebrickable - toys_api
- * Endpoints pour LEGO, Mega Construx et Rebrickable
+ * Routes LEGO - toys_api v3.0.0
+ * 
+ * Endpoints normalisés :
+ * - GET /search : Recherche avec q, lang, max, autoTrad
+ * - GET /details : Détails via detailUrl
+ * - GET /product/:id : (legacy) Détails par ID direct
+ * - GET /instructions/:id : Instructions de montage
  */
 
 import { Router } from 'express';
 import { createLogger } from '../lib/utils/logger.js';
-import { addCacheHeaders, asyncHandler, metrics, extractApiKey } from '../lib/utils/index.js';
+import { 
+  addCacheHeaders, 
+  asyncHandler, 
+  metrics, 
+  extractApiKey,
+  extractStandardParams,
+  validateSearchParams,
+  validateDetailsParams,
+  parseDetailUrl,
+  generateDetailUrl,
+  formatSearchResponse,
+  formatDetailResponse
+} from '../lib/utils/index.js';
 import { DEFAULT_LOCALE, MAX_RETRIES } from '../lib/config.js';
 
 import { 
@@ -14,67 +31,138 @@ import {
   getBuildingInstructions
 } from '../lib/providers/lego.js';
 
-// Note: enrichLegoWithRebrickable sera ajouté ultérieurement
-
 const router = Router();
 const log = createLogger('Route:Lego');
 
 // ============================================================================
-// LEGO ENDPOINTS
+// ENDPOINTS NORMALISÉS v3.0.0
 // ============================================================================
 
-router.get("/search", asyncHandler(async (req, res) => {
-  const q = req.query.q;
-  const lang = (req.query.lang || DEFAULT_LOCALE);
-  const limit = req.query.limit ? parseInt(req.query.limit, 10) : 24;
-  const max = req.query.max ? parseInt(req.query.max, 10) : limit;
-
-  if (!q) return res.status(400).json({ error: "paramètre 'q' manquant" });
+/**
+ * GET /lego/search
+ * Recherche de sets LEGO
+ * 
+ * @query {string} q - Terme de recherche (requis)
+ * @query {string} lang - Langue (défaut: fr)
+ * @query {number} max - Nombre max de résultats (défaut: 20)
+ * @query {boolean} autoTrad - Traduction automatique
+ */
+router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
 
   metrics.sources.lego.requests++;
   const perPage = Math.max(1, Math.min(max, 100));
-  const result = await callLegoGraphqlLib(q, lang, MAX_RETRIES, perPage);
+  const rawResult = await callLegoGraphqlLib(q, locale, MAX_RETRIES, perPage);
+  
+  // Transformer les résultats au format normalisé
+  const items = (rawResult.products || []).map(product => ({
+    type: 'construct_toy',
+    source: 'lego',
+    sourceId: product.productCode || product.id,
+    name: product.name,
+    name_original: product.name, // LEGO retourne déjà traduit selon locale
+    image: product.primaryImage || product.image,
+    detailUrl: generateDetailUrl('lego', product.productCode || product.id, 'product')
+  }));
   
   addCacheHeaders(res, 300);
-  res.json(result);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'lego',
+    query: q,
+    pagination: {
+      page: 1,
+      pageSize: items.length,
+      totalResults: rawResult.total || items.length,
+      totalPages: Math.ceil((rawResult.total || items.length) / perPage),
+      hasMore: (rawResult.total || 0) > items.length
+    },
+    meta: { lang, locale, autoTrad }
+  }));
 }));
 
+/**
+ * GET /lego/details
+ * Détails d'un produit LEGO via detailUrl
+ * 
+ * @query {string} detailUrl - URL fournie par /search (requis)
+ * @query {string} lang - Langue (défaut: fr)
+ * @query {boolean} autoTrad - Traduction automatique
+ */
+router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+
+  metrics.sources.lego.requests++;
+  let result = await getLegoProductDetails(id, locale);
+  
+  // Ajouter les instructions
+  try {
+    const instructions = await getBuildingInstructions(id, locale);
+    if (instructions && instructions.manuals && instructions.manuals.length > 0) {
+      result.instructions = {
+        available: true,
+        count: instructions.manuals.length,
+        manuals: instructions.manuals
+      };
+    } else {
+      result.instructions = { available: false, count: 0, manuals: [] };
+    }
+  } catch (instructionsErr) {
+    log.warn(`Instructions non disponibles pour ${id}: ${instructionsErr.message}`);
+    result.instructions = { available: false, count: 0, manuals: [], error: instructionsErr.message };
+  }
+  
+  addCacheHeaders(res, 300);
+  res.json(formatDetailResponse({
+    data: result,
+    provider: 'lego',
+    id,
+    meta: { lang, locale, autoTrad }
+  }));
+}));
+
+// ============================================================================
+// ENDPOINTS LEGACY (rétrocompatibilité)
+// ============================================================================
+
+/**
+ * GET /lego/product/:id (LEGACY)
+ * @deprecated Utiliser /lego/details?detailUrl=...
+ */
 router.get("/product/:id", asyncHandler(async (req, res) => {
   const productId = req.params.id;
-  const lang = (req.query.lang || DEFAULT_LOCALE);
+  const params = extractStandardParams(req);
   const enrichRebrickable = req.query.enrich_rebrickable === 'true';
-  const maxParts = req.query.parts_limit ? parseInt(req.query.parts_limit, 10) : 500;
 
   if (!productId) return res.status(400).json({ error: "ID produit manquant" });
 
   metrics.sources.lego.requests++;
-  let result = await getLegoProductDetails(productId, lang);
+  let result = await getLegoProductDetails(productId, params.locale);
   
-  // Toujours récupérer les manuels d'instructions LEGO
+  // Ajouter les instructions
   try {
-    const instructions = await getBuildingInstructions(productId, lang);
+    const instructions = await getBuildingInstructions(productId, params.locale);
     if (instructions && instructions.manuals && instructions.manuals.length > 0) {
       result.instructions = {
         count: instructions.manuals.length,
         manuals: instructions.manuals
       };
-      log.debug(`[LEGO] ${instructions.manuals.length} manuels trouvés pour ${productId}`);
     } else {
       result.instructions = { count: 0, manuals: [] };
     }
   } catch (instructionsErr) {
-    log.warn(`[LEGO] Impossible de récupérer les instructions pour ${productId}: ${instructionsErr.message}`);
+    log.warn(`Instructions non disponibles pour ${productId}: ${instructionsErr.message}`);
     result.instructions = { count: 0, manuals: [], error: instructionsErr.message };
   }
   
   // Enrichir avec Rebrickable si demandé
-  // TODO: Implémenter enrichLegoWithRebrickable
   if (enrichRebrickable) {
     const apiKey = extractApiKey(req);
     if (apiKey) {
-      result.rebrickable_hint = "Enrichissement Rebrickable pas encore implémenté dans cette version";
+      result.rebrickable_hint = "Enrichissement Rebrickable pas encore implémenté";
     } else {
-      result.rebrickable_hint = "Fournissez une clé API Rebrickable via X-Api-Key ou X-Encrypted-Key pour enrichir avec minifigs/pièces";
+      result.rebrickable_hint = "Fournissez une clé API Rebrickable via X-Api-Key";
     }
   }
   
@@ -82,14 +170,18 @@ router.get("/product/:id", asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
+/**
+ * GET /lego/instructions/:id
+ * Instructions de montage pour un set LEGO
+ */
 router.get("/instructions/:id", asyncHandler(async (req, res) => {
   const productId = req.params.id;
-  const lang = (req.query.lang || DEFAULT_LOCALE);
+  const params = extractStandardParams(req);
 
   if (!productId) return res.status(400).json({ error: "ID produit manquant" });
 
   metrics.sources.lego.requests++;
-  const result = await getBuildingInstructions(productId, lang);
+  const result = await getBuildingInstructions(productId, params.locale);
   addCacheHeaders(res, 300);
   res.json(result);
 }));

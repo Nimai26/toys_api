@@ -1,11 +1,24 @@
 /**
- * Routes Music - toys_api
+ * Routes Music - toys_api v3.0.0
  * Endpoints pour la recherche de musique (MusicBrainz, Deezer, Discogs, iTunes)
  */
 
 import { Router } from 'express';
 import { createLogger } from '../lib/utils/logger.js';
-import { getCached, setCache, addCacheHeaders, asyncHandler } from '../lib/utils/index.js';
+import { 
+  getCached, 
+  setCache, 
+  addCacheHeaders, 
+  asyncHandler,
+  extractStandardParams,
+  validateSearchParams,
+  validateDetailsParams,
+  validateCodeParams,
+  generateDetailUrl,
+  formatSearchResponse,
+  formatDetailResponse,
+  metrics
+} from '../lib/utils/index.js';
 import { MUSIC_DEFAULT_MAX } from '../lib/config.js';
 
 import {
@@ -31,24 +44,81 @@ const router = Router();
 const log = createLogger('Route:Music');
 
 // ============================================================================
-// MUSIC ENDPOINTS
+// ENDPOINTS NORMALISÉS
 // ============================================================================
 
-/**
- * Recherche d'albums de musique (multi-sources)
- */
-router.get("/search", asyncHandler(async (req, res) => {
-  const { q, source = 'deezer', type = 'album' } = req.query;
-  const limit = Math.min(Math.max(parseInt(req.query.limit) || MUSIC_DEFAULT_MAX, 1), 100);
-  const langParam = req.query.lang || req.query.country || 'FR';
-  const country = langParam.includes('-') ? langParam.split('-')[1].toUpperCase() : langParam.toUpperCase();
+// Normalisé: /music/search
+router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const source = req.query.source || 'deezer';
+  const type = req.query.type || 'album';
+  const country = locale ? locale.split('-')[1]?.toUpperCase() || 'FR' : 'FR';
   const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'];
   
-  if (!q) {
-    return res.status(400).json({ error: "paramètre 'q' manquant" });
+  const cacheKey = `music:search:${source}:${type}:${q}:${max}:${country}`;
+  const cached = getCached(cacheKey);
+  if (cached) {
+    return res.json(cached);
   }
   
-  const cacheKey = `music:search:${source}:${type}:${q}:${limit}:${country}`;
+  let rawResult;
+  let provider = source;
+  
+  switch (source.toLowerCase()) {
+    case 'musicbrainz':
+    case 'mb':
+      provider = 'musicbrainz';
+      rawResult = await searchMusicBrainzLib(q, { limit: max, type: type === 'album' ? 'release-group' : type });
+      break;
+      
+    case 'discogs':
+      provider = 'discogs';
+      const discogsType = type === 'album' ? 'release' : type;
+      rawResult = await searchDiscogsLib(q, { limit: max, type: discogsType, token: discogsToken });
+      break;
+      
+    case 'itunes':
+      provider = 'itunes';
+      const itunesEntity = type === 'album' ? 'album' : type === 'artist' ? 'musicArtist' : 'song';
+      rawResult = await searchItunesLib(q, { limit: max, entity: itunesEntity, country });
+      break;
+      
+    case 'deezer':
+    default:
+      provider = 'deezer';
+      rawResult = await searchDeezerLib(q, { limit: max, type });
+      break;
+  }
+  
+  const items = (rawResult.results || rawResult.albums || rawResult.data || []).map(item => ({
+    type: type,
+    source: provider,
+    sourceId: item.id || item.mbid,
+    name: item.title || item.name || item.collectionName,
+    name_original: item.title || item.name,
+    image: item.cover || item.artworkUrl100 || item.thumb,
+    artist: item.artist || item.artistName,
+    detailUrl: generateDetailUrl(provider, item.id || item.mbid, type)
+  }));
+  
+  const response = formatSearchResponse({
+    items,
+    provider,
+    query: q,
+    meta: { lang, locale, autoTrad, type, country }
+  });
+  
+  setCache(cacheKey, response);
+  addCacheHeaders(res, 300);
+  res.json(response);
+}));
+
+// Normalisé: /music/details
+router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id, type, provider } = req.parsedDetailUrl;
+  
+  const cacheKey = `music:details:${provider}:${type}:${id}`;
   const cached = getCached(cacheKey);
   if (cached) {
     return res.json(cached);
@@ -56,61 +126,91 @@ router.get("/search", asyncHandler(async (req, res) => {
   
   let result;
   
-  switch (source.toLowerCase()) {
-    case 'musicbrainz':
-    case 'mb':
-      metrics.sources.musicbrainz.requests++;
-      result = await searchMusicBrainzLib(q, { limit, type: type === 'album' ? 'release-group' : type });
-      break;
-      
-    case 'discogs':
-      metrics.sources.discogs.requests++;
-      const discogsType = type === 'album' ? 'release' : type;
-      result = await searchDiscogsLib(q, { limit, type: discogsType, token: discogsToken });
-      break;
-      
-    case 'itunes':
-      const itunesEntity = type === 'album' ? 'album' : type === 'artist' ? 'musicArtist' : 'song';
-      result = await searchItunesLib(q, { limit, entity: itunesEntity, country });
-      break;
-      
-    case 'all':
-      const limitPerSource = Math.min(limit, 10);
-      const [deezerRes, mbRes, itunesRes] = await Promise.allSettled([
-        searchDeezerLib(q, { limit: limitPerSource, type }),
-        searchMusicBrainzLib(q, { limit: limitPerSource }),
-        searchItunesLib(q, { limit: limitPerSource, entity: type === 'album' ? 'album' : 'song', country })
-      ]);
-      
-      metrics.sources.deezer.requests++;
-      metrics.sources.musicbrainz.requests++;
-      
-      result = {
-        query: q,
-        type,
-        lang: country,
-        sources: {
-          deezer: deezerRes.status === 'fulfilled' ? deezerRes.value : { error: deezerRes.reason?.message },
-          musicbrainz: mbRes.status === 'fulfilled' ? mbRes.value : { error: mbRes.reason?.message },
-          itunes: itunesRes.status === 'fulfilled' ? itunesRes.value : { error: itunesRes.reason?.message }
-        }
-      };
-      break;
-      
-    case 'deezer':
-    default:
-      metrics.sources.deezer.requests++;
-      result = await searchDeezerLib(q, { limit, type });
-      break;
+  if (provider === 'musicbrainz' || provider === 'mb') {
+    result = await getMusicBrainzAlbumLib(id);
+  } else if (provider === 'discogs') {
+    const token = req.query.token || req.headers['x-discogs-token'];
+    result = await getDiscogsReleaseLib(id, token);
+  } else {
+    result = await getDeezerAlbumLib(id);
   }
   
-  setCache(cacheKey, result);
-  addCacheHeaders(res, 300);
-  res.json(result);
+  const response = formatDetailResponse({ data: result, provider, id, meta: { lang, locale, autoTrad } });
+  
+  setCache(cacheKey, response);
+  addCacheHeaders(res, 3600);
+  res.json(response);
 }));
 
+// Normalisé: /music/code (barcode)
+router.get("/code", validateCodeParams, asyncHandler(async (req, res) => {
+  const { code, lang, locale, autoTrad } = req.standardParams;
+  const source = req.query.source || 'all';
+  const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'];
+  
+  if (code.length < 8) {
+    return res.status(400).json({ error: "Code-barres invalide" });
+  }
+  
+  const cacheKey = `music:barcode:${code}:${source}`;
+  const cached = getCached(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
+  
+  let result = { barcode: code, found: false, sources: [] };
+  
+  if (source === 'all' || source === 'musicbrainz' || source === 'mb') {
+    try {
+      const mbResult = await searchMusicBrainzByBarcodeLib(code);
+      if (mbResult.found) {
+        result.found = true;
+        result.musicbrainz = mbResult;
+        result.sources.push('musicbrainz');
+        result.title = mbResult.title;
+        result.artist = mbResult.artist;
+        result.date = mbResult.date;
+        result.coverUrl = mbResult.coverUrl;
+      }
+    } catch (err) {
+      log.error('[Music] MusicBrainz barcode error:', err.message);
+    }
+  }
+  
+  if (source === 'all' || source === 'discogs') {
+    try {
+      const discogsResult = await searchDiscogsByBarcodeLib(code, discogsToken);
+      if (discogsResult.found) {
+        result.found = true;
+        result.discogs = discogsResult;
+        result.sources.push('discogs');
+        if (!result.title) result.title = discogsResult.albumTitle;
+        if (!result.artist) result.artist = discogsResult.artist;
+        if (!result.coverUrl) result.coverUrl = discogsResult.coverUrl;
+      }
+    } catch (err) {
+      log.error('[Music] Discogs barcode error:', err.message);
+    }
+  }
+  
+  const response = formatDetailResponse({ 
+    data: result, 
+    provider: 'music', 
+    id: code, 
+    meta: { lang, locale, autoTrad, type: 'barcode' }
+  });
+  
+  setCache(cacheKey, response);
+  addCacheHeaders(res, 3600);
+  res.json(response);
+}));
+
+// ============================================================================
+// ENDPOINTS LEGACY
+// ============================================================================
+
 /**
- * Détails d'un album (Deezer ou MusicBrainz)
+ * Détails d'un album (Deezer ou MusicBrainz) - Legacy
  */
 router.get("/album/:id", asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -125,10 +225,8 @@ router.get("/album/:id", asyncHandler(async (req, res) => {
   let result;
   
   if (source === 'musicbrainz' || source === 'mb') {
-    metrics.sources.musicbrainz.requests++;
     result = await getMusicBrainzAlbumLib(id);
   } else {
-    metrics.sources.deezer.requests++;
     result = await getDeezerAlbumLib(id);
   }
   
@@ -138,7 +236,7 @@ router.get("/album/:id", asyncHandler(async (req, res) => {
 }));
 
 /**
- * Détails d'un artiste (Deezer)
+ * Détails d'un artiste (Deezer) - Legacy
  */
 router.get("/artist/:id", asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -149,7 +247,6 @@ router.get("/artist/:id", asyncHandler(async (req, res) => {
     return res.json(cached);
   }
   
-  metrics.sources.deezer.requests++;
   const result = await getDeezerArtistLib(id);
   
   setCache(cacheKey, result);
@@ -158,7 +255,7 @@ router.get("/artist/:id", asyncHandler(async (req, res) => {
 }));
 
 /**
- * Détails d'un release Discogs
+ * Détails d'un release Discogs - Legacy
  */
 router.get("/discogs/:id", asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -170,7 +267,6 @@ router.get("/discogs/:id", asyncHandler(async (req, res) => {
     return res.json(cached);
   }
   
-  metrics.sources.discogs.requests++;
   const result = await getDiscogsReleaseLib(id, token);
   
   setCache(cacheKey, result);
@@ -179,7 +275,7 @@ router.get("/discogs/:id", asyncHandler(async (req, res) => {
 }));
 
 /**
- * Recherche d'album par code-barres
+ * Recherche d'album par code-barres - Legacy
  */
 router.get("/barcode/:code", asyncHandler(async (req, res) => {
   const { code } = req.params;
@@ -200,7 +296,6 @@ router.get("/barcode/:code", asyncHandler(async (req, res) => {
   
   if (source === 'all' || source === 'musicbrainz' || source === 'mb') {
     try {
-      metrics.sources.musicbrainz.requests++;
       const mbResult = await searchMusicBrainzByBarcodeLib(code);
       if (mbResult.found) {
         result.found = true;
@@ -218,7 +313,6 @@ router.get("/barcode/:code", asyncHandler(async (req, res) => {
   
   if (source === 'all' || source === 'discogs') {
     try {
-      metrics.sources.discogs.requests++;
       const discogsResult = await searchDiscogsByBarcodeLib(code, discogsToken);
       if (discogsResult.found) {
         result.found = true;

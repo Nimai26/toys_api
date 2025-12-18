@@ -1,10 +1,25 @@
 /**
- * Routes Rebrickable - toys_api v2.0.0
- * Endpoints pour l'API Rebrickable (sets, pièces, minifigs, thèmes)
+ * Routes Rebrickable - toys_api v3.0.0
+ * 
+ * Endpoints normalisés :
+ * - GET /search : Recherche avec q, lang, max, autoTrad
+ * - GET /details : Détails via detailUrl
+ * - GET /set/:setNum : (legacy) Détails par numéro de set
  */
 
 import { Router } from 'express';
-import { addCacheHeaders, asyncHandler, requireParam, requireApiKey } from '../lib/utils/index.js';
+import { 
+  addCacheHeaders, 
+  asyncHandler, 
+  requireParam, 
+  requireApiKey,
+  extractStandardParams,
+  validateSearchParams,
+  validateDetailsParams,
+  generateDetailUrl,
+  formatSearchResponse,
+  formatDetailResponse
+} from '../lib/utils/index.js';
 import { DEFAULT_LOCALE, REBRICKABLE_DEFAULT_MAX } from '../lib/config.js';
 
 import {
@@ -21,56 +36,98 @@ import {
 } from '../lib/providers/rebrickable.js';
 
 const router = Router();
-
-// Middleware commun pour toutes les routes Rebrickable
 const rebrickableAuth = requireApiKey('Rebrickable', 'https://rebrickable.com/api/');
 
-// -----------------------------
-// Endpoints Rebrickable (nécessite clé API)
-// -----------------------------
+// ============================================================================
+// ENDPOINTS NORMALISÉS v3.0.0
+// ============================================================================
 
-// Recherche de sets LEGO via Rebrickable
-router.get("/search", requireParam('q'), rebrickableAuth, asyncHandler(async (req, res) => {
-  const q = req.query.q;
-  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
-  const pageSize = req.query.page_size ? parseInt(req.query.page_size, 10) : REBRICKABLE_DEFAULT_MAX;
-  const lang = req.query.lang || DEFAULT_LOCALE;
+/**
+ * GET /rebrickable/search
+ * Recherche de sets LEGO via Rebrickable
+ */
+router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, page, autoTrad } = req.standardParams;
   const enrichLego = req.query.enrich_lego !== 'false';
-  const themeId = req.query.theme_id ? parseInt(req.query.theme_id, 10) : undefined;
-  const minYear = req.query.min_year ? parseInt(req.query.min_year, 10) : undefined;
-  const maxYear = req.query.max_year ? parseInt(req.query.max_year, 10) : undefined;
-  const minParts = req.query.min_parts ? parseInt(req.query.min_parts, 10) : undefined;
-  const maxPartsFilter = req.query.max_parts ? parseInt(req.query.max_parts, 10) : undefined;
-  const maxPartsLimit = req.query.parts_limit ? parseInt(req.query.parts_limit, 10) : 500;
-  
-  const searchOptions = {};
-  if (themeId) searchOptions.theme_id = themeId;
-  if (minYear) searchOptions.min_year = minYear;
-  if (maxYear) searchOptions.max_year = maxYear;
-  if (minParts) searchOptions.min_parts = minParts;
-  if (maxPartsFilter) searchOptions.max_parts = maxPartsFilter;
-  
-  const result = await smartRebrickableSearchLib(q, req.apiKey, {
+
+  const rawResult = await smartRebrickableSearchLib(q, req.apiKey, {
     page,
-    pageSize,
-    lang,
+    pageSize: max,
+    lang: locale,
     enrichWithLego: enrichLego,
-    maxParts: maxPartsLimit,
-    searchOptions
+    maxParts: 500
   });
   
-  const cacheTime = result.type === 'set_id' ? 3600 : 300;
-  addCacheHeaders(res, cacheTime);
-  res.json(result);
+  // Transformer au format normalisé
+  const items = (rawResult.results || []).map(set => ({
+    type: 'construct_toy',
+    source: 'rebrickable',
+    sourceId: set.set_num,
+    name: set.name,
+    name_original: set.name,
+    image: set.set_img_url,
+    detailUrl: generateDetailUrl('rebrickable', set.set_num, 'set')
+  }));
+  
+  addCacheHeaders(res, rawResult.type === 'set_id' ? 3600 : 300);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'rebrickable',
+    query: q,
+    pagination: {
+      page,
+      pageSize: items.length,
+      totalResults: rawResult.count || items.length,
+      hasMore: rawResult.next !== null
+    },
+    meta: { lang, locale, autoTrad, searchType: rawResult.type }
+  }));
 }));
 
-// Détails d'un set LEGO via Rebrickable
+/**
+ * GET /rebrickable/details
+ * Détails d'un set via detailUrl
+ */
+router.get("/details", validateDetailsParams, rebrickableAuth, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  
+  const setNum = legoIdToRebrickable(id);
+  const enrichLego = req.query.enrich_lego !== 'false';
+  
+  let result = await getRebrickableSetFullLib(setNum, req.apiKey, {
+    includeParts: true,
+    includeMinifigs: true,
+    maxParts: 500
+  });
+  
+  if (enrichLego) {
+    result = await enrichRebrickableWithLego(result, locale);
+  }
+  
+  if (result.set_num && !result.lego_id) {
+    result.lego_id = rebrickableIdToLego(result.set_num);
+  }
+  
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({
+    data: result,
+    provider: 'rebrickable',
+    id: setNum,
+    meta: { lang, locale, autoTrad }
+  }));
+}));
+
+// ============================================================================
+// ENDPOINTS LEGACY (rétrocompatibilité)
+// ============================================================================
+
 router.get("/set/:setNum", rebrickableAuth, asyncHandler(async (req, res) => {
   let setNum = req.params.setNum;
+  const params = extractStandardParams(req);
   const includeParts = req.query.parts !== 'false';
   const includeMinifigs = req.query.minifigs !== 'false';
   const enrichLego = req.query.enrich_lego !== 'false';
-  const lang = req.query.lang || DEFAULT_LOCALE;
   const maxParts = req.query.parts_limit ? parseInt(req.query.parts_limit, 10) : 500;
   
   if (!setNum) return res.status(400).json({ error: "paramètre 'setNum' manquant" });
@@ -78,19 +135,14 @@ router.get("/set/:setNum", rebrickableAuth, asyncHandler(async (req, res) => {
   setNum = legoIdToRebrickable(setNum);
   
   let result;
-  
   if (includeParts || includeMinifigs) {
-    result = await getRebrickableSetFullLib(setNum, req.apiKey, {
-      includeParts,
-      includeMinifigs,
-      maxParts
-    });
+    result = await getRebrickableSetFullLib(setNum, req.apiKey, { includeParts, includeMinifigs, maxParts });
   } else {
     result = await getRebrickableSet(setNum, req.apiKey);
   }
   
   if (enrichLego) {
-    result = await enrichRebrickableWithLego(result, lang);
+    result = await enrichRebrickableWithLego(result, params.locale);
   }
   
   if (result.set_num && !result.lego_id) {
@@ -101,7 +153,6 @@ router.get("/set/:setNum", rebrickableAuth, asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-// Pièces d'un set LEGO via Rebrickable
 router.get("/set/:setNum/parts", rebrickableAuth, asyncHandler(async (req, res) => {
   const setNum = req.params.setNum;
   const limit = req.query.limit ? parseInt(req.query.limit, 10) : 500;
@@ -113,10 +164,8 @@ router.get("/set/:setNum/parts", rebrickableAuth, asyncHandler(async (req, res) 
   res.json(result);
 }));
 
-// Minifigs d'un set LEGO via Rebrickable
 router.get("/set/:setNum/minifigs", rebrickableAuth, asyncHandler(async (req, res) => {
   const setNum = req.params.setNum;
-  
   if (!setNum) return res.status(400).json({ error: "paramètre 'setNum' manquant" });
   
   const result = await getRebrickableSetMinifigs(setNum, req.apiKey);
@@ -124,16 +173,13 @@ router.get("/set/:setNum/minifigs", rebrickableAuth, asyncHandler(async (req, re
   res.json(result);
 }));
 
-// Liste des thèmes LEGO via Rebrickable
 router.get("/themes", rebrickableAuth, asyncHandler(async (req, res) => {
   const parentId = req.query.parent_id ? parseInt(req.query.parent_id, 10) : null;
-  
   const result = await getRebrickableThemes(req.apiKey, parentId);
   addCacheHeaders(res, 86400);
   res.json(result);
 }));
 
-// Liste des couleurs LEGO via Rebrickable
 router.get("/colors", rebrickableAuth, asyncHandler(async (req, res) => {
   const result = await getRebrickableColors(req.apiKey);
   addCacheHeaders(res, 86400);

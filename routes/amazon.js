@@ -1,11 +1,29 @@
 /**
- * Routes Amazon - toys_api
+ * Routes Amazon - toys_api v3.0.0
  * Endpoints pour recherche et scraping Amazon multi-pays
+ * 
+ * Routers séparés par catégorie pour correspondre aux appels du site web :
+ * - amazonGenericRouter : /amazon_generic/* (recherche tous produits)
+ * - amazonBooksRouter : /amazon_books/* (livres)
+ * - amazonMoviesRouter : /amazon_movies/* (films/DVD/Blu-ray)
+ * - amazonMusicRouter : /amazon_music/* (musique/CD/vinyles)
+ * - amazonToysRouter : /amazon_toys/* (jouets)
+ * - amazonVideogamesRouter : /amazon_videogames/* (jeux vidéo)
  */
 
 import { Router } from 'express';
 import { createLogger } from '../lib/utils/logger.js';
-import { metrics, addCacheHeaders, asyncHandler } from '../lib/utils/index.js';
+import { 
+  metrics, 
+  addCacheHeaders, 
+  asyncHandler,
+  validateSearchParams,
+  validateDetailsParams,
+  validateCodeParams,
+  generateDetailUrl,
+  formatSearchResponse,
+  formatDetailResponse
+} from '../lib/utils/index.js';
 import {
   searchAmazon,
   getAmazonProduct,
@@ -20,8 +38,159 @@ import {
   getAmazonStatus
 } from '../lib/providers/amazon.js';
 
-const router = Router();
 const log = createLogger('Route:Amazon');
+
+// ============================================================================
+// Fonctions helper pour créer des routers Amazon par catégorie
+// ============================================================================
+
+/**
+ * Crée un router Amazon spécialisé pour une catégorie
+ * @param {string|null} category - Catégorie Amazon (null = générique)
+ * @param {string} logName - Nom pour les logs
+ * @param {string} providerName - Nom du provider pour les URLs
+ */
+function createAmazonCategoryRouter(category, logName, providerName) {
+  const router = Router();
+  const categoryLog = createLogger(`Route:Amazon:${logName}`);
+
+  // Normalisé: /amazon_*/search
+  router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+    const { q, lang, locale, max, page, autoTrad } = req.standardParams;
+    const country = req.query.country || locale?.split('-')[1]?.toLowerCase() || "fr";
+
+    metrics.requests.total++;
+    metrics.sources.amazon.requests++;
+    categoryLog.debug(`Search: "${q}" country=${country} category=${category || 'all'}`);
+    
+    const rawResult = await searchAmazon(q, { country, category, page, limit: max });
+    
+    const items = (rawResult.products || rawResult.results || []).map(product => ({
+      type: category || 'product',
+      source: providerName,
+      sourceId: product.asin,
+      name: product.title || product.name,
+      name_original: product.title || product.name,
+      image: product.image || product.thumbnail,
+      price: product.price,
+      currency: product.currency,
+      rating: product.rating,
+      reviewCount: product.reviewCount,
+      url: product.url,
+      detailUrl: generateDetailUrl(providerName, product.asin, 'product')
+    }));
+    
+    addCacheHeaders(res, 600);
+    res.json(formatSearchResponse({
+      items,
+      provider: providerName,
+      query: q,
+      pagination: { page },
+      meta: { lang, locale, autoTrad, country, category }
+    }));
+  }));
+
+  // Normalisé: /amazon_*/details
+  router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+    const { lang, locale, autoTrad } = req.standardParams;
+    const { id } = req.parsedDetailUrl;
+    const country = req.query.country || locale?.split('-')[1]?.toLowerCase() || "fr";
+
+    metrics.requests.total++;
+    metrics.sources.amazon.requests++;
+    const result = await getAmazonProduct(id, country);
+    
+    addCacheHeaders(res, 600);
+    res.json(formatDetailResponse({ 
+      data: result, 
+      provider: providerName, 
+      id, 
+      meta: { lang, locale, autoTrad, country, category } 
+    }));
+  }));
+
+  // Normalisé: /amazon_*/code (barcode)
+  router.get("/code", validateCodeParams, asyncHandler(async (req, res) => {
+    const { code, lang, locale, autoTrad } = req.standardParams;
+    const country = req.query.country || locale?.split('-')[1]?.toLowerCase() || "fr";
+
+    metrics.requests.total++;
+    metrics.sources.amazon.requests++;
+    const result = await searchAmazonByBarcode(code, { country, category });
+    
+    addCacheHeaders(res, 600);
+    res.json(formatDetailResponse({ 
+      data: result, 
+      provider: providerName, 
+      id: code, 
+      meta: { lang, locale, autoTrad, country, category, type: 'barcode' } 
+    }));
+  }));
+
+  // Legacy: Détails produit par ASIN
+  router.get("/product/:asin", asyncHandler(async (req, res) => {
+    const { asin } = req.params;
+    const country = req.query.country || "fr";
+
+    if (!asin) return res.status(400).json({ error: "ASIN requis" });
+
+    metrics.requests.total++;
+    metrics.sources.amazon.requests++;
+    const result = await getAmazonProduct(asin, country);
+    addCacheHeaders(res, 600);
+    res.json(result);
+  }));
+
+  // Legacy: Recherche par code-barres
+  router.get("/barcode/:code", asyncHandler(async (req, res) => {
+    const { code } = req.params;
+    const country = req.query.country || "fr";
+
+    if (!code) return res.status(400).json({ error: "Code-barres requis" });
+
+    metrics.requests.total++;
+    metrics.sources.amazon.requests++;
+    const result = await searchAmazonByBarcode(code, { country, category });
+    addCacheHeaders(res, 600);
+    res.json(result);
+  }));
+
+  // Recherche multi-pays
+  router.get("/multi", asyncHandler(async (req, res) => {
+    const q = req.query.q;
+    const countries = req.query.countries ? req.query.countries.split(",") : ["fr", "us", "uk"];
+
+    if (!q) return res.status(400).json({ error: "paramètre 'q' manquant" });
+
+    metrics.requests.total++;
+    metrics.sources.amazon.requests++;
+    const result = await searchAmazonMultiCountry(q, countries, { category });
+    addCacheHeaders(res, 600);
+    res.json(result);
+  }));
+
+  return router;
+}
+
+// ============================================================================
+// Création des routers par catégorie
+// ============================================================================
+
+// Router générique (toutes catégories)
+const amazonGenericRouter = createAmazonCategoryRouter(null, 'Generic', 'amazon_generic');
+
+// Routers spécialisés par catégorie
+const amazonBooksRouter = createAmazonCategoryRouter('books', 'Books', 'amazon_books');
+const amazonMoviesRouter = createAmazonCategoryRouter('movies', 'Movies', 'amazon_movies');
+const amazonMusicRouter = createAmazonCategoryRouter('music', 'Music', 'amazon_music');
+const amazonToysRouter = createAmazonCategoryRouter('toys', 'Toys', 'amazon_toys');
+const amazonVideogamesRouter = createAmazonCategoryRouter('videogames', 'Videogames', 'amazon_videogames');
+
+// ============================================================================
+// Router principal Amazon (legacy + utilitaires)
+// Conservé pour rétrocompatibilité avec /amazon/*
+// ============================================================================
+const router = Router();
 
 // -----------------------------
 // Endpoints Amazon (Puppeteer Stealth + FlareSolverr fallback)
@@ -134,4 +303,15 @@ router.get("/categories", (req, res) => {
   res.json(getSupportedCategories());
 });
 
-export default router;
+// ============================================================================
+// Exports
+// ============================================================================
+export default router; // Legacy /amazon/*
+export {
+  amazonGenericRouter,
+  amazonBooksRouter,
+  amazonMoviesRouter,
+  amazonMusicRouter,
+  amazonToysRouter,
+  amazonVideogamesRouter
+};

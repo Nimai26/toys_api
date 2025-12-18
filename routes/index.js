@@ -1,9 +1,19 @@
 /**
- * Routes Index - toys_api
+ * Routes Index - toys_api v3.0.0
  * Export centralisé de tous les routers
  */
 
-export { default as amazonRouter } from './amazon.js';
+// Amazon - routers séparés par catégorie
+export { 
+  default as amazonRouter,
+  amazonGenericRouter,
+  amazonBooksRouter,
+  amazonMoviesRouter,
+  amazonMusicRouter,
+  amazonToysRouter,
+  amazonVideogamesRouter
+} from './amazon.js';
+
 export { default as legoRouter } from './lego.js';
 export { default as rebrickableRouter } from './rebrickable.js';
 export { default as megaRouter } from './mega.js';
@@ -15,8 +25,8 @@ export { default as musicRouter } from './music.js';
 // Books - Google Books et OpenLibrary
 export { googleBooksRouter, openLibraryRouter } from './books.js';
 
-// Video Games - RAWG, IGDB, JVC
-export { rawgRouter, igdbRouter, jvcRouter } from './videogames.js';
+// Video Games - RAWG, IGDB, JeuxVideo.com
+export { rawgRouter, igdbRouter, jeuxvideoRouter } from './videogames.js';
 
 // Media - TVDB, TMDB, IMDB
 export { tvdbRouter, tmdbRouter, imdbRouter } from './media.js';

@@ -30,6 +30,12 @@ const log = createLogger('Server');
 // Import des routers
 import {
   amazonRouter,
+  amazonGenericRouter,
+  amazonBooksRouter,
+  amazonMoviesRouter,
+  amazonMusicRouter,
+  amazonToysRouter,
+  amazonVideogamesRouter,
   legoRouter,
   rebrickableRouter,
   megaRouter,
@@ -46,7 +52,7 @@ import {
   openLibraryRouter,
   rawgRouter,
   igdbRouter,
-  jvcRouter,
+  jeuxvideoRouter,
   tvdbRouter,
   tmdbRouter,
   imdbRouter,
@@ -132,27 +138,50 @@ if (isEncryptionEnabled()) {
 // ============================================================================
 // MONTAGE DES ROUTERS (Phase 3)
 // ============================================================================
-app.use('/amazon', amazonRouter);
+
+// Amazon - routes par catégorie (conformes aux appels du site web)
+app.use('/amazon', amazonRouter);           // Legacy /amazon/* (rétrocompatibilité)
+app.use('/amazon_generic', amazonGenericRouter);
+app.use('/amazon_books', amazonBooksRouter);
+app.use('/amazon_movies', amazonMoviesRouter);
+app.use('/amazon_music', amazonMusicRouter);
+app.use('/amazon_toys', amazonToysRouter);
+app.use('/amazon_videogames', amazonVideogamesRouter);
+
+// Jouets de construction
 app.use('/lego', legoRouter);
 app.use('/rebrickable', rebrickableRouter);
 app.use('/mega', megaRouter);
 app.use('/playmobil', playmobilRouter);
 app.use('/klickypedia', klickypediaRouter);
+
+// Utilitaires
 app.use('/barcode', barcodeRouter);
 app.use('/music', musicRouter);
+
+// Livres
 app.use('/googlebooks', googleBooksRouter);
 app.use('/openlibrary', openLibraryRouter);
+
+// Jeux vidéo
 app.use('/rawg', rawgRouter);
 app.use('/igdb', igdbRouter);
-app.use('/jvc', jvcRouter);
+app.use('/jeuxvideo', jeuxvideoRouter);  // Renommé depuis /jvc
+
+// Films & Séries
 app.use('/tvdb', tvdbRouter);
 app.use('/tmdb', tmdbRouter);
 app.use('/imdb', imdbRouter);
+
+// Anime & Manga
 app.use('/jikan', jikanRouter);
+
+// Comics & BD
 app.use('/comicvine', comicvineRouter);
 app.use('/mangadex', mangadexRouter);
 app.use('/bedetheque', bedethequeRouter);
-// Routes collectibles (routers séparés)
+
+// Collectibles
 app.use('/coleka', colekaRouter);
 app.use('/luluberlu', luluberluRouter);
 app.use('/consolevariations', consolevariationsRouter);
@@ -267,103 +296,59 @@ app.get("/version", (req, res) => {
       "Metrics & monitoring"
     ],
     endpoints: {
+      // Amazon - routes par catégorie
+      amazon_generic: ["/amazon_generic/search", "/amazon_generic/product/:asin", "/amazon_generic/barcode/:code", "/amazon_generic/multi"],
+      amazon_books: ["/amazon_books/search", "/amazon_books/product/:asin", "/amazon_books/barcode/:code"],
+      amazon_movies: ["/amazon_movies/search", "/amazon_movies/product/:asin", "/amazon_movies/barcode/:code"],
+      amazon_music: ["/amazon_music/search", "/amazon_music/product/:asin", "/amazon_music/barcode/:code"],
+      amazon_toys: ["/amazon_toys/search", "/amazon_toys/product/:asin", "/amazon_toys/barcode/:code"],
+      amazon_videogames: ["/amazon_videogames/search", "/amazon_videogames/product/:asin", "/amazon_videogames/barcode/:code"],
+      amazon_legacy: ["/amazon/search", "/amazon/product/:asin", "/amazon/compare/:asin", "/amazon/vpn/status", "/amazon/marketplaces"],
+      
+      // Jouets de construction
       lego: ["/lego/search", "/lego/product/:id", "/lego/instructions/:id"],
-      rebrickable: [
-        "/rebrickable/search",
-        "/rebrickable/set/:setNum",
-        "/rebrickable/set/:setNum/parts",
-        "/rebrickable/set/:setNum/minifigs",
-        "/rebrickable/themes",
-        "/rebrickable/colors"
-      ],
-      googlebooks: [
-        "/googlebooks/search",
-        "/googlebooks/book/:volumeId",
-        "/googlebooks/isbn/:isbn"
-      ],
-      openlibrary: [
-        "/openlibrary/search",
-        "/openlibrary/book/:olId",
-        "/openlibrary/isbn/:isbn"
-      ],
-      rawg: [
-        "/rawg/search",
-        "/rawg/game/:id"
-      ],
-      igdb: [
-        "/igdb/search",
-        "/igdb/game/:id"
-      ],
-      tvdb: [
-        "/tvdb/search",
-        "/tvdb/series/:id",
-        "/tvdb/movie/:id"
-      ],
-      tmdb: [
-        "/tmdb/search",
-        "/tmdb/movie/:id",
-        "/tmdb/tv/:id"
-      ],
-      imdb: [
-        "/imdb/search (NO API KEY)",
-        "/imdb/title/:id (NO API KEY)",
-        "/imdb/browse (NO API KEY)"
-      ],
-      jikan: [
-        "/jikan/anime (NO API KEY)",
-        "/jikan/anime/:id (NO API KEY)",
-        "/jikan/manga (NO API KEY)",
-        "/jikan/manga/:id (NO API KEY)"
-      ],
-      comicvine: [
-        "/comicvine/search",
-        "/comicvine/volume/:id",
-        "/comicvine/issue/:id"
-      ],
-      mangadex: [
-        "/mangadex/search (NO API KEY)",
-        "/mangadex/manga/:id (NO API KEY)"
-      ],
-      bedetheque: [
-        "/bedetheque/search (scraping)",
-        "/bedetheque/serie/:id (scraping)",
-        "/bedetheque/album/:id (scraping)"
-      ],
-      jvc: [
-        "/jvc/search (scraping)",
-        "/jvc/game/:id (scraping)"
-      ],
-      consolevariations: [
-        "/consolevariations/search?type=all|consoles|controllers|accessories (scraping)",
-        "/consolevariations/item/:slug (scraping)",
-        "/consolevariations/platforms (scraping)",
-        "/consolevariations/browse/:platform (scraping)"
-      ],
+      rebrickable: ["/rebrickable/search", "/rebrickable/set/:setNum", "/rebrickable/set/:setNum/parts", "/rebrickable/set/:setNum/minifigs", "/rebrickable/themes", "/rebrickable/colors"],
+      mega: ["/mega/search", "/mega/product/:id", "/mega/franchise/:franchise", "/mega/instructions", "/mega/instructions/:sku", "/mega/languages"],
+      playmobil: ["/playmobil/search", "/playmobil/product/:id", "/playmobil/instructions/:id"],
+      klickypedia: ["/klickypedia/search", "/klickypedia/product/:id", "/klickypedia/set/:slug"],
+      
+      // Livres
+      googlebooks: ["/googlebooks/search", "/googlebooks/book/:volumeId", "/googlebooks/isbn/:isbn"],
+      openlibrary: ["/openlibrary/search", "/openlibrary/book/:olId", "/openlibrary/isbn/:isbn"],
+      
+      // Jeux vidéo
+      rawg: ["/rawg/search", "/rawg/game/:id"],
+      igdb: ["/igdb/search", "/igdb/game/:id"],
+      jeuxvideo: ["/jeuxvideo/search (scraping)", "/jeuxvideo/game/:id (scraping)"],
+      
+      // Films & Séries
+      tvdb: ["/tvdb/search", "/tvdb/series/:id", "/tvdb/movie/:id"],
+      tmdb: ["/tmdb/search", "/tmdb/movie/:id", "/tmdb/tv/:id"],
+      imdb: ["/imdb/search (NO API KEY)", "/imdb/title/:id (NO API KEY)", "/imdb/browse (NO API KEY)"],
+      
+      // Anime & Manga
+      jikan_anime: ["/jikan/anime (NO API KEY)", "/jikan/anime/:id (NO API KEY)"],
+      jikan_manga: ["/jikan/manga (NO API KEY)", "/jikan/manga/:id (NO API KEY)"],
+      
+      // Comics & BD
+      comicvine: ["/comicvine/search", "/comicvine/volume/:id", "/comicvine/issue/:id"],
+      mangadex: ["/mangadex/search (NO API KEY)", "/mangadex/manga/:id (NO API KEY)"],
+      bedetheque: ["/bedetheque/search (scraping)", "/bedetheque/serie/:id (scraping)", "/bedetheque/album/:id (scraping)"],
+      
+      // Collectibles
       coleka: ["/coleka/search", "/coleka/item"],
       luluberlu: ["/luluberlu/search", "/luluberlu/item/:id"],
       transformerland: ["/transformerland/search", "/transformerland/item"],
       paninimania: ["/paninimania/search", "/paninimania/album/:id", "/paninimania/album"],
-      mega: [
-        "/mega/search",
-        "/mega/product/:id",
-        "/mega/franchise/:franchise",
-        "/mega/instructions",
-        "/mega/instructions/:sku",
-        "/mega/languages"
-      ],
-      barcode: [
-        "/barcode/:code (auto-detect UPC/EAN/ISBN)",
-        "/barcode/detect/:code",
-        "/barcode/isbn/:isbn",
-        "/barcode/bnf/:isbn"
-      ],
-      music: [
-        "/music/search",
-        "/music/album/:id",
-        "/music/artist/:id",
-        "/music/discogs/:id",
-        "/music/barcode/:code"
-      ],
+      consolevariations_consoles: ["/consolevariations/search?type=consoles (scraping)"],
+      consolevariations_accessories: ["/consolevariations/search?type=accessories (scraping)"],
+      consolevariations: ["/consolevariations/item/:slug", "/consolevariations/platforms", "/consolevariations/browse/:platform"],
+      
+      // Utilitaires
+      barcode: ["/barcode/:code (auto-detect UPC/EAN/ISBN)", "/barcode/detect/:code", "/barcode/isbn/:isbn", "/barcode/bnf/:isbn"],
+      music: ["/music/search", "/music/album/:id", "/music/artist/:id", "/music/discogs/:id", "/music/barcode/:code"],
+      
+      // Système
       crypto: ["/crypto/encrypt (POST)", "/crypto/verify (POST)"],
       system: ["/health", "/version", "/cache (DELETE)", "/metrics (DELETE)"]
     },

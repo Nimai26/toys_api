@@ -1,4 +1,4 @@
-// routes/books.js - Endpoints Google Books et OpenLibrary (toys_api v2.0.0)
+// routes/books.js - Endpoints Google Books et OpenLibrary (toys_api v3.0.0)
 import { Router } from 'express';
 import {
   searchGoogleBooks,
@@ -9,7 +9,21 @@ import {
   searchOpenLibrary,
   getOpenLibraryById
 } from '../lib/providers/openlibrary.js';
-import { cleanSourceId, addCacheHeaders, asyncHandler, requireParam, requireApiKey, isAutoTradEnabled } from '../lib/utils/index.js';
+import { 
+  cleanSourceId, 
+  addCacheHeaders, 
+  asyncHandler, 
+  requireParam, 
+  requireApiKey, 
+  isAutoTradEnabled,
+  extractStandardParams,
+  validateSearchParams,
+  validateDetailsParams,
+  validateCodeParams,
+  generateDetailUrl,
+  formatSearchResponse,
+  formatDetailResponse
+} from '../lib/utils/index.js';
 import { GOOGLE_BOOKS_DEFAULT_MAX, OPENLIBRARY_DEFAULT_MAX } from '../lib/config.js';
 
 const router = Router();
@@ -19,16 +33,71 @@ const googleAuth = requireApiKey('Google Books', 'https://console.cloud.google.c
 // GOOGLE BOOKS (nécessite clé API)
 // ============================================================================
 
-router.get("/search", requireParam('q'), googleAuth, asyncHandler(async (req, res) => {
-  const q = req.query.q;
-  const lang = req.query.lang || null;
-  const maxResults = req.query.max ? parseInt(req.query.max, 10) : GOOGLE_BOOKS_DEFAULT_MAX;
+// Normalisé: /google_books/search
+router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
   
-  const result = await searchGoogleBooks(q, req.apiKey, { lang, maxResults });
+  const rawResult = await searchGoogleBooks(q, req.apiKey, { lang, maxResults: max });
+  
+  const items = (rawResult.books || []).map(book => ({
+    type: 'book',
+    source: 'google_books',
+    sourceId: book.id,
+    name: book.title,
+    name_original: book.title,
+    image: book.thumbnail || book.image,
+    authors: book.authors,
+    publisher: book.publisher,
+    publishedDate: book.publishedDate,
+    isbn: book.isbn13 || book.isbn10,
+    detailUrl: generateDetailUrl('google_books', book.id, 'book')
+  }));
+  
   addCacheHeaders(res, 300);
-  res.json(result);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'google_books',
+    query: q,
+    meta: { lang, locale, autoTrad }
+  }));
 }));
 
+// Normalisé: /google_books/details
+router.get("/details", validateDetailsParams, googleAuth, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  
+  const cleanId = cleanSourceId(id, 'googlebooks');
+  const result = await getGoogleBookById(cleanId, req.apiKey, { lang, autoTrad });
+  
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({ data: result, provider: 'google_books', id: cleanId, meta: { lang, locale, autoTrad } }));
+}));
+
+// Normalisé: /google_books/code (ISBN)
+router.get("/code", validateCodeParams, googleAuth, asyncHandler(async (req, res) => {
+  const { code, lang, locale, autoTrad } = req.standardParams;
+  
+  if (!isIsbn(code)) {
+    return res.status(400).json({ error: "ISBN invalide. Format attendu: 10 ou 13 chiffres" });
+  }
+  
+  const result = await searchGoogleBooks(code, req.apiKey, { lang, maxResults: 1 });
+  
+  if (result.books && result.books.length > 0) {
+    addCacheHeaders(res, 3600);
+    res.json(formatDetailResponse({ 
+      data: result.books[0], 
+      provider: 'google_books', 
+      id: code,
+      meta: { lang, locale, autoTrad, type: 'isbn' }
+    }));
+  } else {
+    res.status(404).json({ error: `Aucun livre trouvé pour ISBN: ${code}` });
+  }
+}));
+
+// Legacy
 router.get("/book/:volumeId", googleAuth, asyncHandler(async (req, res) => {
   let volumeId = req.params.volumeId;
   if (!volumeId) return res.status(400).json({ error: "paramètre 'volumeId' manquant" });
@@ -68,16 +137,70 @@ router.get("/isbn/:isbn", googleAuth, asyncHandler(async (req, res) => {
 
 const olRouter = Router();
 
-olRouter.get("/search", requireParam('q'), asyncHandler(async (req, res) => {
-  const q = req.query.q;
-  const lang = req.query.lang || null;
-  const maxResults = req.query.max ? parseInt(req.query.max, 10) : OPENLIBRARY_DEFAULT_MAX;
+// Normalisé: /openlibrary/search
+olRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
   
-  const result = await searchOpenLibrary(q, { lang, maxResults });
+  const rawResult = await searchOpenLibrary(q, { lang, maxResults: max });
+  
+  const items = (rawResult.books || []).map(book => ({
+    type: 'book',
+    source: 'openlibrary',
+    sourceId: book.key || book.id,
+    name: book.title,
+    name_original: book.title,
+    image: book.cover,
+    authors: book.author_name || book.authors,
+    publishedDate: book.first_publish_year,
+    isbn: book.isbn ? book.isbn[0] : null,
+    detailUrl: generateDetailUrl('openlibrary', book.key || book.id, 'book')
+  }));
+  
   addCacheHeaders(res, 300);
-  res.json(result);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'openlibrary',
+    query: q,
+    meta: { lang, locale, autoTrad }
+  }));
 }));
 
+// Normalisé: /openlibrary/details
+olRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  
+  const cleanId = cleanSourceId(id, 'openlibrary');
+  const result = await getOpenLibraryById(cleanId);
+  
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({ data: result, provider: 'openlibrary', id: cleanId, meta: { lang, locale, autoTrad } }));
+}));
+
+// Normalisé: /openlibrary/code (ISBN)
+olRouter.get("/code", validateCodeParams, asyncHandler(async (req, res) => {
+  const { code, lang, locale, autoTrad } = req.standardParams;
+  
+  if (!isIsbn(code)) {
+    return res.status(400).json({ error: "ISBN invalide. Format attendu: 10 ou 13 chiffres" });
+  }
+  
+  const result = await searchOpenLibrary(code, { lang, maxResults: 1 });
+  
+  if (result.books && result.books.length > 0) {
+    addCacheHeaders(res, 3600);
+    res.json(formatDetailResponse({ 
+      data: result.books[0], 
+      provider: 'openlibrary', 
+      id: code,
+      meta: { lang, locale, autoTrad, type: 'isbn' }
+    }));
+  } else {
+    res.status(404).json({ error: `Aucun livre trouvé pour ISBN: ${code}` });
+  }
+}));
+
+// Legacy
 olRouter.get("/book/:olId", asyncHandler(async (req, res) => {
   let olId = req.params.olId;
   if (!olId) return res.status(400).json({ error: "paramètre 'olId' manquant" });

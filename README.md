@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **Version 3.0.0** - Normalisation complète des données
+> **Version 3.1.0** - Routes normalisées + Données unifiées
 
 A Docker-based REST API to search and retrieve product information from multiple sources:
 - **LEGO** - Official LEGO website (lego.com)
@@ -55,7 +55,8 @@ This API uses FlareSolverr to bypass Cloudflare/anti-bot protection and provides
 - 🛡️ **Security headers** (X-Content-Type-Options, X-Frame-Options, X-XSS-Protection)
 - 🔄 **Graceful shutdown** support
 - 🌍 Multi-locale support (fr-FR, en-US, de-DE, etc.)
-- 🔄 **Normalized API responses** (`*Normalized()` functions) for unified data format 🆕
+- 🔄 **Normalized API responses** (`*Normalized()` functions) for unified data format
+- 🛤️ **Normalized routes** : `/search`, `/details`, `/code` for all providers 🆕
 
 ---
 
@@ -4922,6 +4923,21 @@ Licence MIT
 ---
 
 ## 📦 Changelog
+
+### v3.1.0 🆕 (2025)
+- 🛤️ **Routes normalisées** : Structure unifiée `/search`, `/details`, `/code` pour tous les providers
+  - Middlewares de validation (`validateSearchParams`, `validateDetailsParams`, `validateCodeParams`)
+  - Réponses standardisées (`formatSearchResponse`, `formatDetailResponse`)
+  - `detailUrl` généré automatiquement dans les résultats de recherche
+  - Rétrocompatibilité totale avec les endpoints legacy
+- 🏷️ **Amazon par catégorie** : `/amazon_books`, `/amazon_toys`, `/amazon_videogames`, etc.
+- 🎮 **JVC → JeuxVideo** : Endpoint renommé `/jvc/*` → `/jeuxvideo/*`
+
+### v3.0.0 (2025)
+- 🔄 **Normalisation complète** : Schémas unifiés pour tous les types de données
+- 🧱 **Playmobil & Klickypedia** : Nouveaux providers jouets de construction
+- 📖 **Bedetheque & ComicVine** : BD franco-belge et comics
+- 🎮 **JVC** : Provider jeux vidéo français
 
 ### v2.1.0 (2025)
 - 🔄 **Paramètre noCache/fresh** : Ignorer le cache sur n'importe quelle requête

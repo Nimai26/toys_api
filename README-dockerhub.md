@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **v3.0.0** - Normalisation complète des données + Puppeteer Stealth + Protection VPN
+> **v3.1.0** - Routes normalisées + Données unifiées + Protection VPN
 
 API REST Docker pour rechercher et obtenir des informations produits depuis de multiples sources.
 
@@ -33,7 +33,8 @@ API REST Docker pour rechercher et obtenir des informations produits depuis de m
 - 🏷️ **Barcode** : Identification automatique UPC/EAN/ISBN
 - 🌍 Multi-langues (fr-FR, en-US, de-DE, etc.)
 - 📊 Métriques et monitoring intégrés
-- 🔄 **Données normalisées** : Schémas unifiés par type (`*Normalized()`) 🆕
+- 🔄 **Données normalisées** : Schémas unifiés par type (`*Normalized()`)
+- 🛤️ **Routes normalisées** : `/search`, `/details`, `/code` pour tous les providers 🆕
 
 ## 🚀 Démarrage Rapide
 
@@ -80,18 +81,28 @@ toys_api
 
 ## 🔌 Endpoints Principaux
 
+### Structure normalisée v3.1.0 🆕
+
+Tous les providers suivent maintenant une structure uniforme :
+
+| Endpoint | Description | Paramètres |
+|----------|-------------|------------|
+| `/provider/search` | Recherche | `q`, `lang`, `max`, `autoTrad` |
+| `/provider/details` | Détails | `detailUrl`, `lang`, `autoTrad` |
+| `/provider/code` | Code-barres/ISBN | `code`, `lang`, `autoTrad` |
+
 ### Sans clé API (gratuit)
 
-| Service | Endpoints |
-|---------|-----------|
-| LEGO | `/lego/search`, `/lego/product/:id` |
-| Amazon | `/amazon/search`, `/amazon/product/:asin`, `/amazon/barcode/:code`, `/amazon/compare/:asin` |
-| Coleka | `/coleka/search`, `/coleka/item` |
-| IMDB | `/imdb/search`, `/imdb/title/:id` |
-| Jikan | `/jikan/anime/search`, `/jikan/manga/search` |
-| MangaDex | `/mangadex/search`, `/mangadex/manga/:id` |
-| Barcode | `/barcode/lookup/:code` |
-| Deezer | `/deezer/search`, `/deezer/album/:id` |
+| Service | Endpoints normalisés | Endpoints legacy |
+|---------|---------------------|------------------|
+| LEGO | `/lego/search`, `/lego/details` | `/lego/product/:id` |
+| Playmobil | `/playmobil/search`, `/playmobil/details` | `/playmobil/product/:id` |
+| Amazon | `/amazon_*/search`, `/amazon_*/details`, `/amazon_*/code` | `/amazon/product/:asin` |
+| IMDB | `/imdb/search`, `/imdb/details` | `/imdb/title/:id` |
+| Jikan | `/jikan/search`, `/jikan/details` | `/jikan/anime`, `/jikan/manga` |
+| MangaDex | `/mangadex/search`, `/mangadex/details` | `/mangadex/manga/:id` |
+| Barcode | `/barcode/code` | `/barcode/:code` |
+| Music | `/music/search`, `/music/details`, `/music/code` | `/music/album/:id` |
 
 ### Avec clé API
 
@@ -131,7 +142,11 @@ curl "http://localhost:3000/amazon/multi-search?q=nintendo+switch&countries=fr,u
 
 ### Lookup Barcode
 ```bash
-curl "http://localhost:3000/barcode/lookup/5702017421384"
+# v3.1.0 - Endpoint normalisé
+curl "http://localhost:3000/barcode/code?code=5702017421384"
+
+# Legacy (toujours supporté)
+curl "http://localhost:3000/barcode/5702017421384"
 ```
 
 ### Recherche IMDB (avec traduction)
@@ -195,7 +210,16 @@ MIT
 
 ### Changelog
 
-#### v3.0.0 🆕
+#### v3.1.0 🆕
+- 🛤️ **Routes normalisées** : Structure unifiée `/search`, `/details`, `/code` pour tous les providers
+  - Middlewares de validation (`validateSearchParams`, `validateDetailsParams`, `validateCodeParams`)
+  - Réponses standardisées (`formatSearchResponse`, `formatDetailResponse`)
+  - `detailUrl` généré automatiquement dans les résultats de recherche
+  - Rétrocompatibilité totale avec les endpoints legacy
+- 🏷️ **Amazon par catégorie** : `/amazon_books`, `/amazon_toys`, `/amazon_videogames`, etc.
+- 🎮 **JVC → JeuxVideo** : Endpoint renommé `/jvc/*` → `/jeuxvideo/*`
+
+#### v3.0.0
 - 🔄 **Normalisation complète** : Schémas unifiés pour tous les types de données
   - 12 types normalisés : `construct_toy`, `book`, `movie`, `series`, `anime`, `manga`, `videogame`, `music_album`, `collectible`, `stickers`, `console`, `amazon`
   - Fonctions `*Normalized()` pour chaque provider
