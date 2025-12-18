@@ -54,13 +54,16 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
   metrics.sources.coleka.requests++;
   const rawResult = await searchColekaLib(q, nbpp, lang);
   
-  const items = (rawResult.results || rawResult.items || []).map(item => ({
+  const items = (rawResult.products || rawResult.results || rawResult.items || []).map(item => ({
     type: 'collectible',
     source: 'coleka',
     sourceId: item.id,
     name: item.name || item.title,
     name_original: item.name || item.title,
     image: item.image,
+    url: item.url,
+    category: item.category,
+    collection: item.collection,
     detailUrl: generateDetailUrl('coleka', item.id, 'item')
   }));
   
@@ -88,7 +91,7 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
   metrics.sources.luluberlu.requests++;
   const rawResult = await searchLuluBerluLib(q, max);
   
-  const items = (rawResult.results || rawResult.items || []).map(item => ({
+  const items = (rawResult.products || rawResult.results || rawResult.items || []).map(item => ({
     type: 'collectible',
     source: 'luluberlu',
     sourceId: item.id || item.url,
@@ -96,6 +99,7 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
     name_original: item.name || item.title,
     image: item.image,
     price: item.price,
+    url: item.url,
     detailUrl: generateDetailUrl('luluberlu', item.id || encodeURIComponent(item.url), 'item')
   }));
   

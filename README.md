@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **Version 3.1.0** - Routes normalisées + Données unifiées
+> **Version 3.1.1** - Fix sessions FlareSolverr + mapping collectibles
 
 A Docker-based REST API to search and retrieve product information from multiple sources:
 - **LEGO** - Official LEGO website (lego.com)
@@ -4924,7 +4924,15 @@ Licence MIT
 
 ## 📦 Changelog
 
-### v3.1.0 🆕 (2025)
+### v3.1.1 🔧 (2025-12-18)
+- 🐛 **Fix FlareSolverr sessions** : Les providers collectibles (Coleka, LuluBerlu, Transformerland, Paninimania, ConsoleVariations) passent désormais correctement le `sessionId` aux requêtes FSR
+  - Résout le problème des challenges anti-bot "résolus" mais sans cookies partagés
+- 🐛 **Fix mapping collectibles** : Route Coleka et LuluBerlu utilisaient `results/items` au lieu de `products`
+  - Ajout des champs `url`, `category`, `collection` dans la réponse
+- 🔑 **Fix ComicVine API key** : Le provider accepte maintenant la clé via header `X-Api-Key`
+  - Ajout du middleware `requireApiKey('Comic Vine')` sur les routes ComicVine
+
+### v3.1.0 (2025)
 - 🛤️ **Routes normalisées** : Structure unifiée `/search`, `/details`, `/code` pour tous les providers
   - Middlewares de validation (`validateSearchParams`, `validateDetailsParams`, `validateCodeParams`)
   - Réponses standardisées (`formatSearchResponse`, `formatDetailResponse`)
