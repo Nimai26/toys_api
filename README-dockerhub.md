@@ -1,35 +1,39 @@
 # Toys API 🧸
 
-> **v2.2.0** - Puppeteer Stealth + Protection VPN intégrée
+> **v3.0.0** - Normalisation complète des données + Puppeteer Stealth + Protection VPN
 
 API REST Docker pour rechercher et obtenir des informations produits depuis de multiples sources.
 
 ## 📦 Sources supportées
 
-| Catégorie | Sources |
-|-----------|---------|
-| **🧱 Jouets** | LEGO, Mega Construx, Rebrickable |
-| **🛒 Marketplace** | Amazon (FR, US, UK, DE, ES, IT, JP, CA) |
-| **📚 Livres** | Google Books, OpenLibrary |
-| **🎮 Jeux vidéo** | RAWG, IGDB, JeuxVideo.com |
-| **📺 Films/Séries** | TVDB, TMDB, IMDB |
-| **🎌 Anime/Manga** | Jikan, MangaDex |
-| **📖 BD/Comics** | Comic Vine, Bedetheque |
-| **🎵 Musique** | MusicBrainz, Deezer, iTunes, Discogs |
-| **🎯 Collectibles** | Coleka, Lulu-Berlu, Transformerland, ConsoleVariations |
-| **🏷️ Barcode** | UPC, EAN, ISBN (auto-détection) |
+| Catégorie | Sources | Normalizer |
+|-----------|---------|------------|
+| **🧱 Jouets** | LEGO, Playmobil, Klickypedia, Mega Construx, Rebrickable | ✅ `construct_toy` |
+| **🛒 Marketplace** | Amazon (FR, US, UK, DE, ES, IT, JP, CA) | ✅ `amazon` |
+| **📚 Livres** | Google Books, OpenLibrary, Bedetheque, ComicVine | ✅ `book` |
+| **🎮 Jeux vidéo** | RAWG, IGDB, JeuxVideo.com | ✅ `videogame` |
+| **📺 Films** | TVDB, TMDB, IMDB | ✅ `movie` |
+| **📺 Séries** | TVDB, TMDB, IMDB | ✅ `series` |
+| **🎌 Anime** | Jikan | ✅ `anime` |
+| **📖 Manga** | Jikan, MangaDex | ✅ `manga` |
+| **🎵 Musique** | MusicBrainz, Deezer, iTunes, Discogs | ✅ `music_album` |
+| **🎯 Collectibles** | Coleka, Lulu-Berlu, Transformerland | ✅ `collectible` |
+| **🖼️ Stickers** | Paninimania | ✅ `stickers` |
+| **🎮 Consoles** | ConsoleVariations | ✅ `console` |
+| **🏷️ Barcode** | UPC, EAN, ISBN (auto-détection) | - |
 
 ## ✨ Fonctionnalités
 
 - 🔍 Recherche multi-sources avec cache intelligent
 - 🛡️ Contournement Cloudflare via FlareSolverr
 - 🔐 Support clés API chiffrées (AES-256-GCM)
-- 🛒 **Amazon** : Puppeteer Stealth avec protection VPN 🆕
-- 🔒 **VPN intégré** : Gluetun + Kill switch + Rotation IP 🆕
-- 🌍 **Traduction IMDB** : Plot + genres traduits (`autoTrad=1`) 🆕
-- �🏷️ **Barcode** : Identification automatique UPC/EAN/ISBN
+- 🛒 **Amazon** : Puppeteer Stealth avec protection VPN
+- 🔒 **VPN intégré** : Gluetun + Kill switch + Rotation IP
+- 🌍 **Traduction auto** : Plot + genres traduits (`autoTrad=1`)
+- 🏷️ **Barcode** : Identification automatique UPC/EAN/ISBN
 - 🌍 Multi-langues (fr-FR, en-US, de-DE, etc.)
 - 📊 Métriques et monitoring intégrés
+- 🔄 **Données normalisées** : Schémas unifiés par type (`*Normalized()`) 🆕
 
 ## 🚀 Démarrage Rapide
 
@@ -191,7 +195,21 @@ MIT
 
 ### Changelog
 
-#### v2.2.0 🆕
+#### v3.0.0 🆕
+- 🔄 **Normalisation complète** : Schémas unifiés pour tous les types de données
+  - 12 types normalisés : `construct_toy`, `book`, `movie`, `series`, `anime`, `manga`, `videogame`, `music_album`, `collectible`, `stickers`, `console`, `amazon`
+  - Fonctions `*Normalized()` pour chaque provider
+  - JSON schemas de référence dans `test/models/`
+- 🧱 **Playmobil & Klickypedia** : Nouveaux providers jouets de construction
+- 📖 **Bedetheque & ComicVine** : BD franco-belge et comics intégrés au type `book`
+- 🎮 **JVC** : Provider jeux vidéo français avec normalisation
+- 📊 Documentation technique complète dans `test/`
+
+#### v2.4.0
+- 🧱 Ajout providers Playmobil et Klickypedia
+- 🔄 Amélioration du cache
+
+#### v2.2.0
 - 🥷 **Puppeteer Stealth** : Remplace FlareSolverr pour Amazon (anti-détection)
 - 🔒 **Proxy VPN intégré** : Tout le trafic Amazon passe par le VPN
 - 🛡️ **VPN Monitor** : Auto-restart + rotation IP automatique

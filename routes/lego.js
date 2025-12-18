@@ -5,14 +5,16 @@
 
 import { Router } from 'express';
 import { createLogger } from '../lib/utils/logger.js';
-import { addCacheHeaders, asyncHandler } from '../lib/utils/index.js';
-import { DEFAULT_LOCALE } from '../lib/config.js';
+import { addCacheHeaders, asyncHandler, metrics, extractApiKey } from '../lib/utils/index.js';
+import { DEFAULT_LOCALE, MAX_RETRIES } from '../lib/config.js';
 
 import { 
   callLegoGraphql as callLegoGraphqlLib, 
   getProductDetails as getLegoProductDetails, 
   getBuildingInstructions
 } from '../lib/providers/lego.js';
+
+// Note: enrichLegoWithRebrickable sera ajouté ultérieurement
 
 const router = Router();
 const log = createLogger('Route:Lego');
@@ -66,16 +68,11 @@ router.get("/product/:id", asyncHandler(async (req, res) => {
   }
   
   // Enrichir avec Rebrickable si demandé
+  // TODO: Implémenter enrichLegoWithRebrickable
   if (enrichRebrickable) {
     const apiKey = extractApiKey(req);
     if (apiKey) {
-      try {
-        result = await enrichLegoWithRebrickable(result, apiKey, { maxParts });
-        log.debug(`[LEGO] Produit ${productId} enrichi avec Rebrickable`);
-      } catch (enrichErr) {
-        log.warn(`[LEGO] Échec enrichissement Rebrickable pour ${productId}: ${enrichErr.message}`);
-        result.rebrickable_error = enrichErr.message;
-      }
+      result.rebrickable_hint = "Enrichissement Rebrickable pas encore implémenté dans cette version";
     } else {
       result.rebrickable_hint = "Fournissez une clé API Rebrickable via X-Api-Key ou X-Encrypted-Key pour enrichir avec minifigs/pièces";
     }

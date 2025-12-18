@@ -50,6 +50,9 @@ backup/
 *.backup*
 *.bak
 
+# Tests de normalisation (fichiers de travail)
+test/
+
 # Fichiers Docker locaux (sauf templates publics)
 .dockerignore
 docker-compose.yml

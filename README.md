@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **Version 2.4.0** - Ajout des providers Playmobil et Klickypedia
+> **Version 3.0.0** - Normalisation complète des données
 
 A Docker-based REST API to search and retrieve product information from multiple sources:
 - **LEGO** - Official LEGO website (lego.com)
@@ -34,16 +34,16 @@ This API uses FlareSolverr to bypass Cloudflare/anti-bot protection and provides
 ### ✨ Features
 
 - 🔍 Multi-source product search (LEGO, Playmobil, Mega Construx, Rebrickable, Google Books, OpenLibrary, RAWG, IGDB, TVDB, TMDB, IMDB, Jikan, ConsoleVariations, Coleka, Lulu-Berlu, Transformerland, Paninimania)
-- 🛒 **Amazon scraper** - Multi-country search (FR, US, UK, DE, ES, IT, JP, CA), price comparison, barcode lookup 🆕
-- 🧱 **Mega Construx search** multi-language (fr-FR, en-US, de-DE, etc.) with instructions 🆕
-- 🎮 **ConsoleVariations** - Console variations, bundles & accessories database (11K+ collectibles) 🆕
+- 🛒 **Amazon scraper** - Multi-country search (FR, US, UK, DE, ES, IT, JP, CA), price comparison, barcode lookup
+- 🧱 **Mega Construx search** multi-language (fr-FR, en-US, de-DE, etc.) with instructions
+- 🎮 **ConsoleVariations** - Console variations, bundles & accessories database (11K+ collectibles)
 - 📚 **Books search** via Google Books & OpenLibrary (ISBN or text)
 - 🎮 **Video games search** via RAWG & IGDB (500K+ games)
 - 📺 **TV series & movies search** via TVDB, TMDB & IMDB (millions of entries)
 - 🎌 **Anime & Manga search** via Jikan/MyAnimeList (70K+ anime, 150K+ manga)
 - 📖 **Comics & BD** via Comic Vine, MangaDex & Bedetheque
-- 🏷️ **Barcode identification** - Auto-detect UPC, EAN, ISBN with product lookup 🆕
-- 🎵 **Music album search** via MusicBrainz, Deezer, iTunes, Discogs 🆕
+- 🏷️ **Barcode identification** - Auto-detect UPC, EAN, ISBN with product lookup
+- 🎵 **Music album search** via MusicBrainz, Deezer, iTunes, Discogs
 - 🆓 **IMDB, Jikan, MangaDex without API key** - Free access
 - 🔗 **LEGO ↔ Rebrickable cross-enrichment** (parts, minifigs, instructions)
 - 📦 Detailed product information (price, availability, images, etc.)
@@ -55,6 +55,7 @@ This API uses FlareSolverr to bypass Cloudflare/anti-bot protection and provides
 - 🛡️ **Security headers** (X-Content-Type-Options, X-Frame-Options, X-XSS-Protection)
 - 🔄 **Graceful shutdown** support
 - 🌍 Multi-locale support (fr-FR, en-US, de-DE, etc.)
+- 🔄 **Normalized API responses** (`*Normalized()` functions) for unified data format 🆕
 
 ---
 
