@@ -24,7 +24,7 @@ import { MEGA_DEFAULT_MAX, MEGA_DEFAULT_LANG } from '../lib/config.js';
 
 import {
   searchMega as searchMegaLib,
-  getMegaProductById as getMegaProductByIdLib,
+  getMegaProductByIdNormalized,
   getMegaInstructions,
   listMegaInstructions
 } from '../lib/providers/mega.js';
@@ -82,26 +82,30 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
 
-  const result = await getMegaProductByIdLib(id, { lang: locale, autoTrad });
-  if (!result || !result.title) {
+  const result = await getMegaProductByIdNormalized(id, { lang: locale, autoTrad });
+  if (!result || !result.name) {
     return res.status(404).json({ error: `Produit ${id} non trouvé` });
   }
   
-  // Ajouter les instructions
+  // Ajouter les instructions (enrichissement supplémentaire)
   const skuForInstructions = result.sku || id;
   try {
     const instructionsResult = await getMegaInstructions(skuForInstructions);
     if (instructionsResult && instructionsResult.instructionsUrl) {
-      result.instructions = [{
+      if (!result.instructions) result.instructions = {};
+      result.instructions.manuals = [{
         url: instructionsResult.instructionsUrl,
         format: instructionsResult.format || 'PDF',
         productName: instructionsResult.productName
       }];
-    } else {
-      result.instructions = [];
+      result.instructions.available = true;
+    } else if (!result.instructions || !result.instructions.available) {
+      result.instructions = { available: false, manuals: [] };
     }
   } catch (err) {
-    result.instructions = [];
+    if (!result.instructions) {
+      result.instructions = { available: false, manuals: [] };
+    }
   }
   
   addCacheHeaders(res, 3600);

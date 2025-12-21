@@ -23,17 +23,17 @@ import { MUSIC_DEFAULT_MAX } from '../lib/config.js';
 
 import {
   searchMusicBrainz as searchMusicBrainzLib,
-  getMusicBrainzAlbum as getMusicBrainzAlbumLib,
+  getMusicBrainzAlbumNormalized,
   searchMusicBrainzByBarcode as searchMusicBrainzByBarcodeLib
 } from '../lib/providers/musicbrainz.js';
 import {
   searchDeezer as searchDeezerLib,
-  getDeezerAlbum as getDeezerAlbumLib,
+  getDeezerAlbumNormalized,
   getDeezerArtist as getDeezerArtistLib
 } from '../lib/providers/deezer.js';
 import {
   searchDiscogs as searchDiscogsLib,
-  getDiscogsRelease as getDiscogsReleaseLib,
+  getDiscogsReleaseNormalized,
   searchDiscogsByBarcode as searchDiscogsByBarcodeLib
 } from '../lib/providers/discogs.js';
 import {
@@ -130,12 +130,12 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   let result;
   
   if (provider === 'musicbrainz' || provider === 'mb') {
-    result = await getMusicBrainzAlbumLib(id);
+    result = await getMusicBrainzAlbumNormalized(id);
   } else if (provider === 'discogs') {
     const token = req.query.token || req.headers['x-discogs-token'];
-    result = await getDiscogsReleaseLib(id, token);
+    result = await getDiscogsReleaseNormalized(id, token);
   } else {
-    result = await getDeezerAlbumLib(id);
+    result = await getDeezerAlbumNormalized(id);
   }
   
   const response = formatDetailResponse({ data: result, provider, id, meta: { lang, locale, autoTrad } });

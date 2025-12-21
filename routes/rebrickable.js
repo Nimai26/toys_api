@@ -25,6 +25,7 @@ import { DEFAULT_LOCALE, REBRICKABLE_DEFAULT_MAX } from '../lib/config.js';
 import {
   smartRebrickableSearch as smartRebrickableSearchLib,
   getRebrickableSet,
+  getRebrickableSetNormalized,
   getRebrickableSetFull as getRebrickableSetFullLib,
   getRebrickableSetParts,
   getRebrickableSetMinifigs,
@@ -128,7 +129,7 @@ router.get("/details", validateDetailsParams, rebrickableAuth, asyncHandler(asyn
   const setNum = legoIdToRebrickable(id);
   const enrichLego = req.query.enrich_lego !== 'false';
   
-  let result = await getRebrickableSetFullLib(setNum, req.apiKey, {
+  let result = await getRebrickableSetNormalized(setNum, req.apiKey, {
     includeParts: true,
     includeMinifigs: true,
     maxParts: 500
@@ -138,8 +139,8 @@ router.get("/details", validateDetailsParams, rebrickableAuth, asyncHandler(asyn
     result = await enrichRebrickableWithLego(result, locale);
   }
   
-  if (result.set_num && !result.lego_id) {
-    result.lego_id = rebrickableIdToLego(result.set_num);
+  if (result.sourceId && !result.lego_id) {
+    result.lego_id = rebrickableIdToLego(result.sourceId);
   }
   
   addCacheHeaders(res, 3600);

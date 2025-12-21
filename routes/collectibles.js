@@ -24,21 +24,21 @@ import {
 } from '../lib/providers/coleka.js';
 import {
   searchLuluBerlu as searchLuluBerluLib,
-  getLuluBerluItemDetails
+  getLuluBerluItemDetailsNormalized
 } from '../lib/providers/luluberlu.js';
 import {
   searchConsoleVariations as searchConsoleVariationsLib,
-  getConsoleVariationsItem,
+  getConsoleVariationsItemNormalized,
   listConsoleVariationsPlatforms,
   browseConsoleVariationsPlatform
 } from '../lib/providers/consolevariations.js';
 import {
   searchTransformerland as searchTransformerlandLib,
-  getTransformerlandItemDetails
+  getTransformerlandItemDetailsNormalized
 } from '../lib/providers/transformerland.js';
 import {
   searchPaninimania as searchPaninimanaLib,
-  getPaninimanialbumDetails
+  getPaninimanialbumDetailsNormalized
 } from '../lib/providers/paninimania.js';
 
 // ============================================================================
@@ -124,7 +124,7 @@ luluberluRouter.get("/details", validateDetailsParams, asyncHandler(async (req, 
   const { id } = req.parsedDetailUrl;
 
   metrics.sources.luluberlu.requests++;
-  const result = await getLuluBerluItemDetails(decodeURIComponent(id));
+  const result = await getLuluBerluItemDetailsNormalized(decodeURIComponent(id));
   
   addCacheHeaders(res, 300);
   res.json(formatDetailResponse({ data: result, provider: 'luluberlu', id, meta: { lang, locale, autoTrad } }));
@@ -200,7 +200,7 @@ consolevariationsRouter.get("/details", validateDetailsParams, asyncHandler(asyn
   const { id } = req.parsedDetailUrl;
   
   metrics.sources.consolevariations.requests++;
-  const result = await getConsoleVariationsItem(id, undefined, { lang, autoTrad });
+  const result = await getConsoleVariationsItemNormalized(id, undefined, { lang, autoTrad });
   
   addCacheHeaders(res, 300);
   res.json(formatDetailResponse({ data: result, provider: 'consolevariations', id, meta: { lang, locale, autoTrad } }));
@@ -282,7 +282,7 @@ transformerlandRouter.get("/details", validateDetailsParams, asyncHandler(async 
   const { id } = req.parsedDetailUrl;
   
   metrics.sources.transformerland.requests++;
-  const result = await getTransformerlandItemDetails(id, undefined, { lang, autoTrad });
+  const result = await getTransformerlandItemDetailsNormalized(id, undefined, { lang, autoTrad });
   
   addCacheHeaders(res, 300);
   res.json(formatDetailResponse({ data: result, provider: 'transformerland', id, meta: { lang, locale, autoTrad } }));
@@ -342,7 +342,7 @@ paninimanaRouter.get("/details", validateDetailsParams, asyncHandler(async (req,
   const { id } = req.parsedDetailUrl;
   
   metrics.sources.paninimania.requests++;
-  const result = await getPaninimanialbumDetails(id);
+  const result = await getPaninimanialbumDetailsNormalized(id);
   
   addCacheHeaders(res, 300);
   res.json(formatDetailResponse({ data: result, provider: 'paninimania', id, meta: { lang, locale, autoTrad } }));

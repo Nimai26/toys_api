@@ -27,7 +27,7 @@ import { DEFAULT_LOCALE, MAX_RETRIES } from '../lib/config.js';
 
 import { 
   callLegoGraphql as callLegoGraphqlLib, 
-  getProductDetails as getLegoProductDetails, 
+  getProductDetailsNormalized,
   getBuildingInstructions
 } from '../lib/providers/lego.js';
 
@@ -97,9 +97,9 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { id } = req.parsedDetailUrl;
 
   metrics.sources.lego.requests++;
-  let result = await getLegoProductDetails(id, locale);
+  let result = await getProductDetailsNormalized(id, locale);
   
-  // Ajouter les instructions
+  // Ajouter les instructions (enrichissement supplémentaire)
   try {
     const instructions = await getBuildingInstructions(id, locale);
     if (instructions && instructions.manuals && instructions.manuals.length > 0) {
@@ -108,12 +108,14 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
         count: instructions.manuals.length,
         manuals: instructions.manuals
       };
-    } else {
+    } else if (!result.instructions || !result.instructions.available) {
       result.instructions = { available: false, count: 0, manuals: [] };
     }
   } catch (instructionsErr) {
     log.warn(`Instructions non disponibles pour ${id}: ${instructionsErr.message}`);
-    result.instructions = { available: false, count: 0, manuals: [], error: instructionsErr.message };
+    if (!result.instructions) {
+      result.instructions = { available: false, count: 0, manuals: [], error: instructionsErr.message };
+    }
   }
   
   addCacheHeaders(res, 300);

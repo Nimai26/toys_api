@@ -2,18 +2,18 @@
 import { Router } from 'express';
 import {
   searchComicVine,
-  getComicVineVolume,
-  getComicVineIssue
+  getComicVineVolumeNormalized,
+  getComicVineIssueNormalized
 } from '../lib/providers/comicvine.js';
 import {
   searchMangaDex,
-  getMangaDexById
+  getMangaDexByIdNormalized
 } from '../lib/providers/mangadex.js';
 import {
   searchBedetheque,
   searchBedethequeAlbums,
-  getBedethequeSerieById,
-  getBedethequeAlbumById
+  getBedethequeSerieByIdNormalized,
+  getBedethequeAlbumByIdNormalized
 } from '../lib/providers/bedetheque.js';
 import { 
   cleanSourceId, 
@@ -83,9 +83,9 @@ comicvineRouter.get("/details", comicvineAuth, validateDetailsParams, asyncHandl
 
   let result;
   if (type === 'issue') {
-    result = await getComicVineIssue(parseInt(cleanId, 10), req.apiKey, { lang, autoTrad });
+    result = await getComicVineIssueNormalized(parseInt(cleanId, 10), req.apiKey, { lang, autoTrad });
   } else {
-    result = await getComicVineVolume(parseInt(cleanId, 10), req.apiKey, { lang, autoTrad });
+    result = await getComicVineVolumeNormalized(parseInt(cleanId, 10), req.apiKey, { lang, autoTrad });
   }
   
   if (!result) return res.status(404).json({ error: `${type} ${cleanId} non trouvé` });
@@ -168,7 +168,7 @@ mangadexRouter.get("/details", validateDetailsParams, asyncHandler(async (req, r
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un UUID" });
   }
 
-  const result = await getMangaDexById(cleanId, { lang, autoTrad });
+  const result = await getMangaDexByIdNormalized(cleanId, { lang, autoTrad });
   if (!result) return res.status(404).json({ error: `Manga ${cleanId} non trouvé` });
   
   addCacheHeaders(res, 3600);
@@ -244,10 +244,10 @@ bedethequeRouter.get("/details", validateDetailsParams, asyncHandler(async (req,
 
   let result;
   if (type === 'album') {
-    result = await getBedethequeAlbumById(parseInt(id, 10));
-    if (!result || !result.title) return res.status(404).json({ error: `Album ${id} non trouvé` });
+    result = await getBedethequeAlbumByIdNormalized(parseInt(id, 10));
+    if (!result || !result.name) return res.status(404).json({ error: `Album ${id} non trouvé` });
   } else {
-    result = await getBedethequeSerieById(parseInt(id, 10));
+    result = await getBedethequeSerieByIdNormalized(parseInt(id, 10));
     if (!result || !result.name) return res.status(404).json({ error: `Série ${id} non trouvée` });
   }
   

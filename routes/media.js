@@ -2,17 +2,18 @@
 import { Router } from 'express';
 import {
   searchTvdb,
-  getTvdbSeriesById,
-  getTvdbMovieById
+  getTvdbSeriesByIdNormalized,
+  getTvdbMovieByIdNormalized
 } from '../lib/providers/tvdb.js';
 import {
   searchTmdb,
-  getTmdbMovieById,
-  getTmdbTvById
+  getTmdbMovieByIdNormalized,
+  getTmdbTvByIdNormalized
 } from '../lib/providers/tmdb.js';
 import {
   searchImdb,
-  getImdbTitleById,
+  getImdbMovieByIdNormalized,
+  getImdbSeriesByIdNormalized,
   browseImdbTitles
 } from '../lib/providers/imdb.js';
 import { 
@@ -73,9 +74,9 @@ tvdbRouter.get("/details", validateDetailsParams, tvdbAuth, asyncHandler(async (
   
   let result;
   if (type === 'movie') {
-    result = await getTvdbMovieById(id, req.apiKey, { lang, autoTrad });
+    result = await getTvdbMovieByIdNormalized(id, req.apiKey, { lang, autoTrad });
   } else {
-    result = await getTvdbSeriesById(id, req.apiKey, { lang, autoTrad });
+    result = await getTvdbSeriesByIdNormalized(id, req.apiKey, { lang, autoTrad });
   }
   
   addCacheHeaders(res, 3600);
@@ -148,9 +149,9 @@ tmdbRouter.get("/details", validateDetailsParams, tmdbAuth, asyncHandler(async (
   
   let result;
   if (type === 'movie') {
-    result = await getTmdbMovieById(id, req.apiKey, { lang: locale, autoTrad });
+    result = await getTmdbMovieByIdNormalized(id, req.apiKey, { lang: locale, autoTrad });
   } else {
-    result = await getTmdbTvById(id, req.apiKey, { lang: locale, autoTrad });
+    result = await getTmdbTvByIdNormalized(id, req.apiKey, { lang: locale, autoTrad });
   }
   
   addCacheHeaders(res, 3600);
@@ -214,13 +215,20 @@ imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =>
 // Normalisé: /imdb/details
 imdbRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
-  const { id } = req.parsedDetailUrl;
+  const { id, type } = req.parsedDetailUrl;
   
   if (!/^tt\d{7,}$/.test(id)) {
     return res.status(400).json({ error: "Format d'ID IMDB invalide", hint: "Format: tt suivi d'au moins 7 chiffres" });
   }
   
-  const result = await getImdbTitleById(id, { lang, autoTrad });
+  // Déterminer le type (movie ou series) - par défaut movie
+  let result;
+  if (type === 'series') {
+    result = await getImdbSeriesByIdNormalized(id, { lang, autoTrad });
+  } else {
+    result = await getImdbMovieByIdNormalized(id, { lang, autoTrad });
+  }
+  
   addCacheHeaders(res, 3600);
   res.json(formatDetailResponse({ data: result, provider: 'imdb', id, meta: { lang, locale, autoTrad } }));
 }));

@@ -23,7 +23,7 @@ import {
 
 import {
   searchPlaymobil as searchPlaymobilLib,
-  getPlaymobilProductDetails as getPlaymobilProductDetailsLib,
+  getPlaymobilProductDetailsNormalized,
   getPlaymobilInstructions,
   searchPlaymobilInstructions,
   extractPlaymobilProductId,
@@ -119,17 +119,23 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
     });
   }
   
-  const result = await getPlaymobilProductDetailsLib(cleanId, locale);
+  const result = await getPlaymobilProductDetailsNormalized(cleanId, locale);
   if (!result || !result.name) {
     return res.status(404).json({ error: `Produit ${cleanId} non trouvé` });
   }
   
-  // Ajouter les instructions
+  // Ajouter les instructions (enrichissement supplémentaire)
   try {
     const instructions = await getPlaymobilInstructions(cleanId);
-    result.instructions = instructions;
+    if (instructions && instructions.available) {
+      result.instructions = instructions;
+    } else if (!result.instructions) {
+      result.instructions = { available: false };
+    }
   } catch (err) {
-    result.instructions = { available: false, error: err.message };
+    if (!result.instructions) {
+      result.instructions = { available: false, error: err.message };
+    }
   }
   
   addCacheHeaders(res, 3600);

@@ -3,8 +3,8 @@ import { Router } from 'express';
 import {
   searchJikanAnime,
   searchJikanManga,
-  getJikanAnimeById,
-  getJikanMangaById
+  getJikanAnimeByIdNormalized,
+  getJikanMangaByIdNormalized
 } from '../lib/providers/jikan.js';
 import { 
   cleanSourceId, 
@@ -98,9 +98,9 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   
   let result;
   if (type === 'manga') {
-    result = await getJikanMangaById(parseInt(cleanId, 10), { lang, autoTrad });
+    result = await getJikanMangaByIdNormalized(parseInt(cleanId, 10), { lang, autoTrad });
   } else {
-    result = await getJikanAnimeById(parseInt(cleanId, 10), { lang, autoTrad });
+    result = await getJikanAnimeByIdNormalized(parseInt(cleanId, 10), { lang, autoTrad });
   }
   
   metrics.requests.total++;
@@ -254,7 +254,7 @@ animeRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res)
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
   }
   
-  const result = await getJikanAnimeById(parseInt(cleanId, 10), { lang, autoTrad });
+  const result = await getJikanAnimeByIdNormalized(parseInt(cleanId, 10), { lang, autoTrad });
   
   metrics.requests.total++;
   addCacheHeaders(res, 3600);
@@ -331,7 +331,7 @@ mangaRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res)
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
   }
   
-  const result = await getJikanMangaById(parseInt(cleanId, 10), { lang, autoTrad });
+  const result = await getJikanMangaByIdNormalized(parseInt(cleanId, 10), { lang, autoTrad });
   
   metrics.requests.total++;
   addCacheHeaders(res, 3600);

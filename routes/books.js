@@ -2,12 +2,12 @@
 import { Router } from 'express';
 import {
   searchGoogleBooks,
-  getGoogleBookById,
+  getGoogleBookByIdNormalized,
   isIsbn
 } from '../lib/providers/googlebooks.js';
 import {
   searchOpenLibrary,
-  getOpenLibraryById
+  getOpenLibraryByIdNormalized
 } from '../lib/providers/openlibrary.js';
 import { 
   cleanSourceId, 
@@ -71,7 +71,7 @@ router.get("/details", validateDetailsParams, googleAuth, asyncHandler(async (re
   const { id } = req.parsedDetailUrl;
   
   const cleanId = cleanSourceId(id, 'googlebooks');
-  const result = await getGoogleBookById(cleanId, req.apiKey, { lang, autoTrad });
+  const result = await getGoogleBookByIdNormalized(cleanId, req.apiKey, { lang, autoTrad });
   
   addCacheHeaders(res, 3600);
   res.json(formatDetailResponse({ data: result, provider: 'google_books', id: cleanId, meta: { lang, locale, autoTrad } }));
@@ -177,7 +177,7 @@ olRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) =>
   const { id } = req.parsedDetailUrl;
   
   const cleanId = cleanSourceId(id, 'openlibrary');
-  const result = await getOpenLibraryById(cleanId);
+  const result = await getOpenLibraryByIdNormalized(cleanId);
   
   addCacheHeaders(res, 3600);
   res.json(formatDetailResponse({ data: result, provider: 'openlibrary', id: cleanId, meta: { lang, locale, autoTrad } }));

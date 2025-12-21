@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import { createLogger } from '../lib/utils/logger.js';
-import { searchKlickypedia, getKlickypediaProductDetails } from '../lib/providers/klickypedia.js';
+import { searchKlickypedia, getKlickypediaProductDetailsNormalized } from '../lib/providers/klickypedia.js';
 import { KLICKYPEDIA_DEFAULT_LANG, KLICKYPEDIA_DEFAULT_MAX } from '../lib/config.js';
 import { 
   addCacheHeaders,
@@ -83,7 +83,7 @@ router.get('/details', validateDetailsParams, async (req, res) => {
     
     log.info(`Détails Klickypedia: ${id} (lang=${locale})`);
     
-    const product = await getKlickypediaProductDetails(id, locale);
+    const product = await getKlickypediaProductDetailsNormalized(id, locale);
     
     if (!product) {
       return res.status(404).json({ error: 'Produit non trouvé', message: `Aucun produit trouvé avec l'ID ${id}` });

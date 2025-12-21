@@ -2,17 +2,17 @@
 import { Router } from 'express';
 import {
   searchRawg,
-  getRawgGameDetails
+  getRawgGameDetailsNormalized
 } from '../lib/providers/rawg.js';
 import {
   searchIgdb,
-  getIgdbGameDetails,
+  getIgdbGameDetailsNormalized,
   parseIgdbCredentials,
   getIgdbToken
 } from '../lib/providers/igdb.js';
 import {
   searchJVC,
-  getJVCGameById
+  getJvcGameByIdNormalized
 } from '../lib/providers/jvc.js';
 import { 
   addCacheHeaders, 
@@ -84,7 +84,7 @@ rawgRouter.get("/details", validateDetailsParams, rawgAuth, asyncHandler(async (
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
   
-  const result = await getRawgGameDetails(id, req.apiKey, { lang, autoTrad });
+  const result = await getRawgGameDetailsNormalized(id, req.apiKey, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(formatDetailResponse({ data: result, provider: 'rawg', id, meta: { lang, locale, autoTrad } }));
 }));
@@ -152,7 +152,7 @@ igdbRouter.get("/details", validateDetailsParams, igdbAuth, asyncHandler(async (
   const { clientId, clientSecret } = parseIgdbCredentials(req.apiKey);
   const accessToken = await getIgdbToken(clientId, clientSecret);
   
-  const result = await getIgdbGameDetails(id, clientId, accessToken, { lang, autoTrad });
+  const result = await getIgdbGameDetailsNormalized(id, clientId, accessToken, { lang, autoTrad });
   addCacheHeaders(res, 3600);
   res.json(formatDetailResponse({ data: result, provider: 'igdb', id, meta: { lang, locale, autoTrad } }));
 }));
@@ -217,8 +217,8 @@ jeuxvideoRouter.get("/details", validateDetailsParams, asyncHandler(async (req, 
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
   }
   
-  const result = await getJVCGameById(parseInt(id, 10));
-  if (!result || !result.title) {
+  const result = await getJvcGameByIdNormalized(parseInt(id, 10));
+  if (!result || !result.name) {
     return res.status(404).json({ error: `Jeu ${id} non trouvé` });
   }
   
