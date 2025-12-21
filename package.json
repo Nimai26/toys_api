@@ -1,6 +1,6 @@
 {
   "name": "toys-api",
-  "version": "3.2.9",
+  "version": "3.2.10",
   "type": "module",
   "main": "index.js",
   "description": "API REST multi-sources pour jouets, LEGO, jeux vidéo, BD, musique et collectibles avec traduction automatique",

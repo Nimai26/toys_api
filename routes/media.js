@@ -197,7 +197,7 @@ imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =>
     name_original: item.originalTitle || item.title,
     description: item.description || item.plot || null,
     year: item.year || null,
-    image: item.image,
+    image: item.image || item.poster || null,
     src_url: `https://www.imdb.com/title/${item.id}/`,
     detailUrl: generateDetailUrl('imdb', item.id, 'title')
   }));
