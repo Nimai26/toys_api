@@ -46,19 +46,47 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
 
   const rawResult = await searchPlaymobilLib(q, locale, 3, max);
   
+  /**
+   * Extrait le nom depuis le slug de l'URL Playmobil
+   * Ex: "https://www.playmobil.com/fr-fr/asterix-%3A-la-pyramide-du-pharaon/71148.html"
+   *     -> "Asterix : La Pyramide Du Pharaon"
+   */
+  function extractNameFromUrl(url) {
+    if (!url) return null;
+    const match = url.match(/\/([^\/]+)\/\d+\.html$/);
+    if (!match) return null;
+    
+    // Décoder le slug et convertir en titre lisible
+    const slug = decodeURIComponent(match[1]);
+    return slug
+      .replace(/-/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+  
   // Transformer les résultats au format normalisé
-  const items = (rawResult.products || []).map(product => ({
-    type: 'construct_toy',
-    source: 'playmobil',
-    sourceId: product.productId || product.id,
-    name: product.name || null,
-    name_original: product.name || null,
-    description: product.description || product.shortDescription || null,
-    year: product.year || null,
-    image: product.image || product.primaryImage || product.thumb || product.baseImgUrl || null,
-    src_url: product.url || `https://www.playmobil.com/fr-fr/produit/${product.productId || product.id}`,
-    detailUrl: generateDetailUrl('playmobil', product.productId || product.id, 'product')
-  }));
+  const items = (rawResult.products || []).map(product => {
+    const productId = product.productId || product.id;
+    const productUrl = product.url || `https://www.playmobil.com/fr-fr/produit/${productId}`;
+    const nameFromUrl = extractNameFromUrl(productUrl);
+    const name = product.name || nameFromUrl || null;
+    
+    return {
+      type: 'construct_toy',
+      source: 'playmobil',
+      sourceId: productId,
+      name: name,
+      name_original: name,
+      description: product.description || product.shortDescription || null,
+      year: product.year || null,
+      image: product.image || product.primaryImage || product.thumb || product.baseImgUrl || null,
+      src_url: productUrl,
+      detailUrl: generateDetailUrl('playmobil', productId, 'product')
+    };
+  });
   
   addCacheHeaders(res, 1800);
   res.json(formatSearchResponse({
