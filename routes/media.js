@@ -50,7 +50,10 @@ tvdbRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (re
     sourceId: item.tvdb_id || item.id,
     name: item.name || item.title,
     name_original: item.name_original || item.name,
+    description: item.overview || item.description || null,
+    year: item.year || (item.first_aired ? parseInt(item.first_aired.substring(0, 4), 10) : null),
     image: item.image || item.thumbnail,
+    src_url: `https://thetvdb.com/${item.type === 'movie' ? 'movies' : 'series'}/${item.slug || item.tvdb_id || item.id}`,
     detailUrl: generateDetailUrl('tvdb', item.tvdb_id || item.id, item.type === 'movie' ? 'movie' : 'series')
   }));
   
@@ -121,7 +124,10 @@ tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (re
     sourceId: item.id,
     name: item.title || item.name,
     name_original: item.original_title || item.original_name,
+    description: item.overview || null,
+    year: item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : (item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : null),
     image: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
+    src_url: `https://www.themoviedb.org/${item.media_type === 'movie' ? 'movie' : 'tv'}/${item.id}`,
     detailUrl: generateDetailUrl('tmdb', item.id, item.media_type === 'movie' ? 'movie' : 'tv')
   }));
   
@@ -189,7 +195,10 @@ imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =>
     sourceId: item.id,
     name: item.title,
     name_original: item.originalTitle || item.title,
+    description: item.description || item.plot || null,
+    year: item.year || null,
     image: item.image,
+    src_url: `https://www.imdb.com/title/${item.id}/`,
     detailUrl: generateDetailUrl('imdb', item.id, 'title')
   }));
   

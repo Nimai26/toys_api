@@ -59,7 +59,10 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
     sourceId: game.id || game.slug,
     name: game.name,
     name_original: game.name,
+    description: game.description_raw || null,
+    year: game.released ? parseInt(game.released.substring(0, 4), 10) : null,
     image: game.background_image,
+    src_url: `https://rawg.io/games/${game.slug || game.id}`,
     released: game.released,
     rating: game.rating,
     platforms: game.platforms?.map(p => p.platform?.name) || [],
@@ -123,7 +126,10 @@ igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (re
     sourceId: game.id,
     name: game.name,
     name_original: game.name,
+    description: game.summary || null,
+    year: game.first_release_date ? new Date(game.first_release_date * 1000).getFullYear() : null,
     image: game.cover?.url ? `https:${game.cover.url.replace('t_thumb', 't_cover_big')}` : null,
+    src_url: game.url || `https://www.igdb.com/games/${game.slug || game.id}`,
     released: game.first_release_date ? new Date(game.first_release_date * 1000).toISOString().split('T')[0] : null,
     rating: game.rating,
     detailUrl: generateDetailUrl('igdb', game.id, 'game')
@@ -185,7 +191,10 @@ jeuxvideoRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
     sourceId: game.id,
     name: game.title || game.name,
     name_original: game.title || game.name,
+    description: game.description || null,
+    year: game.releaseDate ? parseInt(game.releaseDate.substring(0, 4), 10) : null,
     image: game.image || game.cover,
+    src_url: game.url || null,
     platform: game.platform,
     detailUrl: generateDetailUrl('jeuxvideo', game.id, 'game')
   }));

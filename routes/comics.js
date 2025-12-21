@@ -55,7 +55,10 @@ comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler
     sourceId: item.id,
     name: item.name || item.title,
     name_original: item.name || item.title,
+    description: item.deck || item.description || null,
+    year: item.start_year ? parseInt(item.start_year, 10) : null,
     image: item.image?.medium_url || item.image?.original_url,
+    src_url: item.site_detail_url || `https://comicvine.gamespot.com/volume/${item.id}/`,
     publisher: item.publisher?.name,
     startYear: item.start_year,
     detailUrl: generateDetailUrl('comicvine', item.id, type)
@@ -138,7 +141,10 @@ mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res
     sourceId: item.id,
     name: item.attributes?.title?.en || item.title || item.name,
     name_original: item.attributes?.title?.ja || item.title_original,
+    description: item.attributes?.description?.en || item.description || null,
+    year: item.attributes?.year || null,
     image: item.cover || item.coverUrl,
+    src_url: `https://mangadex.org/title/${item.id}`,
     status: item.attributes?.status,
     detailUrl: generateDetailUrl('mangadex', item.id, 'manga')
   }));
@@ -212,7 +218,10 @@ bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
     sourceId: item.id,
     name: item.name || item.title,
     name_original: item.name || item.title,
+    description: item.description || item.resume || null,
+    year: item.year || item.parution || null,
     image: item.image || item.cover,
+    src_url: item.url || null,
     author: item.author,
     detailUrl: generateDetailUrl('bedetheque', item.id, type === 'album' ? 'album' : 'serie')
   }));

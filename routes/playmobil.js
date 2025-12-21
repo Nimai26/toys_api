@@ -53,7 +53,10 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     sourceId: product.productId || product.id,
     name: product.name,
     name_original: product.name,
+    description: product.description || product.shortDescription || null,
+    year: product.year || null,
     image: product.image || product.primaryImage,
+    src_url: product.url || `https://www.playmobil.fr/produit/${product.productId || product.id}`,
     detailUrl: generateDetailUrl('playmobil', product.productId || product.id, 'product')
   }));
   

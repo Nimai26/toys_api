@@ -52,7 +52,10 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     sourceId: product.id || product.sku,
     name: product.title || product.name,
     name_original: product.title || product.name,
+    description: product.description || product.shortDescription || null,
+    year: product.year || null,
     image: product.image || product.primaryImage,
+    src_url: product.url || product.handle ? `https://megaconstrux.com/products/${product.handle}` : null,
     detailUrl: generateDetailUrl('mega', product.id || product.sku, 'product')
   }));
   

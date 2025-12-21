@@ -96,7 +96,10 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     sourceId: item.id || item.mbid,
     name: item.title || item.name || item.collectionName,
     name_original: item.title || item.name,
+    description: null,
+    year: item.releaseDate ? parseInt(item.releaseDate.substring(0, 4), 10) : (item.year || item.date?.split('-')[0] ? parseInt(item.date?.split('-')[0], 10) : null),
     image: item.cover || item.artworkUrl100 || item.thumb,
+    src_url: item.link || item.collectionViewUrl || item.uri || null,
     artist: item.artist || item.artistName,
     detailUrl: generateDetailUrl(provider, item.id || item.mbid, type)
   }));

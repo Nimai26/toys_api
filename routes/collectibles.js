@@ -60,7 +60,10 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
     sourceId: item.id,
     name: item.name || item.title,
     name_original: item.name || item.title,
+    description: item.description || null,
+    year: item.year || null,
     image: item.image,
+    src_url: item.url || null,
     url: item.url,
     category: item.category,
     collection: item.collection,
@@ -97,7 +100,10 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
     sourceId: item.id || item.url,
     name: item.name || item.title,
     name_original: item.name || item.title,
+    description: item.description || null,
+    year: item.year || null,
     image: item.image,
+    src_url: item.url || null,
     price: item.price,
     url: item.url,
     detailUrl: generateDetailUrl('luluberlu', item.id || encodeURIComponent(item.url), 'item')
@@ -171,7 +177,10 @@ consolevariationsRouter.get("/search", validateSearchParams, asyncHandler(async 
     sourceId: item.slug || item.id,
     name: item.name || item.title,
     name_original: item.name || item.title,
+    description: item.description || null,
+    year: item.year || item.releaseYear || null,
     image: item.image,
+    src_url: item.slug ? `https://consolevariations.com/variation/${item.slug}` : null,
     platform: item.platform,
     detailUrl: generateDetailUrl('consolevariations', item.slug || item.id, 'item')
   }));
@@ -251,7 +260,10 @@ transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (r
     sourceId: item.id,
     name: item.name || item.title,
     name_original: item.name || item.title,
+    description: item.description || null,
+    year: item.year || null,
     image: item.image,
+    src_url: item.url || null,
     detailUrl: generateDetailUrl('transformerland', item.id, 'item')
   }));
   
@@ -308,8 +320,10 @@ paninimanaRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
     sourceId: item.id,
     name: item.name || item.title,
     name_original: item.name || item.title,
-    image: item.image,
+    description: item.description || null,
     year: item.year,
+    image: item.image,
+    src_url: item.url || null,
     detailUrl: generateDetailUrl('paninimania', item.id, 'album')
   }));
   

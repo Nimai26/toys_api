@@ -61,7 +61,10 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     sourceId: product.productCode || product.id,
     name: product.name,
     name_original: product.name, // LEGO retourne déjà traduit selon locale
+    description: product.description || product.shortDescription || null,
+    year: product.launchDate ? parseInt(product.launchDate.substring(0, 4), 10) : (product.year || null),
     image: product.primaryImage || product.image,
+    src_url: product.url || `https://www.lego.com/product/${product.productCode || product.id}`,
     detailUrl: generateDetailUrl('lego', product.productCode || product.id, 'product')
   }));
   

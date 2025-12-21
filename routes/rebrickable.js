@@ -74,8 +74,10 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
       sourceId: rawResult.set_num,
       name: rawResult.name,
       name_original: rawResult.name,
-      image: rawResult.set_img_url,
+      description: null,
       year: rawResult.year,
+      image: rawResult.set_img_url,
+      src_url: `https://rebrickable.com/sets/${rawResult.set_num}/`,
       num_parts: rawResult.num_parts,
       num_minifigs: rawResult.minifigs?.length || 0,
       detailUrl: generateDetailUrl('rebrickable', rawResult.set_num, 'set')
@@ -89,8 +91,10 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
       sourceId: set.set_num,
       name: set.name,
       name_original: set.name,
-      image: set.set_img_url,
+      description: null,
       year: set.year,
+      image: set.set_img_url,
+      src_url: `https://rebrickable.com/sets/${set.set_num}/`,
       num_parts: set.num_parts,
       detailUrl: generateDetailUrl('rebrickable', set.set_num, 'set')
     }));
