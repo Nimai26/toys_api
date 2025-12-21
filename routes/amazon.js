@@ -56,14 +56,13 @@ function createAmazonCategoryRouter(category, logName, providerName) {
 
   // Normalisé: /amazon_*/search
   router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-    const { q, lang, locale, max, page, autoTrad } = req.standardParams;
-    const country = req.query.country || locale?.split('-')[1]?.toLowerCase() || "fr";
+    const { q, lang, locale, max, autoTrad, country } = req.standardParams;
 
     metrics.requests.total++;
     metrics.sources.amazon.requests++;
     categoryLog.debug(`Search: "${q}" country=${country} category=${category || 'all'}`);
     
-    const rawResult = await searchAmazon(q, { country, category, page, limit: max });
+    const rawResult = await searchAmazon(q, { country, category, limit: max });
     
     const items = (rawResult.products || rawResult.results || []).map(product => ({
       type: category || 'product',
@@ -85,16 +84,14 @@ function createAmazonCategoryRouter(category, logName, providerName) {
       items,
       provider: providerName,
       query: q,
-      pagination: { page },
       meta: { lang, locale, autoTrad, country, category }
     }));
   }));
 
   // Normalisé: /amazon_*/details
   router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
-    const { lang, locale, autoTrad } = req.standardParams;
+    const { lang, locale, autoTrad, country } = req.standardParams;
     const { id } = req.parsedDetailUrl;
-    const country = req.query.country || locale?.split('-')[1]?.toLowerCase() || "fr";
 
     metrics.requests.total++;
     metrics.sources.amazon.requests++;
@@ -111,8 +108,7 @@ function createAmazonCategoryRouter(category, logName, providerName) {
 
   // Normalisé: /amazon_*/code (barcode)
   router.get("/code", validateCodeParams, asyncHandler(async (req, res) => {
-    const { code, lang, locale, autoTrad } = req.standardParams;
-    const country = req.query.country || locale?.split('-')[1]?.toLowerCase() || "fr";
+    const { code, lang, locale, autoTrad, country } = req.standardParams;
 
     metrics.requests.total++;
     metrics.sources.amazon.requests++;
@@ -130,7 +126,7 @@ function createAmazonCategoryRouter(category, logName, providerName) {
   // Legacy: Détails produit par ASIN
   router.get("/product/:asin", asyncHandler(async (req, res) => {
     const { asin } = req.params;
-    const country = req.query.country || "fr";
+    const country = req.query.lang || "fr";
 
     if (!asin) return res.status(400).json({ error: "ASIN requis" });
 
@@ -144,7 +140,7 @@ function createAmazonCategoryRouter(category, logName, providerName) {
   // Legacy: Recherche par code-barres
   router.get("/barcode/:code", asyncHandler(async (req, res) => {
     const { code } = req.params;
-    const country = req.query.country || "fr";
+    const country = req.query.lang || "fr";
 
     if (!code) return res.status(400).json({ error: "Code-barres requis" });
 
@@ -210,16 +206,15 @@ router.get("/status", (req, res) => {
 // Recherche Amazon
 router.get("/search", asyncHandler(async (req, res) => {
   const q = req.query.q;
-  const country = req.query.country || "fr";
+  const country = req.query.lang || "fr";
   const category = req.query.category || null;
-  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
   const max = req.query.max ? parseInt(req.query.max, 10) : 20;
 
   if (!q) return res.status(400).json({ error: "paramètre 'q' manquant" });
 
   metrics.requests.total++;
   metrics.sources.amazon.requests++;
-  const result = await searchAmazon(q, { country, category, page, limit: max });
+  const result = await searchAmazon(q, { country, category, limit: max });
   addCacheHeaders(res, 600);
   res.json(result);
 }));
@@ -227,7 +222,7 @@ router.get("/search", asyncHandler(async (req, res) => {
 // Détails d'un produit Amazon par ASIN
 router.get("/product/:asin", asyncHandler(async (req, res) => {
   const { asin } = req.params;
-  const country = req.query.country || "fr";
+  const country = req.query.lang || "fr";
 
   if (!asin) return res.status(400).json({ error: "ASIN requis" });
 
@@ -241,7 +236,7 @@ router.get("/product/:asin", asyncHandler(async (req, res) => {
 // Recherche par code-barres (EAN/UPC)
 router.get("/barcode/:code", asyncHandler(async (req, res) => {
   const { code } = req.params;
-  const country = req.query.country || "fr";
+  const country = req.query.lang || "fr";
   const category = req.query.category || null;
 
   if (!code) return res.status(400).json({ error: "Code-barres requis" });

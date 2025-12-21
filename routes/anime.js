@@ -101,7 +101,6 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
 router.get("/anime", asyncHandler(async (req, res) => {
   const query = req.query.q;
   const max = req.query.max ? parseInt(req.query.max, 10) : JIKAN_DEFAULT_MAX;
-  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
   const type = req.query.type || null;
   const status = req.query.status || null;
   const rating = req.query.rating || null;
@@ -121,7 +120,7 @@ router.get("/anime", asyncHandler(async (req, res) => {
   }
 
   metrics.requests.total++;
-  const result = await searchJikanAnime(query, { max, page, type, status, rating, orderBy, sort });
+  const result = await searchJikanAnime(query, { max, type, status, rating, orderBy, sort });
   addCacheHeaders(res, 300);
   res.json(result);
 }));
@@ -130,7 +129,6 @@ router.get("/anime", asyncHandler(async (req, res) => {
 router.get("/manga", asyncHandler(async (req, res) => {
   const query = req.query.q;
   const max = req.query.max ? parseInt(req.query.max, 10) : JIKAN_DEFAULT_MAX;
-  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
   const type = req.query.type || null;
   const status = req.query.status || null;
   const orderBy = req.query.orderBy || null;
@@ -149,7 +147,7 @@ router.get("/manga", asyncHandler(async (req, res) => {
   }
 
   metrics.requests.total++;
-  const result = await searchJikanManga(query, { max, page, type, status, orderBy, sort });
+  const result = await searchJikanManga(query, { max, type, status, orderBy, sort });
   addCacheHeaders(res, 300);
   res.json(result);
 }));
