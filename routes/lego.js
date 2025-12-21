@@ -28,6 +28,7 @@ import { DEFAULT_LOCALE, MAX_RETRIES } from '../lib/config.js';
 import { 
   callLegoGraphql as callLegoGraphqlLib, 
   getProductDetailsNormalized,
+  getLegoProductDetails,
   getBuildingInstructions
 } from '../lib/providers/lego.js';
 
