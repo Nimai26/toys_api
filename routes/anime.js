@@ -37,7 +37,7 @@ const mangaRouter = Router();
 // Normalisé: /jikan/search (anime par défaut, type=manga pour manga)
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
-  const type = req.query.type || 'anime';
+  const type = req.query.type || null; // null par défaut, pas 'anime'
   const status = req.query.status || null;
   const rating = req.query.rating || null;
   const orderBy = req.query.orderBy || null;
@@ -46,11 +46,16 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   let rawResult;
   let mediaType;
   
-  if (type === 'manga' || type === 'novel' || type === 'lightnovel' || type === 'oneshot' || type === 'doujin' || type === 'manhwa' || type === 'manhua') {
+  // Types manga: manga, novel, lightnovel, oneshot, doujin, manhwa, manhua
+  const mangaTypes = ['manga', 'novel', 'lightnovel', 'oneshot', 'doujin', 'manhwa', 'manhua'];
+  
+  if (type && mangaTypes.includes(type.toLowerCase())) {
     rawResult = await searchJikanManga(q, { max, page, type, status, orderBy, sort });
     mediaType = 'manga';
   } else {
-    rawResult = await searchJikanAnime(q, { max, page, type, status, rating, orderBy, sort });
+    // Types anime valides: tv, movie, ova, special, ona, music (ou null pour tous)
+    const animeType = type && ['tv', 'movie', 'ova', 'special', 'ona', 'music'].includes(type.toLowerCase()) ? type : null;
+    rawResult = await searchJikanAnime(q, { max, page, type: animeType, status, rating, orderBy, sort });
     mediaType = 'anime';
   }
   
