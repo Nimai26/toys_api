@@ -32,7 +32,7 @@ export { rawgRouter, igdbRouter, jeuxvideoRouter } from './videogames.js';
 export { tvdbRouter, tmdbRouter, imdbRouter } from './media.js';
 
 // Anime - Jikan (MyAnimeList)
-export { default as jikanRouter } from './anime.js';
+export { default as jikanRouter, jikanAnimeRouter, jikanMangaRouter } from './anime.js';
 
 // Comics - ComicVine, MangaDex, Bedetheque
 export { comicvineRouter, mangadexRouter, bedethequeRouter } from './comics.js';

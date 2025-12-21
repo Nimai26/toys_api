@@ -21,7 +21,14 @@ import {
 } from '../lib/utils/index.js';
 import { JIKAN_DEFAULT_MAX } from '../lib/config.js';
 
+// Router principal (legacy + unifié)
 const router = Router();
+
+// Router spécifique anime
+const animeRouter = Router();
+
+// Router spécifique manga
+const mangaRouter = Router();
 
 // ============================================================================
 // Endpoints normalisés
@@ -188,4 +195,153 @@ router.get("/manga/:id", asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-export default router;
+// ============================================================================
+// ROUTER SPÉCIFIQUE ANIME (/jikan_anime/*)
+// ============================================================================
+
+// Normalisé: /jikan_anime/search
+animeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const type = req.query.type || null; // tv, movie, ova, special, ona, music
+  const status = req.query.status || null;
+  const rating = req.query.rating || null;
+  const orderBy = req.query.orderBy || null;
+  const sort = req.query.sort || null;
+
+  const rawResult = await searchJikanAnime(q, { max, type, status, rating, orderBy, sort });
+  
+  const items = (rawResult.results || rawResult.data || []).map(item => ({
+    type: 'anime',
+    source: 'jikan',
+    sourceId: item.mal_id || item.id,
+    name: item.title || item.name,
+    name_original: item.title_japanese || item.title,
+    image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || item.image,
+    score: item.score,
+    episodes: item.episodes,
+    status: item.status,
+    detailUrl: generateDetailUrl('jikan', item.mal_id || item.id, 'anime')
+  }));
+  
+  metrics.requests.total++;
+  addCacheHeaders(res, 300);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'jikan',
+    query: q,
+    meta: { lang, locale, autoTrad, mediaType: 'anime' }
+  }));
+}));
+
+// Normalisé: /jikan_anime/details
+animeRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  
+  const cleanId = cleanSourceId(id, 'jikan');
+  if (!/^\d+$/.test(cleanId)) {
+    return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
+  }
+  
+  const result = await getJikanAnimeById(parseInt(cleanId, 10), { lang, autoTrad });
+  
+  metrics.requests.total++;
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({ data: result, provider: 'jikan', id: cleanId, meta: { lang, locale, autoTrad, type: 'anime' } }));
+}));
+
+// Legacy: /jikan_anime/:id
+animeRouter.get("/:id", asyncHandler(async (req, res) => {
+  let animeId = req.params.id;
+  const lang = req.query.lang || null;
+  const autoTrad = isAutoTradEnabled(req);
+  
+  if (!animeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
+
+  animeId = cleanSourceId(animeId, 'jikan');
+  if (!/^\d+$/.test(animeId)) {
+    return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
+  }
+
+  metrics.requests.total++;
+  const result = await getJikanAnimeById(parseInt(animeId, 10), { lang, autoTrad });
+  addCacheHeaders(res, 3600);
+  res.json(result);
+}));
+
+// ============================================================================
+// ROUTER SPÉCIFIQUE MANGA (/jikan_manga/*)
+// ============================================================================
+
+// Normalisé: /jikan_manga/search
+mangaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const type = req.query.type || null; // manga, novel, lightnovel, oneshot, doujin, manhwa, manhua
+  const status = req.query.status || null;
+  const orderBy = req.query.orderBy || null;
+  const sort = req.query.sort || null;
+
+  const rawResult = await searchJikanManga(q, { max, type, status, orderBy, sort });
+  
+  const items = (rawResult.results || rawResult.data || []).map(item => ({
+    type: 'manga',
+    source: 'jikan',
+    sourceId: item.mal_id || item.id,
+    name: item.title || item.name,
+    name_original: item.title_japanese || item.title,
+    image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || item.image,
+    score: item.score,
+    chapters: item.chapters,
+    volumes: item.volumes,
+    status: item.status,
+    detailUrl: generateDetailUrl('jikan', item.mal_id || item.id, 'manga')
+  }));
+  
+  metrics.requests.total++;
+  addCacheHeaders(res, 300);
+  res.json(formatSearchResponse({
+    items,
+    provider: 'jikan',
+    query: q,
+    meta: { lang, locale, autoTrad, mediaType: 'manga' }
+  }));
+}));
+
+// Normalisé: /jikan_manga/details
+mangaRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  
+  const cleanId = cleanSourceId(id, 'jikan');
+  if (!/^\d+$/.test(cleanId)) {
+    return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
+  }
+  
+  const result = await getJikanMangaById(parseInt(cleanId, 10), { lang, autoTrad });
+  
+  metrics.requests.total++;
+  addCacheHeaders(res, 3600);
+  res.json(formatDetailResponse({ data: result, provider: 'jikan', id: cleanId, meta: { lang, locale, autoTrad, type: 'manga' } }));
+}));
+
+// Legacy: /jikan_manga/:id
+mangaRouter.get("/:id", asyncHandler(async (req, res) => {
+  let mangaId = req.params.id;
+  const lang = req.query.lang || null;
+  const autoTrad = isAutoTradEnabled(req);
+  
+  if (!mangaId) return res.status(400).json({ error: "paramètre 'id' manquant" });
+
+  mangaId = cleanSourceId(mangaId, 'jikan');
+  if (!/^\d+$/.test(mangaId)) {
+    return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
+  }
+
+  metrics.requests.total++;
+  const result = await getJikanMangaById(parseInt(mangaId, 10), { lang, autoTrad });
+  addCacheHeaders(res, 3600);
+  res.json(result);
+}));
+
+// Export des trois routers
+export { router as default, animeRouter as jikanAnimeRouter, mangaRouter as jikanMangaRouter };

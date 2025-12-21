@@ -57,6 +57,8 @@ import {
   tmdbRouter,
   imdbRouter,
   jikanRouter,
+  jikanAnimeRouter,
+  jikanMangaRouter,
   comicvineRouter,
   mangadexRouter,
   bedethequeRouter
@@ -178,7 +180,9 @@ app.use('/tmdb', tmdbRouter);
 app.use('/imdb', imdbRouter);
 
 // Anime & Manga
-app.use('/jikan', jikanRouter);
+app.use('/jikan', jikanRouter);           // Legacy unifié
+app.use('/jikan_anime', jikanAnimeRouter); // Spécifique anime
+app.use('/jikan_manga', jikanMangaRouter); // Spécifique manga
 
 // Comics & BD
 app.use('/comicvine', comicvineRouter);
@@ -334,8 +338,9 @@ app.get("/version", (req, res) => {
       imdb: ["/imdb/search (NO API KEY)", "/imdb/title/:id (NO API KEY)", "/imdb/browse (NO API KEY)"],
       
       // Anime & Manga
-      jikan_anime: ["/jikan/anime (NO API KEY)", "/jikan/anime/:id (NO API KEY)"],
-      jikan_manga: ["/jikan/manga (NO API KEY)", "/jikan/manga/:id (NO API KEY)"],
+      jikan: ["/jikan/search", "/jikan/details (NO API KEY)"],
+      jikan_anime: ["/jikan_anime/search", "/jikan_anime/details", "/jikan_anime/:id (NO API KEY)"],
+      jikan_manga: ["/jikan_manga/search", "/jikan_manga/details", "/jikan_manga/:id (NO API KEY)"],
       
       // Comics & BD
       comicvine: ["/comicvine/search", "/comicvine/volume/:id", "/comicvine/issue/:id"],
