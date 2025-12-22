@@ -1,1347 +1,648 @@
 {
   "_documentation": {
-    "title": "Toys API - Exemples de réponses JSON",
-    "version": "3.2.9",
-    "description": "Ce fichier contient des exemples complets de retours JSON pour chaque type de contenu",
-    "generated": "2024-12-21"
-  },
-
-  "construct_toy_example": {
-    "success": true,
-    "data": {
-      "type": "construct_toy",
-      "id": "lego_42100",
-      "source": "lego",
-      "sourceId": "42100",
-      
-      "name": "Liebherr R 9800",
-      "originalName": "Liebherr R 9800 Excavator",
-      "slug": "liebherr-r-9800-42100",
-      "description": "Découvrez le monde de l'ingénierie avec cette réplique détaillée de la pelleteuse minière Liebherr R 9800. Ce modèle LEGO Technic reproduit fidèlement les fonctions de la vraie machine.",
-      
-      "productCode": "42100",
-      "ean": "5702016369885",
-      "upc": "673419318822",
-      
-      "brand": "LEGO",
-      "theme": "Technic",
-      "subtheme": "Construction",
-      
-      "images": {
-        "thumbnail": "https://www.lego.com/cdn/cs/set/assets/blt2e0b8c27c9d3d4c2/42100_alt1.jpg?format=webply&fit=bounds&quality=75&width=170&height=170",
-        "cover": "https://www.lego.com/cdn/cs/set/assets/blt2e0b8c27c9d3d4c2/42100.jpg?format=webply&fit=bounds&quality=90&width=800",
-        "gallery": [
-          "https://www.lego.com/cdn/cs/set/assets/blt2e0b8c27c9d3d4c2/42100_alt1.jpg",
-          "https://www.lego.com/cdn/cs/set/assets/blt2e0b8c27c9d3d4c2/42100_alt2.jpg",
-          "https://www.lego.com/cdn/cs/set/assets/blt2e0b8c27c9d3d4c2/42100_alt3.jpg",
-          "https://www.lego.com/cdn/cs/set/assets/blt2e0b8c27c9d3d4c2/42100_alt4.jpg",
-          "https://www.lego.com/cdn/cs/set/assets/blt2e0b8c27c9d3d4c2/42100_alt5.jpg"
-        ]
-      },
-      
-      "urls": {
-        "official": "https://www.lego.com/fr-fr/product/liebherr-r-9800-excavator-42100",
-        "source": "https://www.lego.com/fr-fr/product/liebherr-r-9800-excavator-42100"
-      },
-      
-      "specs": {
-        "pieceCount": 4108,
-        "figureCount": 0,
-        "minAge": 12,
-        "maxAge": 99,
-        "weight": 6850,
-        "dimensions": {
-          "width": 57.8,
-          "height": 48.0,
-          "depth": 17.8
-        }
-      },
-      
-      "pricing": {
-        "price": 449.99,
-        "originalPrice": 499.99,
-        "currency": "EUR",
-        "discount": 10
-      },
-      
-      "availability": {
-        "status": "discontinued",
-        "releaseDate": "2019-08-01",
-        "retireDate": "2022-12-31",
-        "inStock": false
-      },
-      
-      "instructions": {
-        "available": true,
-        "urls": [
-          "https://www.lego.com/cdn/product-assets/product.bi.core.pdf/6287946.pdf",
-          "https://www.lego.com/cdn/product-assets/product.bi.core.pdf/6287947.pdf",
-          "https://www.lego.com/cdn/product-assets/product.bi.core.pdf/6287948.pdf"
-        ],
-        "format": "pdf"
-      },
-      
-      "related": {
-        "parts": [
-          {
-            "id": "6252545",
-            "name": "Technic, Gear 12 Tooth Double Bevel",
-            "color": "Black",
-            "quantity": 24,
-            "image": "https://www.lego.com/cdn/product-assets/element.img.lod5photo.192x192/6252545.jpg"
-          },
-          {
-            "id": "6261375",
-            "name": "Technic, Axle and Pin Connector Perpendicular",
-            "color": "Light Bluish Gray",
-            "quantity": 48,
-            "image": "https://www.lego.com/cdn/product-assets/element.img.lod5photo.192x192/6261375.jpg"
-          }
-        ],
-        "minifigs": [],
-        "alternates": [
-          {
-            "id": "42055",
-            "name": "Bucket Wheel Excavator",
-            "image": "https://www.lego.com/cdn/cs/set/assets/42055.jpg"
-          },
-          {
-            "id": "42082",
-            "name": "Rough Terrain Crane",
-            "image": "https://www.lego.com/cdn/cs/set/assets/42082.jpg"
-          }
-        ]
-      },
-      
-      "tags": [
-        "Technic",
-        "Control+",
-        "App-Controlled",
-        "Motorized",
-        "Excavator",
-        "Mining",
-        "Liebherr",
-        "Adult",
-        "Expert"
-      ],
-      
-      "categories": [
-        "Technic",
-        "18+",
-        "Véhicules de construction",
-        "Sets motorisés"
-      ],
-      
-      "meta": {
-        "createdAt": "2019-08-01T00:00:00.000Z",
-        "updatedAt": "2024-12-15T10:30:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "lego",
-      "responseTime": 342,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
+    "title": "Toys API - Exemples de réponses JSON harmonisées",
+    "version": "3.2.13",
+    "description": "Ce fichier contient des exemples complets de retours JSON harmonisés pour chaque type de contenu",
+    "generated": "2025-12-21",
+    "harmonization": {
+      "search": "Tous les endpoints /search retournent 10 champs harmonisés",
+      "details": "Tous les endpoints /details retournent des schémas normalisés par type"
     }
   },
 
-  "movie_example": {
-    "success": true,
-    "data": {
+  "_search_schema": {
+    "_description": "Schéma harmonisé pour tous les résultats de recherche (10 champs)",
+    "fields": {
+      "type": "Type de contenu (construct_toy, book, movie, anime, manga, videogame, album, collectible, etc.)",
+      "source": "Provider source (lego, playmobil, tmdb, jikan, mangadex, deezer, etc.)",
+      "sourceId": "ID original du provider (string ou number)",
+      "name": "Nom affiché (traduit si disponible)",
+      "name_original": "Nom original si différent (ou null)",
+      "description": "Description courte (string ou null)",
+      "year": "Année de sortie/publication (number ou null)",
+      "image": "URL de l'image principale/thumbnail",
+      "src_url": "URL source du provider",
+      "detailUrl": "Endpoint interne pour obtenir les détails"
+    }
+  },
+
+  "search_examples": {
+    "_description": "Exemples de résultats de recherche harmonisés par provider",
+
+    "construct_toy_lego": {
+      "type": "construct_toy",
+      "source": "lego",
+      "sourceId": "75419",
+      "name": "L'Étoile de la Mort",
+      "name_original": "L'Étoile de la Mort",
+      "description": null,
+      "year": null,
+      "image": "https://www.lego.com/cdn/cs/set/assets/blt8c9b3ec1adec32b2/75419_Prod_en-gb.png",
+      "src_url": "https://www.lego.com/product/75419",
+      "detailUrl": "/lego/details?detailUrl=%2Flego%2Fproduct%2F75419"
+    },
+
+    "construct_toy_playmobil": {
+      "type": "construct_toy",
+      "source": "playmobil",
+      "sourceId": "71144",
+      "name": "Véhicule d'intervention des forces spéciales",
+      "name_original": "Vehicule Dintervention Des Forces Speciales",
+      "description": null,
+      "year": null,
+      "image": "https://media.playmobil.com/i/playmobil/71144_product_detail?w=200",
+      "src_url": "https://www.playmobil.com/fr-fr/vehicule-dintervention-des-forces-speciales/71144.html",
+      "detailUrl": "/playmobil/details?detailUrl=%2Fplaymobil%2Fproduct%2F71144"
+    },
+
+    "anime_jikan": {
+      "type": "anime",
+      "source": "jikan",
+      "sourceId": 20,
+      "name": "Naruto",
+      "name_original": "Naruto",
+      "description": "Twelve years ago, a colossal demon fox terrorized the world...",
+      "year": 2002,
+      "image": "https://cdn.myanimelist.net/images/anime/1141/142503l.jpg",
+      "src_url": "https://myanimelist.net/anime/20/Naruto",
+      "detailUrl": "/jikan/details?detailUrl=%2Fjikan%2Fanime%2F20"
+    },
+
+    "manga_mangadex": {
+      "type": "manga",
+      "source": "mangadex",
+      "sourceId": "a1c7c817-4e59-43b7-9365-09675a149a6f",
+      "name": "ONE PIECE",
+      "name_original": null,
+      "description": null,
+      "year": null,
+      "image": null,
+      "src_url": "https://mangadex.org/title/a1c7c817-4e59-43b7-9365-09675a149a6f",
+      "detailUrl": "/mangadex/details?detailUrl=%2Fmangadex%2Fmanga%2Fa1c7c817-4e59-43b7-9365-09675a149a6f"
+    },
+
+    "movie_imdb": {
       "type": "movie",
-      "id": "tmdb_278",
-      "source": "tmdb",
-      "sourceId": "278",
-      
-      "name": "Les Évadés",
-      "originalName": "The Shawshank Redemption",
-      "slug": "the-shawshank-redemption",
-      "description": "En 1947, Andy Dufresne, un jeune banquier, est condamné à la prison à vie pour le meurtre de sa femme et de son amant. Innocent, il doit faire face à la violence carcérale et à l'acharnement d'un gardien sadique.",
-      
-      "title": "Les Évadés",
-      "originalTitle": "The Shawshank Redemption",
-      "tagline": "La peur peut vous retenir prisonnier. L'espoir peut vous libérer.",
-      
-      "externalIds": {
-        "imdb": "tt0111161",
-        "tmdb": 278,
-        "tvdb": null
-      },
-      
-      "images": {
-        "thumbnail": "https://image.tmdb.org/t/p/w185/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
-        "cover": "https://image.tmdb.org/t/p/original/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
-        "backdrop": "https://image.tmdb.org/t/p/original/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg",
-        "gallery": [
-          "https://image.tmdb.org/t/p/original/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
-          "https://image.tmdb.org/t/p/original/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg",
-          "https://image.tmdb.org/t/p/original/iNh3BivHyg5sQRPP1KOkzguEX0H.jpg"
-        ]
-      },
-      
-      "urls": {
-        "official": "https://www.warnerbros.com/movies/shawshank-redemption",
-        "source": "https://www.themoviedb.org/movie/278"
-      },
-      
-      "production": {
-        "releaseDate": "1994-09-23",
-        "year": 1994,
-        "runtime": 142,
-        "status": "released",
-        "budget": 25000000,
-        "revenue": 58300000,
-        "countries": ["US"],
-        "languages": ["en"],
-        "studios": [
-          {
-            "id": 97,
-            "name": "Castle Rock Entertainment",
-            "logo": "https://image.tmdb.org/t/p/original/castle_rock.png"
-          }
-        ]
-      },
-      
-      "crew": {
-        "directors": [
-          {
-            "id": 4027,
-            "name": "Frank Darabont",
-            "image": "https://image.tmdb.org/t/p/w185/7LqmE3p1XTwCdNCOmBxovq210Qk.jpg"
-          }
-        ],
-        "writers": [
-          {
-            "id": 3027,
-            "name": "Stephen King",
-            "department": "novel",
-            "image": "https://image.tmdb.org/t/p/w185/bla.jpg"
+      "source": "imdb",
+      "sourceId": "tt1375666",
+      "name": "Inception",
+      "name_original": "Inception",
+      "description": null,
+      "year": 2010,
+      "image": "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg",
+      "src_url": "https://www.imdb.com/title/tt1375666/",
+      "detailUrl": "/imdb/details?detailUrl=%2Fimdb%2Ftitle%2Ftt1375666"
+    },
+
+    "book_openlibrary": {
+      "type": "book",
+      "source": "openlibrary",
+      "sourceId": "OL893415W",
+      "name": "Dune",
+      "name_original": "Dune",
+      "description": null,
+      "year": null,
+      "image": null,
+      "src_url": null,
+      "detailUrl": "/openlibrary/details?detailUrl=%2Fopenlibrary%2Fbook%2FOL893415W"
+    },
+
+    "comic_bedetheque": {
+      "type": "serie",
+      "source": "bedetheque",
+      "sourceId": 59,
+      "name": "Asterix",
+      "name_original": "Asterix",
+      "description": null,
+      "year": null,
+      "image": null,
+      "src_url": "https://www.bedetheque.com/serie-59-BD-Asterix.html",
+      "detailUrl": "/bedetheque/details?detailUrl=%2Fbedetheque%2Fserie%2F59"
+    },
+
+    "album_deezer": {
+      "type": "album",
+      "source": "deezer",
+      "sourceId": 302127,
+      "name": "Discovery",
+      "name_original": "Discovery",
+      "description": null,
+      "year": null,
+      "image": null,
+      "src_url": null,
+      "detailUrl": "/deezer/details?detailUrl=%2Fdeezer%2Falbum%2F302127"
+    },
+
+    "collectible_luluberlu": {
+      "type": "collectible",
+      "source": "luluberlu",
+      "sourceId": "3155",
+      "name": "Goldorak (Goldrake) - Atlantic - Golgoth, le robot de Vega (neuf en boite)",
+      "name_original": "Goldorak (Goldrake) - Atlantic - Golgoth, le robot de Vega (neuf en boite)",
+      "description": null,
+      "year": null,
+      "image": "https://www.lulu-berlu.com/upload/image/goldorak--goldrake----atlantic---golgoth--le-robot-de-vega--neuf-en-boite--p-image-577896-moyenne.jpg",
+      "src_url": "https://www.lulu-berlu.com/goldorak-goldrake-atlantic-golgoth-le-robot-de-vega-neuf-en-boite-a3155.html",
+      "detailUrl": "/luluberlu/details?detailUrl=%2Fluluberlu%2Fitem%2F3155"
+    },
+
+    "console_consolevariations": {
+      "type": "collectible",
+      "source": "consolevariations",
+      "sourceId": "nintendo-snes-playtronic-control-set",
+      "name": "Nintendo SNES Playtronic Control Set",
+      "name_original": "Nintendo SNES Playtronic Control Set",
+      "description": null,
+      "year": null,
+      "image": "https://cdn.consolevariations.com/37178/example.png",
+      "src_url": "https://consolevariations.com/variation/nintendo-snes-playtronic-control-set",
+      "detailUrl": "/consolevariations/details?detailUrl=%2Fconsolevariations%2Fitem%2Fnintendo-snes-playtronic-control-set"
+    },
+
+    "stickers_paninimania": {
+      "type": "album",
+      "source": "paninimania",
+      "sourceId": "7523",
+      "name": "# Fiers d'être Bleus - Sticker Album - Panini - 2023",
+      "name_original": "# Fiers d'être Bleus - Sticker Album - Panini - 2023",
+      "description": null,
+      "year": "aout 2023",
+      "image": null,
+      "src_url": "https://www.paninimania.com/?pag=cid508_alb&idf=15&idm=7523",
+      "detailUrl": "/paninimania/details?detailUrl=%2Fpaninimania%2Falbum%2F7523"
+    }
+  },
+
+  "detail_examples": {
+    "_description": "Exemples de réponses détaillées normalisées par type",
+
+    "construct_toy_lego": {
+      "success": true,
+      "data": {
+        "type": "construct_toy",
+        "source": "lego",
+        "sourceId": "75192",
+        "sourceRef": "75192",
+        "productCode": "75192",
+        "ean": null,
+        "upc": null,
+        "name": "Millennium Falcon",
+        "name_original": null,
+        "description": null,
+        "description_original": null,
+        "brand": "LEGO",
+        "theme": "Star Wars",
+        "theme_original": null,
+        "subtheme": null,
+        "subtheme_original": null,
+        "franchise": null,
+        "specs": {
+          "pieceCount": 7541,
+          "figureCount": 16,
+          "minAge": 16,
+          "maxAge": null,
+          "ageRange": "16+",
+          "weight": null,
+          "dimensions": {
+            "width": null,
+            "height": null,
+            "depth": null,
+            "unit": "cm"
           },
-          {
-            "id": 4027,
-            "name": "Frank Darabont",
-            "department": "screenplay",
-            "image": "https://image.tmdb.org/t/p/w185/7LqmE3p1XTwCdNCOmBxovq210Qk.jpg"
+          "scale": null,
+          "difficulty": null
+        },
+        "packaging": {
+          "format": null,
+          "weight": null,
+          "dimensions": {
+            "width": null,
+            "height": null,
+            "depth": null
           }
+        },
+        "pricing": {
+          "price": "849,99 €",
+          "originalPrice": null,
+          "currency": "EUR",
+          "currencySymbol": "€",
+          "formatted": "849,99 €",
+          "discount": null,
+          "onSale": false,
+          "pricePerPiece": null
+        },
+        "availability": {
+          "status": "unknown",
+          "statusText": "Disponible",
+          "statusText_original": null,
+          "inStock": false,
+          "quantity": null,
+          "isRetired": null,
+          "isComingSoon": null,
+          "releaseDate": null,
+          "releaseYear": null,
+          "retireDate": null,
+          "retireYear": null
+        },
+        "rating": {
+          "average": 4.5,
+          "count": 129,
+          "distribution": null
+        },
+        "instructions": {
+          "available": true,
+          "count": 3,
+          "manuals": [
+            {
+              "id": "6564020",
+              "description": "Manuel 6564020",
+              "pdfUrl": "https://www.lego.com/cdn/product-assets/product.bi.core.pdf/6564020.pdf",
+              "sequence": null
+            }
+          ]
+        },
+        "images": {
+          "primary": "https://www.lego.com/cdn/cs/set/assets/example.png",
+          "thumbnail": null,
+          "gallery": []
+        },
+        "urls": {
+          "product": "https://www.lego.com/fr-fr/product/millennium-falcon-75192",
+          "official": null,
+          "instructions": null
+        },
+        "tags": [],
+        "categories": [],
+        "meta": {
+          "scrapedAt": "2025-12-21T13:00:00.000Z",
+          "locale": "fr-FR",
+          "currency": "EUR"
+        }
+      },
+      "meta": {
+        "source": "lego",
+        "responseTime": 1234,
+        "cached": false,
+        "lang": "fr"
+      }
+    },
+
+    "construct_toy_playmobil": {
+      "success": true,
+      "data": {
+        "type": "construct_toy",
+        "source": "playmobil",
+        "sourceId": "71144",
+        "sourceRef": "71144",
+        "productCode": "71144",
+        "sku": null,
+        "ean": null,
+        "upc": null,
+        "name": "Véhicule d'intervention des forces spéciales",
+        "name_original": null,
+        "description": "Comprend 73 pièces et deux figurines PLAYMOBIL – le véhicule tout-terrain SWAT ultime avec lumières et sons pour des aventures policières réalistes",
+        "description_original": null,
+        "slug": "71144",
+        "brand": "Playmobil",
+        "theme": "City_action",
+        "theme_original": null,
+        "subtheme": "police",
+        "subtheme_original": null,
+        "franchise": null,
+        "specs": {
+          "pieceCount": 73,
+          "figureCount": null,
+          "minAge": 5,
+          "maxAge": null,
+          "ageRange": "5+",
+          "weight": null,
+          "dimensions": {
+            "width": null,
+            "height": null,
+            "depth": null,
+            "unit": "cm"
+          },
+          "scale": null,
+          "difficulty": null
+        },
+        "packaging": {
+          "format": null,
+          "weight": null,
+          "dimensions": {
+            "width": null,
+            "height": null,
+            "depth": null
+          }
+        },
+        "pricing": {
+          "price": 51.99,
+          "originalPrice": null,
+          "currency": "EUR",
+          "currencySymbol": "€",
+          "formatted": "51,99 €",
+          "discount": null,
+          "onSale": false,
+          "pricePerPiece": 0.712
+        },
+        "availability": {
+          "status": "in_stock",
+          "statusText": null,
+          "statusText_original": null,
+          "inStock": true,
+          "quantity": null,
+          "isRetired": null,
+          "isComingSoon": null,
+          "releaseDate": null,
+          "releaseYear": null,
+          "retireDate": null,
+          "retireYear": null
+        },
+        "rating": {
+          "average": null,
+          "count": null,
+          "distribution": null
+        },
+        "images": {
+          "primary": "https://media.playmobil.com/i/playmobil/71144_product_detail",
+          "thumbnail": null,
+          "gallery": []
+        },
+        "urls": {
+          "product": "https://www.playmobil.com/fr-fr/vehicule-dintervention-des-forces-speciales/71144.html",
+          "official": null,
+          "instructions": null
+        },
+        "tags": [],
+        "categories": [],
+        "meta": {
+          "scrapedAt": "2025-12-21T13:00:00.000Z",
+          "locale": "fr-FR",
+          "currency": "EUR"
+        }
+      },
+      "meta": {
+        "source": "playmobil",
+        "responseTime": 2345,
+        "cached": false,
+        "lang": "fr"
+      }
+    },
+
+    "anime_jikan": {
+      "success": true,
+      "data": {
+        "type": "anime",
+        "provider": "jikan",
+        "provider_id": "20",
+        "mal_id": 20,
+        "title": "Naruto",
+        "original_title": "ナルト",
+        "title_english": "Naruto",
+        "alternative_titles": [
+          "Naruto",
+          "NARUTO",
+          "ナルト"
+        ],
+        "description": "Twelve years ago, a colossal demon fox terrorized the world. During the monster's attack on the Hidden Leaf Village, the Hokage—the village's leader and most powerful ninja—sacrifices himself to seal the beast inside a newborn...",
+        "anime_type": "TV",
+        "year": 2002,
+        "end_year": 2007,
+        "first_air_date": "2002-10-03",
+        "last_air_date": "2007-02-08",
+        "status": "Ended",
+        "is_airing": false,
+        "total_episodes": 220,
+        "episode_runtime": 23,
+        "season": "fall",
+        "genres": [
+          "Action",
+          "Adventure",
+          "Fantasy"
+        ],
+        "themes": [
+          "Martial Arts"
+        ],
+        "demographics": [
+          "Shounen"
+        ],
+        "studios": [
+          "Studio Pierrot"
         ],
         "producers": [
-          {
-            "id": 4029,
-            "name": "Niki Marvin",
-            "image": null
-          }
+          "TV Tokyo",
+          "Aniplex"
         ],
-        "composers": [
-          {
-            "id": 5655,
-            "name": "Thomas Newman",
-            "image": "https://image.tmdb.org/t/p/w185/xxx.jpg"
-          }
-        ]
+        "licensors": [
+          "VIZ Media"
+        ],
+        "source_material": "Manga",
+        "content_rating": "PG-13 - Teens 13 or older",
+        "rating": {
+          "value": 8.02,
+          "count": 2104708,
+          "source": "myanimelist"
+        },
+        "rank": 672,
+        "popularity": 9,
+        "members_count": 3060174,
+        "favorites_count": 85027,
+        "images": {
+          "poster": "https://cdn.myanimelist.net/images/anime/1141/142503l.jpg",
+          "poster_small": "https://cdn.myanimelist.net/images/anime/1141/142503t.jpg"
+        },
+        "trailer": {
+          "youtube_id": null,
+          "url": null,
+          "embed_url": null
+        },
+        "urls": {
+          "mal": "https://myanimelist.net/anime/20/Naruto"
+        }
       },
-      
-      "cast": [
-        {
-          "id": 504,
-          "name": "Tim Robbins",
-          "character": "Andy Dufresne",
-          "image": "https://image.tmdb.org/t/p/w185/djLVFETFTvPyVUdrd7aLVykobof.jpg",
-          "order": 0
-        },
-        {
-          "id": 192,
-          "name": "Morgan Freeman",
-          "character": "Ellis Boyd 'Red' Redding",
-          "image": "https://image.tmdb.org/t/p/w185/jPsLqiYGSofU4s6BjrxnefMfabb.jpg",
-          "order": 1
-        },
-        {
-          "id": 4029,
-          "name": "Bob Gunton",
-          "character": "Warden Samuel Norton",
-          "image": "https://image.tmdb.org/t/p/w185/xxx.jpg",
-          "order": 2
-        },
-        {
-          "id": 6573,
-          "name": "William Sadler",
-          "character": "Heywood",
-          "image": "https://image.tmdb.org/t/p/w185/xxx.jpg",
-          "order": 3
-        },
-        {
-          "id": 7074,
-          "name": "Clancy Brown",
-          "character": "Captain Byron Hadley",
-          "image": "https://image.tmdb.org/t/p/w185/xxx.jpg",
-          "order": 4
-        }
-      ],
-      
-      "genres": [
-        { "id": 18, "name": "Drame" },
-        { "id": 80, "name": "Crime" }
-      ],
-      
-      "ratings": {
-        "average": 8.7,
-        "count": 26543,
-        "imdb": 9.3,
-        "tmdb": 8.7,
-        "rottenTomatoes": 91
-      },
-      
-      "certification": {
-        "country": "FR",
-        "rating": "Tous publics"
-      },
-      
-      "collection": null,
-      
-      "videos": [
-        {
-          "id": "5c9294240e0a267cd516835f",
-          "type": "Trailer",
-          "key": "6hB3S9bIaco",
-          "site": "YouTube",
-          "name": "Official Trailer",
-          "official": true
-        },
-        {
-          "id": "5c9294240e0a267cd5168360",
-          "type": "Behind the Scenes",
-          "key": "xxx",
-          "site": "YouTube",
-          "name": "Making Of"
-        }
-      ],
-      
-      "watchProviders": [
-        {
-          "name": "Netflix",
-          "logo": "https://image.tmdb.org/t/p/original/t2yyOv40HZeVlLjYsCsPHnWLk4W.jpg",
-          "type": "flatrate"
-        },
-        {
-          "name": "Amazon Prime Video",
-          "logo": "https://image.tmdb.org/t/p/original/emthp39XA2YScoYL1p0sdbAH2WA.jpg",
-          "type": "rent"
-        }
-      ],
-      
-      "keywords": [
-        "prison",
-        "escape",
-        "wrongful imprisonment",
-        "banker",
-        "friendship",
-        "corruption",
-        "hope"
-      ],
-      
-      "recommendations": [
-        {
-          "id": 550,
-          "title": "Fight Club",
-          "image": "https://image.tmdb.org/t/p/w185/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
-          "year": 1999,
-          "rating": 8.4
-        },
-        {
-          "id": 680,
-          "title": "Pulp Fiction",
-          "image": "https://image.tmdb.org/t/p/w185/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
-          "year": 1994,
-          "rating": 8.5
-        }
-      ],
-      
       "meta": {
-        "createdAt": "1994-09-23T00:00:00.000Z",
-        "updatedAt": "2024-12-20T15:45:00.000Z",
-        "lang": "fr-FR"
+        "source": "jikan",
+        "responseTime": 567,
+        "cached": false,
+        "lang": "en"
       }
     },
-    "meta": {
-      "source": "tmdb",
-      "responseTime": 187,
-      "cached": true,
-      "cacheExpires": "2024-12-21T11:30:00.000Z",
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
 
-  "series_example": {
-    "success": true,
-    "data": {
-      "type": "series",
-      "id": "tmdb_1399",
-      "source": "tmdb",
-      "sourceId": "1399",
-      
-      "name": "Game of Thrones",
-      "originalName": "Game of Thrones",
-      "slug": "game-of-thrones",
-      "description": "Il y a très longtemps, à une époque oubliée, une force a détruit l'équilibre des saisons. Dans un pays où l'été peut durer plusieurs années et l'hiver toute une vie, des forces sinistres se rassemblent.",
-      
-      "title": "Game of Thrones",
-      "originalTitle": "Game of Thrones",
-      "tagline": "L'hiver vient.",
-      
-      "externalIds": {
-        "imdb": "tt0944947",
-        "tmdb": 1399,
-        "tvdb": 121361
-      },
-      
-      "images": {
-        "thumbnail": "https://image.tmdb.org/t/p/w185/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg",
-        "cover": "https://image.tmdb.org/t/p/original/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg",
-        "backdrop": "https://image.tmdb.org/t/p/original/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
-        "gallery": []
-      },
-      
-      "urls": {
-        "official": "https://www.hbo.com/game-of-thrones",
-        "source": "https://www.themoviedb.org/tv/1399"
-      },
-      
-      "broadcast": {
-        "status": "ended",
-        "firstAirDate": "2011-04-17",
-        "lastAirDate": "2019-05-19",
-        "network": "HBO",
-        "networks": ["HBO"],
-        "runtime": 57,
-        "type": "scripted"
-      },
-      
-      "episodes": {
-        "seasonCount": 8,
-        "episodeCount": 73,
-        "seasons": [
-          { "number": 1, "episodeCount": 10, "airDate": "2011-04-17", "name": "Saison 1" },
-          { "number": 2, "episodeCount": 10, "airDate": "2012-04-01", "name": "Saison 2" },
-          { "number": 3, "episodeCount": 10, "airDate": "2013-03-31", "name": "Saison 3" },
-          { "number": 4, "episodeCount": 10, "airDate": "2014-04-06", "name": "Saison 4" },
-          { "number": 5, "episodeCount": 10, "airDate": "2015-04-12", "name": "Saison 5" },
-          { "number": 6, "episodeCount": 10, "airDate": "2016-04-24", "name": "Saison 6" },
-          { "number": 7, "episodeCount": 7, "airDate": "2017-07-16", "name": "Saison 7" },
-          { "number": 8, "episodeCount": 6, "airDate": "2019-04-14", "name": "Saison 8" }
-        ]
-      },
-      
-      "crew": {
-        "creators": ["David Benioff", "D.B. Weiss"],
-        "showrunners": ["David Benioff", "D.B. Weiss"]
-      },
-      
-      "cast": [
-        {
-          "id": 22970,
-          "name": "Peter Dinklage",
-          "character": "Tyrion Lannister",
-          "image": "https://image.tmdb.org/t/p/w185/xxx.jpg",
-          "order": 0
-        },
-        {
-          "id": 239019,
-          "name": "Kit Harington",
-          "character": "Jon Snow",
-          "image": "https://image.tmdb.org/t/p/w185/xxx.jpg",
-          "order": 1
-        },
-        {
-          "id": 1223786,
-          "name": "Emilia Clarke",
-          "character": "Daenerys Targaryen",
-          "image": "https://image.tmdb.org/t/p/w185/xxx.jpg",
-          "order": 2
-        }
-      ],
-      
-      "genres": [
-        { "id": 10765, "name": "Science-Fiction & Fantasy" },
-        { "id": 18, "name": "Drame" },
-        { "id": 10759, "name": "Action & Adventure" }
-      ],
-      
-      "ratings": {
-        "average": 8.4,
-        "count": 22000,
-        "imdb": 9.2,
-        "tmdb": 8.4
-      },
-      
-      "certification": {
-        "country": "FR",
-        "rating": "-16"
-      },
-      
-      "watchProviders": [
-        {
-          "name": "HBO Max",
-          "logo": "https://image.tmdb.org/t/p/original/xxx.jpg",
-          "type": "flatrate"
-        }
-      ],
-      
-      "meta": {
-        "createdAt": "2011-04-17T00:00:00.000Z",
-        "updatedAt": "2024-12-20T10:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "tmdb",
-      "responseTime": 203,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
-
-  "anime_example": {
-    "success": true,
-    "data": {
-      "type": "anime",
-      "id": "jikan_21",
-      "source": "jikan",
-      "sourceId": "21",
-      
-      "name": "One Punch Man",
-      "originalName": "ワンパンマン",
-      "slug": "one-punch-man",
-      "description": "Saitama est un jeune homme sans emploi et sans perspective d'avenir. Un jour, il rencontre un homme-crabe qui recherche un jeune garçon 'avec un menton fendu comme un cul'. Saitama finit par le sauver, et décide de devenir un super-héros.",
-      
-      "externalIds": {
-        "mal": 30276,
-        "anilist": 21087,
-        "kitsu": 10740
-      },
-      
-      "titles": {
-        "romaji": "One Punch Man",
-        "english": "One Punch Man",
-        "japanese": "ワンパンマン",
-        "synonyms": ["OPM", "One Punch-Man", "Wanpanman"]
-      },
-      
-      "images": {
-        "thumbnail": "https://cdn.myanimelist.net/images/anime/12/76049t.jpg",
-        "cover": "https://cdn.myanimelist.net/images/anime/12/76049l.jpg",
-        "gallery": []
-      },
-      
-      "urls": {
-        "official": "https://onepunchman-anime.net/",
-        "source": "https://myanimelist.net/anime/30276"
-      },
-      
-      "format": {
-        "type": "tv",
-        "source": "web_manga",
-        "episodes": 12,
-        "duration": 24
-      },
-      
-      "broadcast": {
-        "status": "finished",
-        "season": "fall",
-        "year": 2015,
-        "startDate": "2015-10-05",
-        "endDate": "2015-12-21",
-        "studio": "Madhouse"
-      },
-      
-      "genres": ["Action", "Comedy"],
-      "themes": ["Parody", "Super Power"],
-      "demographics": ["Seinen"],
-      
-      "ratings": {
-        "score": 8.5,
-        "scoredBy": 2500000,
-        "rank": 150,
-        "popularity": 5
-      },
-      
-      "relations": {
-        "prequels": [],
-        "sequels": [
-          {
-            "id": 34134,
-            "title": "One Punch Man 2nd Season",
-            "type": "tv"
-          }
-        ],
-        "adaptations": [
-          {
-            "id": 44347,
-            "title": "One Punch-Man",
-            "type": "manga"
-          }
-        ],
-        "spinoffs": []
-      },
-      
-      "streaming": [
-        { "name": "Crunchyroll", "url": "https://crunchyroll.com/one-punch-man" },
-        { "name": "Netflix", "url": "https://netflix.com/title/80117291" }
-      ],
-      
-      "meta": {
-        "createdAt": "2015-10-05T00:00:00.000Z",
-        "updatedAt": "2024-12-20T08:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "jikan",
-      "responseTime": 156,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
-
-  "manga_example": {
-    "success": true,
-    "data": {
-      "type": "manga",
-      "id": "jikan_13",
-      "source": "jikan",
-      "sourceId": "13",
-      
-      "name": "One Piece",
-      "originalName": "ワンピース",
-      "slug": "one-piece",
-      "description": "Gol D. Roger, le légendaire Roi des Pirates, a caché son trésor unique, le One Piece, quelque part dans le monde. Avant son exécution, il révèle son existence, déclenchant une nouvelle ère de pirates.",
-      
-      "externalIds": {
-        "mal": 13,
-        "anilist": 30013,
-        "mangadex": "a1c7c817-4e59-43b7-9365-09675a149a6f"
-      },
-      
-      "titles": {
-        "romaji": "One Piece",
-        "english": "One Piece",
-        "japanese": "ワンピース",
-        "synonyms": ["OP"]
-      },
-      
-      "images": {
-        "thumbnail": "https://cdn.myanimelist.net/images/manga/2/253146t.jpg",
-        "cover": "https://cdn.myanimelist.net/images/manga/2/253146l.jpg",
-        "gallery": []
-      },
-      
-      "urls": {
-        "official": "https://one-piece.com/",
-        "source": "https://myanimelist.net/manga/13"
-      },
-      
-      "format": {
+    "manga_mangadex": {
+      "success": true,
+      "data": {
         "type": "manga",
-        "status": "publishing",
-        "chapters": 1125,
-        "volumes": 109
-      },
-      
-      "publication": {
-        "startDate": "1997-07-22",
-        "endDate": null,
-        "magazine": "Weekly Shounen Jump",
-        "publisher": "Shueisha"
-      },
-      
-      "authors": [
-        { "id": 1881, "name": "Oda, Eiichiro", "role": "Story & Art" }
-      ],
-      "artists": [],
-      
-      "genres": ["Action", "Adventure", "Fantasy"],
-      "themes": ["Pirates", "Super Power"],
-      "demographics": ["Shounen"],
-      
-      "ratings": {
-        "score": 9.22,
-        "scoredBy": 580000,
-        "rank": 2,
-        "popularity": 1
-      },
-      
-      "meta": {
-        "createdAt": "1997-07-22T00:00:00.000Z",
-        "updatedAt": "2024-12-20T12:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "jikan",
-      "responseTime": 134,
-      "cached": true,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
-
-  "book_example": {
-    "success": true,
-    "data": {
-      "type": "book",
-      "id": "googlebooks_dQZ4EAAAQBAJ",
-      "source": "googlebooks",
-      "sourceId": "dQZ4EAAAQBAJ",
-      
-      "name": "Le Seigneur des Anneaux - Intégrale",
-      "originalName": "The Lord of the Rings",
-      "slug": "le-seigneur-des-anneaux-integrale",
-      "description": "L'œuvre fondatrice de la fantasy moderne, réunissant La Communauté de l'Anneau, Les Deux Tours et Le Retour du Roi dans une édition intégrale.",
-      
-      "isbn10": "2266282727",
-      "isbn13": "9782266282727",
-      
-      "images": {
-        "thumbnail": "https://books.google.com/books/content?id=dQZ4EAAAQBAJ&printsec=frontcover&img=1&zoom=1",
-        "cover": "https://books.google.com/books/content?id=dQZ4EAAAQBAJ&printsec=frontcover&img=1&zoom=3",
-        "gallery": []
-      },
-      
-      "urls": {
-        "official": null,
-        "source": "https://books.google.fr/books?id=dQZ4EAAAQBAJ"
-      },
-      
-      "authors": ["J.R.R. Tolkien"],
-      "illustrators": ["Alan Lee"],
-      "publisher": "Pocket",
-      
-      "publication": {
-        "date": "2022-10-06",
-        "year": 2022,
-        "edition": "Nouvelle édition",
-        "language": "fr",
-        "originalLanguage": "en"
-      },
-      
-      "format": {
-        "type": "paperback",
-        "pages": 1248,
-        "dimensions": {
-          "width": 13.0,
-          "height": 19.0
+        "source": "mangadex",
+        "sourceId": "a1c7c817-4e59-43b7-9365-09675a149a6f",
+        "name": "ONE PIECE",
+        "name_original": "ONE PIECE",
+        "description": "Gol D. Roger, a man referred to as the Pirate King, is set to be executed by the World Government...",
+        "status": "ongoing",
+        "year": 1997,
+        "contentRating": "safe",
+        "originalLanguage": "ja",
+        "availableTranslatedLanguages": ["en", "fr", "es", "de", "pt-br"],
+        "authors": [
+          {
+            "id": "author-uuid",
+            "name": "Oda Eiichiro",
+            "role": "author"
+          }
+        ],
+        "artists": [
+          {
+            "id": "artist-uuid",
+            "name": "Oda Eiichiro",
+            "role": "artist"
+          }
+        ],
+        "genres": [
+          "Action",
+          "Adventure",
+          "Comedy",
+          "Fantasy"
+        ],
+        "themes": [
+          "Pirates"
+        ],
+        "demographics": [
+          "Shounen"
+        ],
+        "images": {
+          "cover": "https://uploads.mangadex.org/covers/a1c7c817-4e59-43b7-9365-09675a149a6f/cover.jpg",
+          "thumbnail": "https://uploads.mangadex.org/covers/a1c7c817-4e59-43b7-9365-09675a149a6f/cover.256.jpg"
+        },
+        "urls": {
+          "mangadex": "https://mangadex.org/title/a1c7c817-4e59-43b7-9365-09675a149a6f"
+        },
+        "statistics": {
+          "rating": {
+            "average": 9.2,
+            "bayesian": 8.9
+          },
+          "follows": 150000
+        },
+        "chapters": {
+          "total": null,
+          "latestChapter": "1135"
+        },
+        "volumes": {
+          "total": null,
+          "latestVolume": "110"
         }
       },
-      
-      "series": {
-        "name": "Le Seigneur des Anneaux",
-        "volume": null,
-        "totalVolumes": 3
-      },
-      
-      "genres": ["Fantasy", "Aventure", "Épopée"],
-      "subjects": ["Elfes", "Hobbits", "Quête", "Anneau"],
-      
-      "ratings": {
-        "average": 4.8,
-        "count": 125000,
-        "source": "goodreads"
-      },
-      
-      "pricing": {
-        "price": 15.90,
-        "currency": "EUR"
-      },
-      
       "meta": {
-        "createdAt": "2022-10-06T00:00:00.000Z",
-        "updatedAt": "2024-12-19T16:00:00.000Z",
-        "lang": "fr-FR"
+        "source": "mangadex",
+        "responseTime": 890,
+        "cached": false,
+        "lang": "fr"
       }
-    },
-    "meta": {
-      "source": "googlebooks",
-      "responseTime": 89,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
     }
   },
 
-  "videogame_example": {
-    "success": true,
-    "data": {
-      "type": "videogame",
-      "id": "rawg_3498",
-      "source": "rawg",
-      "sourceId": "3498",
-      
-      "name": "The Witcher 3: Wild Hunt",
-      "originalName": "The Witcher 3: Wild Hunt",
-      "slug": "the-witcher-3-wild-hunt",
-      "description": "Le jeu de rôle en monde ouvert acclamé par la critique. Incarnez Geralt de Riv, un chasseur de monstres à la recherche de sa fille adoptive dans un monde ravagé par la guerre.",
-      
-      "title": "The Witcher 3: Wild Hunt",
-      
-      "externalIds": {
-        "rawg": 3498,
-        "igdb": 1942,
-        "steam": 292030
-      },
-      
-      "images": {
-        "thumbnail": "https://media.rawg.io/media/games/618/618c2031a07bbff6b4f611f10b6f7e4c.jpg",
-        "cover": "https://media.rawg.io/media/games/618/618c2031a07bbff6b4f611f10b6f7e4c.jpg",
-        "gallery": [
-          "https://media.rawg.io/media/screenshots/xxx.jpg"
-        ]
-      },
-      
-      "urls": {
-        "official": "https://thewitcher.com/witcher3",
-        "source": "https://rawg.io/games/the-witcher-3-wild-hunt"
-      },
-      
-      "release": {
-        "date": "2015-05-19",
-        "year": 2015,
-        "status": "released"
-      },
-      
-      "platforms": [
-        { "name": "PC", "slug": "pc", "releaseDate": "2015-05-19" },
-        { "name": "PlayStation 4", "slug": "playstation4", "releaseDate": "2015-05-19" },
-        { "name": "Xbox One", "slug": "xbox-one", "releaseDate": "2015-05-19" },
-        { "name": "Nintendo Switch", "slug": "nintendo-switch", "releaseDate": "2019-10-15" },
-        { "name": "PlayStation 5", "slug": "playstation5", "releaseDate": "2022-12-14" },
-        { "name": "Xbox Series S/X", "slug": "xbox-series-x", "releaseDate": "2022-12-14" }
-      ],
-      
-      "development": {
-        "developers": ["CD Projekt Red"],
-        "publishers": ["CD Projekt"],
-        "engine": "REDengine 3"
-      },
-      
-      "gameplay": {
-        "genres": ["RPG", "Action"],
-        "modes": ["Single-player"],
-        "perspectives": ["Third-person"],
-        "themes": ["Fantasy", "Open World", "Dark Fantasy"]
-      },
-      
-      "ratings": {
-        "average": 9.2,
-        "count": 7500,
-        "metacritic": 92,
-        "opencritic": 92
-      },
-      
-      "esrb": "M",
-      "pegi": 18,
-      
-      "editions": [
-        {
-          "name": "Standard Edition",
-          "price": 29.99
-        },
-        {
-          "name": "Game of the Year Edition",
-          "price": 49.99,
-          "includes": ["Hearts of Stone", "Blood and Wine"]
-        },
-        {
-          "name": "Complete Edition",
-          "price": 49.99
-        }
-      ],
-      
-      "dlcs": [
-        {
-          "id": 4200,
-          "name": "Hearts of Stone",
-          "releaseDate": "2015-10-13"
-        },
-        {
-          "id": 4201,
-          "name": "Blood and Wine",
-          "releaseDate": "2016-05-31"
-        }
-      ],
-      
-      "requirements": {
-        "minimum": {
-          "os": "Windows 7/8/10 (64-bit)",
-          "processor": "Intel Core i5-2500K / AMD Phenom II X4 940",
-          "memory": "6 GB RAM",
-          "graphics": "NVIDIA GeForce GTX 660 / AMD Radeon HD 7870",
-          "storage": "50 GB"
-        },
-        "recommended": {
-          "os": "Windows 7/8/10 (64-bit)",
-          "processor": "Intel Core i7-3770 / AMD FX-8350",
-          "memory": "8 GB RAM",
-          "graphics": "NVIDIA GeForce GTX 770 / AMD Radeon R9 290",
-          "storage": "50 GB SSD"
-        }
-      },
-      
-      "stores": [
-        { "name": "Steam", "url": "https://store.steampowered.com/app/292030", "price": 29.99 },
-        { "name": "GOG", "url": "https://www.gog.com/game/the_witcher_3_wild_hunt", "price": 29.99 },
-        { "name": "Epic Games Store", "url": "https://www.epicgames.com/store/p/the-witcher-3-wild-hunt", "price": 29.99 }
-      ],
-      
-      "meta": {
-        "createdAt": "2015-05-19T00:00:00.000Z",
-        "updatedAt": "2024-12-20T14:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "rawg",
-      "responseTime": 167,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
+  "response_wrappers": {
+    "_description": "Structure des wrappers de réponse API",
 
-  "music_album_example": {
-    "success": true,
-    "data": {
-      "type": "music_album",
-      "id": "discogs_4121735",
-      "source": "discogs",
-      "sourceId": "4121735",
-      
-      "name": "Random Access Memories",
-      "originalName": "Random Access Memories",
-      "slug": "random-access-memories",
-      "description": "Quatrième album studio du duo français Daft Punk, sorti en 2013. L'album marque un retour aux sonorités disco et funk des années 70-80.",
-      
-      "externalIds": {
-        "musicbrainz": "f5093c06-23e3-404f-aeaa-40f72885ee3a",
-        "discogs": 4121735,
-        "spotify": "4m2880jivSbbyEGAKfITCa",
-        "deezer": 6575789
-      },
-      
-      "images": {
-        "thumbnail": "https://i.discogs.com/xxx_150.jpg",
-        "cover": "https://i.discogs.com/xxx_600.jpg",
-        "gallery": []
-      },
-      
-      "urls": {
-        "official": "https://daftpunk.com/",
-        "source": "https://www.discogs.com/release/4121735"
-      },
-      
-      "artists": [
-        { "id": 1289, "name": "Daft Punk" }
-      ],
-      
-      "album": {
-        "type": "album",
-        "releaseDate": "2013-05-17",
-        "year": 2013,
-        "label": "Columbia",
-        "format": "cd",
-        "totalTracks": 13,
-        "totalDiscs": 1,
-        "duration": 4460
-      },
-      
-      "tracks": [
-        { "number": 1, "title": "Give Life Back to Music", "duration": 274, "disc": 1 },
-        { "number": 2, "title": "The Game of Love", "duration": 321, "disc": 1 },
-        { "number": 3, "title": "Giorgio by Moroder", "duration": 544, "disc": 1 },
-        { "number": 4, "title": "Within", "duration": 228, "disc": 1 },
-        { "number": 5, "title": "Instant Crush (feat. Julian Casablancas)", "duration": 337, "disc": 1 },
-        { "number": 6, "title": "Lose Yourself to Dance (feat. Pharrell Williams)", "duration": 353, "disc": 1 },
-        { "number": 7, "title": "Touch (feat. Paul Williams)", "duration": 498, "disc": 1 },
-        { "number": 8, "title": "Get Lucky (feat. Pharrell Williams)", "duration": 369, "disc": 1 },
-        { "number": 9, "title": "Beyond", "duration": 290, "disc": 1 },
-        { "number": 10, "title": "Motherboard", "duration": 341, "disc": 1 },
-        { "number": 11, "title": "Fragments of Time (feat. Todd Edwards)", "duration": 279, "disc": 1 },
-        { "number": 12, "title": "Doin' It Right (feat. Panda Bear)", "duration": 251, "disc": 1 },
-        { "number": 13, "title": "Contact", "duration": 375, "disc": 1 }
-      ],
-      
-      "genres": ["Electronic", "Disco", "Funk"],
-      "styles": ["French House", "Synth-pop", "Disco"],
-      
-      "ratings": {
-        "average": 4.5,
-        "count": 5200
-      },
-      
-      "links": {
-        "spotify": "https://open.spotify.com/album/4m2880jivSbbyEGAKfITCa",
-        "deezer": "https://www.deezer.com/album/6575789",
-        "appleMusic": "https://music.apple.com/album/random-access-memories/617154241",
-        "youtube": "https://www.youtube.com/playlist?list=PLSdoVPM5Wnne1lE6a_NwBxT7TlKj0bYwF"
-      },
-      
-      "meta": {
-        "createdAt": "2013-05-17T00:00:00.000Z",
-        "updatedAt": "2024-12-18T09:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "discogs",
-      "responseTime": 234,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
-
-  "collectible_example": {
-    "success": true,
-    "data": {
-      "type": "collectible",
-      "id": "transformerland_12345",
-      "source": "transformerland",
-      "sourceId": "12345",
-      
-      "name": "Optimus Prime G1",
-      "originalName": "Optimus Prime",
-      "slug": "optimus-prime-g1",
-      "description": "Figurine originale Optimus Prime de la première génération Transformers (1984). Le leader des Autobots dans sa forme iconique de semi-remorque.",
-      
-      "sku": "TF-G1-001",
-      "ean": "0076930802045",
-      "upc": "076930802045",
-      
-      "images": {
-        "thumbnail": "https://transformerland.com/images/12345_thumb.jpg",
-        "cover": "https://transformerland.com/images/12345_full.jpg",
-        "gallery": [
-          "https://transformerland.com/images/12345_1.jpg",
-          "https://transformerland.com/images/12345_2.jpg",
-          "https://transformerland.com/images/12345_3.jpg"
-        ]
-      },
-      
-      "urls": {
-        "official": null,
-        "source": "https://transformerland.com/item/12345"
-      },
-      
-      "brand": "Hasbro",
-      "manufacturer": "Takara",
-      "line": "Transformers",
-      "series": "Generation 1",
-      
-      "specs": {
-        "material": "ABS Plastic, Die-cast metal",
-        "scale": null,
-        "size": "20cm",
-        "weight": 450,
-        "color": "Red/Blue"
-      },
-      
-      "condition": {
-        "grade": "mint",
-        "boxed": true,
-        "complete": true
-      },
-      
-      "pricing": {
-        "price": 299.99,
-        "originalPrice": 19.99,
-        "currency": "EUR"
-      },
-      
-      "availability": {
-        "status": "rare",
-        "quantity": 1,
-        "releaseYear": 1984
-      },
-      
-      "category": "Action Figure",
-      "subcategory": "Transformers",
-      "tags": ["Vintage", "G1", "Autobot", "Leader", "Die-cast", "1984"],
-      
-      "meta": {
-        "createdAt": "1984-01-01T00:00:00.000Z",
-        "updatedAt": "2024-12-15T11:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "transformerland",
-      "responseTime": 312,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
-
-  "console_example": {
-    "success": true,
-    "data": {
-      "type": "console",
-      "id": "consolevariations_12345",
-      "source": "consolevariations",
-      "sourceId": "12345",
-      
-      "name": "Nintendo Switch OLED Model - Splatoon 3 Edition",
-      "originalName": "Nintendo Switch OLED Model - Splatoon 3 Edition",
-      "slug": "switch-oled-splatoon-3",
-      "description": "Édition limitée de la Nintendo Switch OLED aux couleurs de Splatoon 3, avec dock et Joy-Con exclusifs.",
-      
-      "sku": "HEGSKBCAA",
-      
-      "images": {
-        "thumbnail": "https://consolevariations.com/images/12345_thumb.jpg",
-        "cover": "https://consolevariations.com/images/12345_full.jpg",
-        "gallery": [
-          "https://consolevariations.com/images/12345_1.jpg",
-          "https://consolevariations.com/images/12345_2.jpg"
-        ]
-      },
-      
-      "urls": {
-        "official": "https://www.nintendo.com/store/products/nintendo-switch-oled-model-splatoon-3-edition/",
-        "source": "https://consolevariations.com/variation/12345"
-      },
-      
-      "brand": "Nintendo",
-      "platform": "Nintendo Switch",
-      "variant": "OLED - Splatoon 3 Edition",
-      "region": "PAL",
-      
-      "productType": "console",
-      
-      "specs": {
-        "color": "Gradient Blue/Yellow",
-        "storage": "64GB",
-        "connectivity": ["WiFi", "Bluetooth 4.1", "USB-C", "HDMI"],
-        "included": [
-          "Nintendo Switch OLED Console",
-          "Joy-Con (L) Gradient Blue",
-          "Joy-Con (R) Gradient Yellow", 
-          "Joy-Con Grip",
-          "Nintendo Switch Dock (Splatoon 3 design)",
-          "AC Adapter",
-          "HDMI Cable"
-        ]
-      },
-      
-      "dates": {
-        "releaseDate": "2022-08-26",
-        "releaseYear": 2022,
-        "discontinuedYear": null
-      },
-      
-      "rarity": {
-        "level": "uncommon",
-        "production": null
-      },
-      
-      "pricing": {
-        "price": 369.99,
-        "currency": "EUR"
-      },
-      
-      "condition": "new",
-      
-      "meta": {
-        "createdAt": "2022-08-26T00:00:00.000Z",
-        "updatedAt": "2024-12-10T08:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "consolevariations",
-      "responseTime": 278,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
-
-  "stickers_example": {
-    "success": true,
-    "data": {
-      "type": "stickers",
-      "id": "paninimania_12345",
-      "source": "paninimania",
-      "sourceId": "12345",
-      
-      "name": "FIFA World Cup Qatar 2022 - Album Collector",
-      "originalName": "FIFA World Cup Qatar 2022 - Collector Album",
-      "slug": "fifa-world-cup-qatar-2022-album",
-      "description": "Album officiel Panini de la Coupe du Monde FIFA Qatar 2022. Édition collector avec couverture rigide dorée.",
-      
-      "ean": "8018190020014",
-      "catalogNumber": "PAM-WC22-ALB-COL",
-      
-      "images": {
-        "thumbnail": "https://paninimania.com/images/12345_thumb.jpg",
-        "cover": "https://paninimania.com/images/12345_full.jpg",
-        "gallery": []
-      },
-      
-      "urls": {
-        "official": "https://www.panini.fr/",
-        "source": "https://paninimania.com/product/12345"
-      },
-      
-      "publisher": "Panini",
-      "brand": "FIFA",
-      
-      "productType": "album",
-      
-      "album": {
-        "name": "FIFA World Cup Qatar 2022",
-        "year": 2022,
-        "totalStickers": 670,
-        "totalPages": 80,
-        "format": "hardcover",
-        "edition": "collector",
-        "language": "fr",
-        "country": "France"
-      },
-      
-      "content": {
-        "stickersPerPack": null,
-        "packsPerBox": null,
-        "specialCards": 50,
-        "hasShiny": true
-      },
-      
-      "theme": {
-        "sport": "football",
-        "competition": "FIFA World Cup",
-        "season": "2022",
-        "license": "FIFA"
-      },
-      
-      "condition": {
-        "grade": "mint",
-        "complete": false,
-        "missingCount": 0
-      },
-      
-      "rarity": {
-        "level": "rare",
-        "isLimitedEdition": true
-      },
-      
-      "pricing": {
-        "price": 24.99,
-        "originalPrice": 24.99,
-        "currency": "EUR"
-      },
-      
-      "availability": {
-        "status": "out_of_stock",
-        "releaseDate": "2022-08-24",
-        "endDate": "2023-01-31"
-      },
-      
-      "categories": ["Football", "Coupe du Monde", "Collector"],
-      "tags": ["Qatar 2022", "FIFA", "Limited Edition", "Hardcover"],
-      
-      "meta": {
-        "createdAt": "2022-08-24T00:00:00.000Z",
-        "updatedAt": "2024-12-05T14:00:00.000Z",
-        "lang": "fr-FR"
-      }
-    },
-    "meta": {
-      "source": "paninimania",
-      "responseTime": 198,
-      "cached": true,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
-    }
-  },
-
-  "search_result_example": {
-    "_description": "Format harmonisé retourné par tous les endpoints /search (v3.2.8+)",
-    "success": true,
-    "data": {
-      "results": [
-        {
-          "type": "construct_toy",
-          "source": "lego",
-          "sourceId": "42217",
-          "name": "La grue forestière",
-          "name_original": "Forestry Crane",
-          "description": "Construisez une grue forestière réaliste avec des fonctions mécaniques authentiques.",
-          "year": 2024,
-          "image": "https://www.lego.com/cdn/cs/set/assets/42217.jpg",
-          "src_url": "https://www.lego.com/fr-fr/product/forestry-crane-42217",
-          "detailUrl": "/lego/product/42217"
-        },
-        {
-          "type": "movie",
-          "source": "tmdb",
-          "sourceId": "278",
-          "name": "Les Évadés",
-          "name_original": "The Shawshank Redemption",
-          "description": "Deux hommes condamnés se lient d'amitié et trouvent réconfort et rédemption...",
-          "year": 1994,
-          "image": "https://image.tmdb.org/t/p/w185/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
-          "src_url": "https://www.themoviedb.org/movie/278",
-          "detailUrl": "/tmdb/movie/278"
-        },
-        {
-          "type": "anime",
-          "source": "jikan",
-          "sourceId": "30276",
-          "name": "One Punch Man",
-          "name_original": "ワンパンマン",
-          "description": "Saitama est un super-héros qui peut vaincre n'importe quel adversaire d'un seul coup de poing...",
-          "year": 2015,
-          "image": "https://cdn.myanimelist.net/images/anime/12/76049.jpg",
-          "src_url": "https://myanimelist.net/anime/30276",
-          "detailUrl": "/jikan/anime/30276"
-        }
-      ],
+    "search_response": {
+      "success": true,
+      "provider": "lego",
+      "query": "star wars",
+      "count": 20,
+      "items": ["... array of search results with 10 harmonized fields each ..."],
       "pagination": {
         "page": 1,
-        "limit": 20,
-        "total": 156,
+        "pageSize": 20,
+        "totalResults": 150,
         "totalPages": 8,
         "hasMore": true
       },
-      "query": "one punch",
-      "filters": {
-        "type": null,
-        "year": null
+      "meta": {
+        "lang": "fr",
+        "locale": "fr-FR",
+        "autoTrad": false,
+        "fetchedAt": "2025-12-21T13:00:00.000Z"
       }
     },
-    "meta": {
-      "source": "multi",
-      "responseTime": 342,
-      "cached": false,
-      "lang": "fr-FR",
-      "apiVersion": "3.2.9"
+
+    "detail_response": {
+      "success": true,
+      "data": "... normalized detail object according to type schema ...",
+      "meta": {
+        "source": "lego",
+        "responseTime": 1234,
+        "cached": false,
+        "lang": "fr"
+      }
+    },
+
+    "error_response": {
+      "success": false,
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "Produit non trouvé",
+        "details": "Le produit avec l'ID 99999 n'existe pas"
+      },
+      "meta": {
+        "source": "lego",
+        "responseTime": 234
+      }
     }
   },
 
-  "error_example": {
-    "success": false,
-    "error": {
-      "code": "PROVIDER_ERROR",
-      "message": "Le provider LEGO n'a pas pu répondre à la requête",
-      "details": "Timeout après 30000ms"
+  "providers_summary": {
+    "_description": "Récapitulatif des providers et leurs types de contenu",
+    
+    "construct_toy": {
+      "providers": ["lego", "playmobil", "klickypedia", "mega", "rebrickable"],
+      "search_fields": "10 champs harmonisés",
+      "detail_schema": "construct_toy (specs, pricing, availability, instructions, etc.)"
     },
-    "meta": {
-      "source": "lego",
-      "responseTime": 30145,
-      "apiVersion": "3.2.9"
+    
+    "book": {
+      "providers": ["googlebooks", "openlibrary", "bedetheque", "comicvine"],
+      "search_fields": "10 champs harmonisés + authors (optionnel)",
+      "detail_schema": "book (isbn, authors, publisher, publication, format, etc.)"
+    },
+    
+    "movie_series": {
+      "providers": ["tmdb", "tvdb", "imdb"],
+      "search_fields": "10 champs harmonisés",
+      "detail_schema": "movie/series (production, crew, cast, ratings, etc.)"
+    },
+    
+    "anime_manga": {
+      "providers": ["jikan", "mangadex"],
+      "search_fields": "10 champs harmonisés + score/episodes (optionnel)",
+      "detail_schema": "anime/manga (titles, format, broadcast, genres, themes, etc.)"
+    },
+    
+    "videogame": {
+      "providers": ["rawg", "igdb", "jvc"],
+      "search_fields": "10 champs harmonisés",
+      "detail_schema": "videogame (platforms, development, gameplay, ratings, etc.)"
+    },
+    
+    "music": {
+      "providers": ["deezer", "itunes", "musicbrainz", "discogs"],
+      "search_fields": "10 champs harmonisés + artist (optionnel)",
+      "detail_schema": "music_album (artists, album, tracks, genres, etc.)"
+    },
+    
+    "collectible": {
+      "providers": ["luluberlu", "coleka", "transformerland", "consolevariations"],
+      "search_fields": "10 champs harmonisés + price (optionnel)",
+      "detail_schema": "collectible (brand, specs, condition, pricing, etc.)"
+    },
+    
+    "stickers": {
+      "providers": ["paninimania"],
+      "search_fields": "10 champs harmonisés",
+      "detail_schema": "stickers (publisher, album, content, theme, etc.)"
+    },
+    
+    "amazon": {
+      "providers": ["amazon_generic"],
+      "search_fields": "10 champs harmonisés + price/currency",
+      "detail_schema": "product (multi-type based on category)"
     }
   }
 }
