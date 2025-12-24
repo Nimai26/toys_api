@@ -33,7 +33,7 @@ const googleAuth = requireApiKey('Google Books', 'https://console.cloud.google.c
 // GOOGLE BOOKS (nécessite clé API)
 // ============================================================================
 
-// Normalisé: /google_books/search
+// Normalisé: /googlebooks/search
 router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   
@@ -41,7 +41,7 @@ router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req,
   
   const items = (rawResult.books || []).map(book => ({
     type: 'book',
-    source: 'google_books',
+    source: 'googlebooks',
     sourceId: book.id,
     name: book.title,
     name_original: book.title,
@@ -53,19 +53,19 @@ router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req,
     publisher: book.publisher,
     publishedDate: book.publishedDate,
     isbn: book.isbn13 || book.isbn10,
-    detailUrl: generateDetailUrl('google_books', book.id, 'book')
+    detailUrl: generateDetailUrl('googlebooks', book.id, 'book')
   }));
   
   addCacheHeaders(res, 300);
   res.json(formatSearchResponse({
     items,
-    provider: 'google_books',
+    provider: 'googlebooks',
     query: q,
     meta: { lang, locale, autoTrad }
   }));
 }));
 
-// Normalisé: /google_books/details
+// Normalisé: /googlebooks/details
 router.get("/details", validateDetailsParams, googleAuth, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
@@ -74,10 +74,10 @@ router.get("/details", validateDetailsParams, googleAuth, asyncHandler(async (re
   const result = await getGoogleBookByIdNormalized(cleanId, req.apiKey, { lang, autoTrad });
   
   addCacheHeaders(res, 3600);
-  res.json(formatDetailResponse({ data: result, provider: 'google_books', id: cleanId, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'googlebooks', id: cleanId, meta: { lang, locale, autoTrad } }));
 }));
 
-// Normalisé: /google_books/code (ISBN)
+// Normalisé: /googlebooks/code (ISBN)
 router.get("/code", validateCodeParams, googleAuth, asyncHandler(async (req, res) => {
   const { code, lang, locale, autoTrad } = req.standardParams;
   
@@ -91,7 +91,7 @@ router.get("/code", validateCodeParams, googleAuth, asyncHandler(async (req, res
     addCacheHeaders(res, 3600);
     res.json(formatDetailResponse({ 
       data: result.books[0], 
-      provider: 'google_books', 
+      provider: 'googlebooks', 
       id: code,
       meta: { lang, locale, autoTrad, type: 'isbn' }
     }));
@@ -128,7 +128,7 @@ router.get("/isbn/:isbn", googleAuth, asyncHandler(async (req, res) => {
   
   if (result.books && result.books.length > 0) {
     addCacheHeaders(res, 3600);
-    res.json({ ...result.books[0], query: isbn, source: "google_books" });
+    res.json({ ...result.books[0], query: isbn, source: "googlebooks" });
   } else {
     res.status(404).json({ error: `Aucun livre trouvé pour ISBN: ${isbn}` });
   }
