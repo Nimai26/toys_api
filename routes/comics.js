@@ -200,7 +200,7 @@ const bedethequeRouter = Router();
 // Normalisé: /bedetheque/search
 bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
-  const type = req.query.type || 'serie';
+  const type = req.query.type || 'album';  // Par défaut: albums (pas séries)
   const effectiveMax = Math.min(Math.max(1, max), 50);
 
   let rawResult;
