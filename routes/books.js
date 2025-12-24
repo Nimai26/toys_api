@@ -153,12 +153,13 @@ olRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     name: book.title,
     name_original: book.title,
     description: book.first_sentence?.value || book.description || null,
-    year: book.first_publish_year || null,
-    image: book.cover,
-    src_url: book.key ? `https://openlibrary.org${book.key}` : null,
+    year: book.first_publish_year || book.releaseDate || null,
+    image: Array.isArray(book.image) ? book.image[0] : book.image,  // Prendre la première image (taille L)
+    thumbnail: Array.isArray(book.image) && book.image.length > 1 ? book.image[2] : null,  // Taille S pour thumbnail
+    src_url: book.url || (book.key ? `https://openlibrary.org${book.key}` : null),
     authors: book.author_name || book.authors,
-    publishedDate: book.first_publish_year,
-    isbn: book.isbn ? book.isbn[0] : null,
+    publishedDate: book.first_publish_year || book.releaseDate,
+    isbn: book.isbn ? (Array.isArray(book.isbn) ? book.isbn[0] : book.isbn) : null,
     detailUrl: generateDetailUrl('openlibrary', book.key || book.id, 'book')
   }));
   

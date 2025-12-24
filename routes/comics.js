@@ -49,20 +49,28 @@ comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler
 
   const rawResult = await searchComicVine(q, req.apiKey, { type, max: effectiveMax });
   
-  const items = (rawResult.results || rawResult.volumes || []).map(item => ({
-    type: type,
-    source: 'comicvine',
-    sourceId: item.id,
-    name: item.name || item.title,
-    name_original: item.name || item.title,
-    description: item.deck || item.description || null,
-    year: item.start_year ? parseInt(item.start_year, 10) : null,
-    image: item.image?.medium_url || item.image?.original_url,
-    src_url: item.site_detail_url || `https://comicvine.gamespot.com/volume/${item.id}/`,
-    publisher: item.publisher?.name,
-    startYear: item.start_year,
-    detailUrl: generateDetailUrl('comicvine', item.id, type)
-  }));
+  const items = (rawResult.results || rawResult.volumes || []).map(item => {
+    // Le provider retourne image comme tableau [original, medium, thumb]
+    const imageArray = Array.isArray(item.image) ? item.image : [];
+    const imageUrl = imageArray[1] || imageArray[0] || null;  // Préférer medium_url (index 1)
+    const thumbnailUrl = imageArray[2] || imageArray[1] || null;  // thumb_url (index 2)
+    
+    return {
+      type: type,
+      source: 'comicvine',
+      sourceId: item.id,
+      name: item.name || item.title,
+      name_original: item.name || item.title,
+      description: item.deck || item.synopsis || null,
+      year: item.releaseDate ? parseInt(item.releaseDate, 10) : null,
+      image: imageUrl,
+      thumbnail: thumbnailUrl,
+      src_url: item.url || `https://comicvine.gamespot.com/volume/${item.id}/`,
+      publisher: item.editors?.[0] || null,
+      startYear: item.releaseDate,
+      detailUrl: generateDetailUrl('comicvine', item.id, type)
+    };
+  });
   
   addCacheHeaders(res, 300);
   res.json(formatSearchResponse({
