@@ -5,6 +5,9 @@
  * - GET /search : Recherche avec q, lang, max, autoTrad
  * - GET /details : Détails via detailUrl (avec cache PostgreSQL)
  * - GET /set/:setNum : (legacy) Détails par numéro de set
+ * 
+ * Note: Les termes de recherche sont automatiquement traduits en anglais
+ * car Rebrickable indexe uniquement en anglais.
  */
 
 import { Router } from 'express';
@@ -20,8 +23,12 @@ import {
   formatSearchResponse,
   formatDetailResponse
 } from '../lib/utils/index.js';
+import { translateToEnglish } from '../lib/utils/translator.js';
 import { DEFAULT_LOCALE, REBRICKABLE_DEFAULT_MAX } from '../lib/config.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
+import { createLogger } from '../lib/utils/logger.js';
+
+const log = createLogger('Route:Rebrickable');
 
 // Cache PostgreSQL pour Rebrickable
 const rebrickableCache = createProviderCache('rebrickable', 'construct_toy');
@@ -43,6 +50,7 @@ import {
 const router = Router();
 const rebrickableAuth = requireApiKey('Rebrickable', 'https://rebrickable.com/api/');
 
+
 // ============================================================================
 // ENDPOINTS NORMALISÉS v3.0.0
 // ============================================================================
@@ -50,15 +58,29 @@ const rebrickableAuth = requireApiKey('Rebrickable', 'https://rebrickable.com/ap
 /**
  * GET /rebrickable/search (avec cache PostgreSQL)
  * Recherche de sets LEGO via Rebrickable
+ * 
+ * Note: Le terme de recherche est automatiquement traduit en anglais
+ * car Rebrickable indexe uniquement en anglais.
  */
 router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
   const enrichLego = req.query.enrich_lego !== 'false';
+  
+  // Traduire le terme de recherche en anglais (Rebrickable indexe en anglais)
+  const translation = await translateToEnglish(q, lang);
+  const searchQuery = translation.text;
+  const wasTranslated = translation.translated;
+  
+  if (wasTranslated) {
+    log.info(`Recherche traduite: "${q}" → "${searchQuery}"`);
+  } else {
+    log.info(`Recherche: "${q}" (lang=${lang}, max=${max})`);
+  }
 
   const result = await rebrickableCache.searchWithCache(
-    q,
+    searchQuery, // Utiliser le terme traduit pour le cache et la recherche
     async () => {
-      const rawResult = await smartRebrickableSearchLib(q, req.apiKey, {
+      const rawResult = await smartRebrickableSearchLib(searchQuery, req.apiKey, {
         page,
         pageSize: max,
         lang: locale,
@@ -114,7 +136,7 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
   res.json(formatSearchResponse({
     items: result.results || [],
     provider: 'rebrickable',
-    query: q,
+    query: q, // Terme original (celui demandé par l'utilisateur)
     total: result.total,
     pagination: {
       page,
@@ -122,7 +144,16 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
       totalResults: result.total,
       hasMore: result.hasMore || false
     },
-    meta: { lang, locale, autoTrad, searchType: result.searchType }
+    meta: { 
+      lang, 
+      locale, 
+      autoTrad, 
+      searchType: result.searchType,
+      // Informations de traduction
+      queryTranslated: wasTranslated,
+      queryEnglish: wasTranslated ? searchQuery : undefined,
+      queryOriginal: wasTranslated ? q : undefined
+    }
   }));
 }));
 
