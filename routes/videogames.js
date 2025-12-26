@@ -93,7 +93,8 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
     provider: 'rawg',
     query: q,
     pagination: { page, totalResults: result.total, totalPages: result.totalPages },
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -110,7 +111,9 @@ rawgRouter.get("/details", validateDetailsParams, rawgAuth, asyncHandler(async (
   );
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'rawg', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'rawg', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -173,7 +176,8 @@ igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (re
     provider: 'igdb',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -193,7 +197,9 @@ igdbRouter.get("/details", validateDetailsParams, igdbAuth, asyncHandler(async (
   );
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'igdb', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'igdb', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -252,7 +258,8 @@ jeuxvideoRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
     provider: 'jeuxvideo',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -277,7 +284,9 @@ jeuxvideoRouter.get("/details", validateDetailsParams, asyncHandler(async (req, 
   }
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'jeuxvideo', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'jeuxvideo', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy

@@ -107,7 +107,8 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
       totalResults: result.total || 0,
       hasMore: (result.total || 0) > (result.results || []).length
     },
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 

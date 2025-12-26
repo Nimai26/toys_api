@@ -41,7 +41,7 @@ const mangaRouter = Router();
 
 // Normalisé: /jikan/search (anime par défaut, type=manga pour manga) - avec cache PostgreSQL
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, page, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, page, autoTrad, refresh } = req.standardParams;
   const type = req.query.type || null;
   const status = req.query.status || null;
   const rating = req.query.rating || null;
@@ -54,7 +54,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const mediaType = isManga ? 'manga' : 'anime';
   const cache = isManga ? jikanMangaCache : jikanAnimeCache;
   
-  // Utilise le cache de recherche PostgreSQL
+  // Utilise le cache de recherche PostgreSQL (bypass si refresh=true)
   const result = await cache.searchWithCache(
     q,
     async () => {
@@ -88,7 +88,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
         pagination: { page, hasNextPage: rawResult.pagination?.has_next_page }
       };
     },
-    { params: { type, page, max, status, rating, orderBy, sort } }
+    { params: { type, page, max, status, rating, orderBy, sort }, forceRefresh: refresh }
   );
   
   metrics.requests.total++;
@@ -99,7 +99,8 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     query: q,
     total: result.total,
     pagination: result.pagination || { page, hasNextPage: false },
-    meta: { lang, locale, autoTrad, mediaType }
+    meta: { lang, locale, autoTrad, mediaType },
+    cacheMatch: result._cacheMatch
   }));
 }));
 

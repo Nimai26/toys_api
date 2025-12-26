@@ -51,14 +51,15 @@ const legoCache = createProviderCache('lego', 'construct_toy');
  * @query {string} lang - Langue (défaut: fr)
  * @query {number} max - Nombre max de résultats (défaut: 20)
  * @query {boolean} autoTrad - Traduction automatique
+ * @query {boolean} refresh - Force le refresh (ignore le cache DB)
  */
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
 
   metrics.sources.lego.requests++;
   const perPage = Math.max(1, Math.min(max, 100));
   
-  // Utilise le cache de recherche PostgreSQL
+  // Utilise le cache de recherche PostgreSQL (bypass si refresh=true)
   const result = await legoCache.searchWithCache(
     q,
     async () => {
@@ -79,7 +80,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { locale, max } }
+    { params: { locale, max }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -95,7 +96,8 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
       totalPages: Math.ceil((result.total || 1) / perPage),
       hasMore: (result.total || 0) > (result.results || []).length
     },
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 

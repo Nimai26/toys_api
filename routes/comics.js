@@ -46,7 +46,7 @@ const comicvineCache = createProviderCache('comicvine', 'volume');
 
 // Normalisé: /comicvine/search (avec cache PostgreSQL)
 comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   const type = req.query.type || 'volume';
   const effectiveMax = Math.min(Math.max(1, max), COMICVINE_MAX_LIMIT);
 
@@ -85,7 +85,7 @@ comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { type, max: effectiveMax } }
+    { params: { type, max: effectiveMax }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -158,7 +158,7 @@ const mangadexCache = createProviderCache('mangadex', 'manga');
 
 // Normalisé: /mangadex/search (avec cache PostgreSQL)
 mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   const effectiveMax = Math.min(Math.max(1, max), MANGADEX_MAX_LIMIT);
 
   const result = await mangadexCache.searchWithCache(
@@ -182,7 +182,7 @@ mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { lang, max: effectiveMax } }
+    { params: { lang, max: effectiveMax }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -191,7 +191,8 @@ mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res
     provider: 'mangadex',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -219,7 +220,9 @@ mangadexRouter.get("/details", validateDetailsParams, asyncHandler(async (req, r
   const cacheInfo = getCacheInfo();
   log.debug('getCacheInfo result:', cacheInfo);
   addCacheHeaders(res, 3600, cacheInfo);
-  res.json(formatDetailResponse({ data: result, provider: 'mangadex', id: cleanId, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'mangadex', id: cleanId, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -249,7 +252,7 @@ const bedethequeCache = createProviderCache('bedetheque', 'book');
 
 // Normalisé: /bedetheque/search (avec cache PostgreSQL)
 bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   const type = req.query.type || 'album';  // Par défaut: albums (pas séries)
   const effectiveMax = Math.min(Math.max(1, max), 50);
 
@@ -281,7 +284,7 @@ bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { type, max: effectiveMax } }
+    { params: { type, max: effectiveMax }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 600, getCacheInfo());

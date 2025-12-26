@@ -40,9 +40,9 @@ const googleAuth = requireApiKey('Google Books', 'https://console.cloud.google.c
 
 // Normalisé: /googlebooks/search (avec cache PostgreSQL)
 router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   
-  // Utilise le cache de recherche PostgreSQL
+  // Utilise le cache de recherche PostgreSQL (bypass si refresh=true)
   const result = await googleBooksCache.searchWithCache(
     q,
     async () => {
@@ -67,7 +67,7 @@ router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req,
       
       return { results: items, total: rawResult.totalItems || items.length };
     },
-    { params: { lang, max } }
+    { params: { lang, max }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -76,7 +76,8 @@ router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req,
     provider: 'googlebooks',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -100,23 +101,33 @@ router.get("/details", validateDetailsParams, googleAuth, asyncHandler(async (re
   }
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'googlebooks', id: cleanId, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'googlebooks', id: cleanId, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Normalisé: /googlebooks/code (ISBN)
 router.get("/code", validateCodeParams, googleAuth, asyncHandler(async (req, res) => {
-  const { code, lang, locale, autoTrad } = req.standardParams;
+  const { code, lang, locale, autoTrad, refresh } = req.standardParams;
   
   if (!isIsbn(code)) {
     return res.status(400).json({ error: "ISBN invalide. Format attendu: 10 ou 13 chiffres" });
   }
   
-  const result = await searchGoogleBooks(code, req.apiKey, { lang, maxResults: 1 });
+  // Utilise le cache PostgreSQL (bypass si refresh=true)
+  const result = await googleBooksCache.getWithCache(
+    `isbn:${code}`,
+    async () => {
+      const searchResult = await searchGoogleBooks(code, req.apiKey, { lang, maxResults: 1 });
+      return searchResult.books?.[0] || null;
+    },
+    { forceRefresh: refresh }
+  );
   
-  if (result.books && result.books.length > 0) {
-    addCacheHeaders(res, 3600);
+  if (result) {
+    addCacheHeaders(res, 3600, getCacheInfo());
     res.json(formatDetailResponse({ 
-      data: result.books[0], 
+      data: result, 
       provider: 'googlebooks', 
       id: code,
       meta: { lang, locale, autoTrad, type: 'isbn' }
@@ -168,9 +179,9 @@ const olRouter = Router();
 
 // Normalisé: /openlibrary/search (avec cache PostgreSQL)
 olRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   
-  // Utilise le cache de recherche PostgreSQL
+  // Utilise le cache de recherche PostgreSQL (bypass si refresh=true)
   const result = await openLibraryCache.searchWithCache(
     q,
     async () => {
@@ -195,7 +206,7 @@ olRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
       
       return { results: items, total: rawResult.numFound || items.length };
     },
-    { params: { lang, max } }
+    { params: { lang, max }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -204,7 +215,8 @@ olRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     provider: 'openlibrary',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -228,23 +240,33 @@ olRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) =>
   }
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'openlibrary', id: cleanId, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'openlibrary', id: cleanId, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Normalisé: /openlibrary/code (ISBN)
 olRouter.get("/code", validateCodeParams, asyncHandler(async (req, res) => {
-  const { code, lang, locale, autoTrad } = req.standardParams;
+  const { code, lang, locale, autoTrad, refresh } = req.standardParams;
   
   if (!isIsbn(code)) {
     return res.status(400).json({ error: "ISBN invalide. Format attendu: 10 ou 13 chiffres" });
   }
   
-  const result = await searchOpenLibrary(code, { lang, maxResults: 1 });
+  // Utilise le cache PostgreSQL (bypass si refresh=true)
+  const result = await openLibraryCache.getWithCache(
+    `isbn:${code}`,
+    async () => {
+      const searchResult = await searchOpenLibrary(code, { lang, maxResults: 1 });
+      return searchResult.books?.[0] || null;
+    },
+    { forceRefresh: refresh }
+  );
   
-  if (result.books && result.books.length > 0) {
-    addCacheHeaders(res, 3600);
+  if (result) {
+    addCacheHeaders(res, 3600, getCacheInfo());
     res.json(formatDetailResponse({ 
-      data: result.books[0], 
+      data: result, 
       provider: 'openlibrary', 
       id: code,
       meta: { lang, locale, autoTrad, type: 'isbn' }

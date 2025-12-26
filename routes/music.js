@@ -135,7 +135,8 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     provider,
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad, type, country }
+    meta: { lang, locale, autoTrad, type, country },
+    cacheMatch: result._cacheMatch
   });
   
   addCacheHeaders(res, 300, getCacheInfo());

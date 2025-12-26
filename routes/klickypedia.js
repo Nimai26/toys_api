@@ -79,8 +79,9 @@ router.get('/search', validateSearchParams, async (req, res) => {
         totalResults: result.total,
         hasMore: result.hasMore
       },
-      meta: { lang, locale, autoTrad }
-    }));
+      meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
     
   } catch (error) {
     log.error(`Erreur recherche Klickypedia: ${error.message}`);

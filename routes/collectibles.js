@@ -56,7 +56,7 @@ export const colekaRouter = Router();
 
 // Normalisé: /coleka/search (avec cache PostgreSQL)
 colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   const nbpp = req.query.nbpp ? parseInt(req.query.nbpp, 10) : max;
 
   metrics.sources.coleka.requests++;
@@ -83,7 +83,7 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { nbpp, lang } }
+    { params: { nbpp, lang }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -92,7 +92,8 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
     provider: 'coleka',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -106,7 +107,7 @@ export const luluberluRouter = Router();
 
 // Normalisé: /luluberlu/search (avec cache PostgreSQL)
 luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
 
   metrics.sources.luluberlu.requests++;
   const result = await luluberluCache.searchWithCache(
@@ -131,7 +132,7 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { max } }
+    { params: { max }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -140,7 +141,8 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
     provider: 'luluberlu',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -158,7 +160,9 @@ luluberluRouter.get("/details", validateDetailsParams, asyncHandler(async (req, 
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'luluberlu', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'luluberlu', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -189,7 +193,7 @@ export const consolevariationsRouter = Router();
 
 // Normalisé: /consolevariations/search (avec cache PostgreSQL)
 consolevariationsRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   const searchType = req.query.type || 'all';
   
   if (!['all', 'consoles', 'controllers', 'accessories'].includes(searchType)) {
@@ -248,7 +252,9 @@ consolevariationsRouter.get("/details", validateDetailsParams, asyncHandler(asyn
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'consolevariations', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'consolevariations', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -294,7 +300,7 @@ export const transformerlandRouter = Router();
 
 // Normalisé: /transformerland/search (avec cache PostgreSQL)
 transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   
   metrics.sources.transformerland.requests++;
   const result = await transformerlandCache.searchWithCache(
@@ -317,7 +323,7 @@ transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (r
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { max } }
+    { params: { max }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -326,7 +332,8 @@ transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (r
     provider: 'transformerland',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -344,7 +351,9 @@ transformerlandRouter.get("/details", validateDetailsParams, asyncHandler(async 
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'transformerland', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'transformerland', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -368,7 +377,7 @@ export const paninimanaRouter = Router();
 
 // Normalisé: /paninimania/search (avec cache PostgreSQL)
 paninimanaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   
   metrics.sources.paninimania.requests++;
   const result = await paninimanaCache.searchWithCache(
@@ -391,7 +400,7 @@ paninimanaRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { max } }
+    { params: { max }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -400,7 +409,8 @@ paninimanaRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
     provider: 'paninimania',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -418,7 +428,9 @@ paninimanaRouter.get("/details", validateDetailsParams, asyncHandler(async (req,
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'paninimania', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'paninimania', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy

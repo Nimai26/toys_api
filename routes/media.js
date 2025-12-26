@@ -78,7 +78,8 @@ tvdbRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (re
     provider: 'tvdb',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -104,7 +105,9 @@ tvdbRouter.get("/details", validateDetailsParams, tvdbAuth, asyncHandler(async (
   }
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'tvdb', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'tvdb', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -174,7 +177,8 @@ tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (re
     provider: 'tmdb',
     query: q,
     pagination: { page, totalResults: result.total, totalPages: result.totalPages },
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -200,7 +204,9 @@ tmdbRouter.get("/details", validateDetailsParams, tmdbAuth, asyncHandler(async (
   }
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'tmdb', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'tmdb', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
@@ -262,7 +268,8 @@ imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =>
     provider: 'imdb',
     query: q,
     total: result.total,
-    meta: { lang, locale, autoTrad }
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
   }));
 }));
 
@@ -292,7 +299,9 @@ imdbRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) 
   }
   
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'imdb', id, meta: { lang, locale, autoTrad } }));
+  res.json(formatDetailResponse({ data: result, provider: 'imdb', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
 }));
 
 // Legacy
