@@ -1,0 +1,157 @@
+#====================================================
+#				GENERALE
+#====================================================
+PUID=1000
+PGID=100
+TZ=Europe/Paris
+Dockerap=/Docker_Data/
+DOCKER_DATA=/Docker_Data
+Domaine=snowmanprod.fr
+IP_HOST=10.110.1.1
+MYSQL_ROOT_PASSWORD=Valinor@_1789
+THEMPARKPORT=8089
+SQL_PORT=3306
+SQL_PORT_DOCKER=3307
+docker_network=swag
+DOWNLOAD=/dd1/Temporaire
+PIA_USER=p8039513
+PIA_PASS=3dbE&*6F*mrxr#
+SMTP_HOST=docker-mailserver
+SMTP_PORT=587
+SMTP_SECURITY=starttls
+BACK_UP_FOLDER=/NAS/Data/Backups
+
+#====================================================
+#				TOY API
+#====================================================
+TOYS_API_PORT=3000
+TOY_API_GLUETUN_CONTROL_PORT=8193
+TOY_API_VPN_REGION=France
+TOY_API_MAX_RETRIES=3
+TOY_API_DEFAULT_LOCALE=fr-FR
+TOY_API_CACHE_TTL=300000
+TOY_API_CACHE_MAX_SIZE=100
+TOY_API_LOG_LEVEL=info 
+TOY_API_AUTO_TRAD_URL=http://auto_trad:3255 
+TOY_API_ENABLE_MONITORING=true
+TOY_API_HEALTHCHECK_PROVIDERS_INTERVAL_HOURS=10 #En heures
+TOY_API_API_ENCRYPTION_KEY=alapifdodidogdg57fd5327_i
+TOY_API_TEST_RAWG_KEY=2c72d31ec6af4d5aa40b6bc319457c46
+TOY_API_TEST_GOOGLEBOOKS_KEY=AIzaSyA2obqDa_iOtnqAsbZgffzdR2xufynSgaQ
+TOY_API_TEST_IGDB_CLIENT_SECRET=rrva5kx20yw24iucdjl3r6r3uzwbg0 
+TOY_API_TEST_IGDB_CLIENT_ID=qthljuijucp3x8tnv0923o0cqvtips
+TOY_API_TEST_REBRICKABLE_KEY=9d3ec3a314eadbfeb41e7cd8b25e57c5
+TOY_API_TEST_TVDB_KEY=3963ca52-4775-4ec6-af98-0652493d5b3c
+TOY_API_TEST_TMDB_KEY=e72e23bee8bd629738d7a3a327dab48d
+TOY_API_TEST_COMICVINE_KEY=bfa4da15189d9bc49c5b3f25d9a11fb12f6a6a7e
+TOY_API_TEST_DISCOG_KEY=iZgBqrBeyBelOtOTNnwZvvQfnzgQvyFdAbUtylCk
+TOY_API_SMTP_USERNAME=toy_api@snowmanprod.fr
+TOY_API_SMTP_PASSWORD=Amiral_Ackbar@38
+TOY_API_SMTP_FROM=toy_api@snowmanprod.fr
+TOY_API_SMTP_FROM_NAME=Toy_Api Warning
+TOY_API_EMAIL_DEST=secu@snowmanprod.fr
+TOY_API_FSR_LOG_LEVEL=info #debug, info, warning, error
+TOY_API_BROWSER_TIMEOUT=60000
+TOY_API_ROTATION_INTERVAL=1800
+TOY_API_HEALTH_CHECK_VPN_INTERVAL=60 #interval test du vpn en seconde
+TOY_API_MAX_FAILURES=3
+TOY_API_PUPPETEER_USE_VPN=true
+TOY_API_SNOWSHELF_API_PORT=8088
+#====================================================
+#               TOYS API - DATABASE CACHE (PostgreSQL)
+#====================================================
+TOY_API_DB_ENABLED=true
+TOY_API_DB_HOST=toys_api_postgres
+TOY_API_DB_PORT=5432
+TOY_API_DB_NAME=toys_api_cache
+TOY_API_DB_USER=toys_api
+TOY_API_DB_PASSWORD=OZx8NCHKgOMfmPeZ8Zq7VcVS
+TOY_API_DB_POOL_MIN=2
+TOY_API_DB_POOL_MAX=10
+TOY_API_CACHE_MODE=hybrid
+TOY_API_CACHE_DEFAULT_TTL=2592000
+#====================================================
+#					VAULTWARDEN
+#====================================================
+VAULT_SMTP_USERNAME=vaultwarden@snowmanprod.fr
+VAULT_SMTP_PASSWORD=m9QGc3@Q4PSVBa
+VAULT_SMTP_FROM=vaultwarden@snowmanprod.fr
+VAULT_SMTP_FROM_NAME=Vaultwarden
+VAULT_EMAIL_DEST=secu@snowmanprod.fr
+VAULT_DOMAINE=https://mdp.snowmanprod.fr
+VAULT_INVITATION_ORG_NAME=Gestion de mot passe Hikari No Sekai
+# ===== Admin (Argon2) =====
+VAULT_ADMIN_TOKEN=$$argon2id$$v=19$$m=65540,t=3,p=4$$eEtCZStuM1Y0MjBOcXhybUp2Rm9CWmFQV3c2SEVxYkpKZ1oyYWxQNGhlMD0$$ezw6Lo/FfEf7COJbsDbRIREvNmA2thfSHbsCjVoeIn0
+VAULT_PORT=8002
+VAULT_BACKUP_PASSWORD=*oLn@u5s3V@ugB
+#====================================================
+#				WATCHTOWER
+#====================================================
+# Vérification des mises à jour tous les jours à 4h du matin
+WATCHTOWER_SCHEDULE=0 0 4 * * *
+# Notifications email en cas de mise à jour
+WATCHTOWER_SMTP_FROM=watchtower@snowmanprod.fr
+WATCHTOWER_SMTP_PASSWORD=Watchtower@38
+WATCHTOWER_EMAIL_TO=secu@snowmanprod.fr#====================================================
+#				AUTHELIA
+#====================================================
+AUTHELIA_SMTP_PASSWORD=Authelia@38
+#====================================================
+#				NEXTCLOUD
+#====================================================
+NEXTCLOUD_MYSQL_PASSWORD=qH!Nfn9{476/cH
+NEXTCLOUD_MYSQL_DATABASE=nextcloud
+NEXTCLOUD_MYSQL_USER=nextcloud
+NEXTCLOUD_DOMAIN=cloud.snowmanprod.fr
+NEXTCLOUD_DATA=/NAS/Data/Nextcloud
+#====================================================
+#				COLLABORA
+#====================================================
+COLLABORA_USER=nimai
+COLLABORA_PASS=Amiral_Ackbar@38
+COLLABORA_DOMAIN=collabora.snowmanprod.fr
+#====================================================
+#			DOCKER-MAILSERVER
+#====================================================
+# ClamAV nécessite ~1-2GB de RAM. Mettre à 0 si ressources limitées
+DMS_ENABLE_CLAMAV=0
+#====================================================
+#				GOTIFY
+#====================================================
+GOTIFY_USER=Nimai
+GOTIFY_PASS=Amiral_Ackbar@38
+#====================================================
+#				MARIADB / PHPMYADMIN / PGADMIN
+#====================================================
+MARIADB_USER=Nimai
+MARIADB_PASSWORD=7yvMuiRYZ*M#$!
+PHPMYADMIN_USER=phpmyadmin
+PHPMYADMIN_PASSWORD=4t66D4!{,RyMja
+PGADMIN_EMAIL=secu@snowmanprod.fr
+PGADMIN_PASSWORD=r5TRdkh5!*Nws^
+PGADMIN_PORT=5050
+#====================================================
+#				SNOW_SHELF_DB_USER
+#====================================================
+SNOW_SHELF_DB_USER=root
+#====================================================
+#			ECTO NETWORK MANAGER
+#====================================================
+ECTO_APP_ENV=production
+ECTO_SECRET_KEY=EctoNetworkManager2025!SecureKey#38
+ECTO_DATABASE_URL=sqlite:////data/ecto.db
+# AdGuard Home
+ECTO_ADGUARD_URL=http://10.110.1.7
+ECTO_ADGUARD_USER=admin
+ECTO_ADGUARD_PASSWORD=Argus@38
+# Proxmox (optionnel)
+ECTO_PROXMOX_URL=https://10.10.0.1:8006
+ECTO_PROXMOX_USER=root@pam
+ECTO_PROXMOX_PASSWORD=
+ECTO_PROXMOX_VERIFY_SSL=false
+# Réseau
+ECTO_NETWORK_SUBNET=10.0.0.0/8
+ECTO_SCAN_TIMEOUT=30
+# Ports
+ECTO_BACKEND_PORT=8010
+ECTO_FRONTEND_PORT=3010

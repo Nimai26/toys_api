@@ -53,7 +53,7 @@ docker run -d \
 
 ### Méthode recommandée (avec VPN) 🔒
 
-Utiliser `docker-compose.portainer.yml` pour un déploiement complet avec protection VPN :
+Utiliser un `docker-compose.yaml` avec Gluetun pour un déploiement complet avec protection VPN :
 
 ```
 toys_api
@@ -62,8 +62,6 @@ toys_api
 ```
 
 **Votre IP réelle n'est JAMAIS exposée** aux sites scrapés.
-
-📥 **[docker-compose.portainer.yml](https://github.com/nimai24/toys_api)**
 
 ## ⚙️ Variables d'Environnement
 
@@ -238,7 +236,6 @@ MIT
 - 🔒 **Proxy VPN intégré** : Tout le trafic Amazon passe par le VPN
 - 🛡️ **VPN Monitor** : Auto-restart + rotation IP automatique
 - 🌍 **Traduction IMDB** : Plot traduit automatiquement via `autoTrad=1`
-- 📦 **docker-compose.portainer.yml** : Stack complète avec VPN
 - ✂️ Simplification : Plus besoin de FlareSolverr dédié Amazon
 
 #### v2.1.0

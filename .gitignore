@@ -57,9 +57,5 @@ test/
 .dockerignore
 docker-compose.yml
 docker-compose.amazon-vpn.yml
-portainer-stack-unified.yml
 
 # Templates publics autorisés:
-# - docker-compose.portainer.yml (template générique)
-# - portainer-stack.yml (stack de déploiement)
-# - .env.example (exemple de variables)

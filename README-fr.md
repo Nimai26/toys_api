@@ -184,8 +184,6 @@ environment:
   - GLUETUN_CONTROL_URL=http://gluetun-toys:8000
 ```
 
-Voir [portainer-stack.yml](portainer-stack.yml) pour un exemple complet avec gluetun + kill switch + vpn-monitor.
-
 ---
 
 ### 🌍 Traduction automatique IMDB

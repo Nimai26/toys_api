@@ -142,7 +142,6 @@ const result = await searchLegoNormalized('Star Wars');
 - **Proxy VPN intégré** : Tout le trafic Amazon passe par VPN
 - **VPN Monitor** : Auto-restart et rotation IP automatique
 - **Traduction IMDB** : Plot traduit via `autoTrad=1`
-- **docker-compose.portainer.yml** : Stack complète avec VPN
 
 ### 🗑️ Supprimé
 - Dépendance à FlareSolverr pour Amazon (remplacé par Puppeteer Stealth)

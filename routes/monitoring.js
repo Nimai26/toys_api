@@ -25,6 +25,7 @@ router.get('/status', asyncHandler(async (req, res) => {
   const status = {
     enabled: process.env.ENABLE_MONITORING === 'true',
     intervalHours: parseInt(process.env.HEALTHCHECK_INTERVAL_HOURS || '10', 10),
+    sendSuccessReport: process.env.SEND_SUCCESS_REPORT === 'true',
     providers: {
       totalTests: PROVIDER_TESTS.length,
       uniqueProviders: uniqueProviders.length,

@@ -1,31 +1,7 @@
-# =============================================================================
-# TOYS API v2.2.0 - Portainer Stack
-# =============================================================================
-# Stack Portainer pour Toys API avec VPN + FlareSolverr + Puppeteer Stealth
-# 
-# Architecture:
-#   toys_api
-#     ├── Amazon → Puppeteer Stealth → Proxy HTTP (gluetun-toys:8888) → VPN
-#     └── Autres → FlareSolverr (gluetun-toys:8191) → VPN
-#
-# Services inclus:
-#   - gluetun-toys: VPN PIA + Proxy HTTP (8888) + Kill switch
-#   - flaresolverr-vpn: FlareSolverr via VPN (network_mode)
-#   - vpn-monitor: Health check + Auto-restart + Rotation IP (30 min)
-#   - toys_api: API de scraping multi-providers
-#
-# Prérequis:
-#   - Réseau Docker "swag" existant
-#   - Compte VPN Private Internet Access (PIA)
-#
-# Variables d'environnement requises:
-#   - PIA_USER: Nom d'utilisateur PIA
-#   - PIA_PASS: Mot de passe PIA
-#   - Dockerap: Chemin vers les données Docker (ex: /Docker_Data/)
-#   - PUID, PGID, TZ: Variables système
-# =============================================================================
-
-version: "3.9"
+networks:
+  reseau_principal:
+    external: true
+    name: ${docker_network:?error}
 
 services:
   # ============================================
@@ -45,28 +21,30 @@ services:
       - OPENVPN_USER=${PIA_USER}
       - OPENVPN_PASSWORD=${PIA_PASS}
       # Région - France par défaut
-      - SERVER_REGIONS=${VPN_REGION:-France}
+      - SERVER_REGIONS=${TOY_API_VPN_REGION}
       # Paramètres de connexion
       - VPN_TYPE=openvpn
       - OPENVPN_PROTOCOL=udp
       # ========== KILL SWITCH ==========
       - FIREWALL=on
-      - FIREWALL_VPN_INPUT_PORTS=8191
+      - FIREWALL_VPN_INPUT_PORTS=${TOY_API_GLUETUN_CONTROL_PORT}
       - FIREWALL_OUTBOUND_SUBNETS=10.110.1.0/24,172.16.0.0/12
       # ========== PROXY HTTP pour Puppeteer ==========
       - HTTPPROXY=on
       - HTTPPROXY_LOG=off
       # Health check
       - HEALTH_VPN_DURATION_INITIAL=30s
-      - TZ=${TZ:-Europe/Paris}
+      - TZ=${TZ}
     ports:
       # Control server gluetun (pour rotation IP)
-      - "${GLUETUN_CONTROL_PORT:-8193}:8000"
+      - "${TOY_API_GLUETUN_CONTROL_PORT}:8000"
     volumes:
-      - ${Dockerap:-/Docker_Data/}gluetun-toys:/gluetun
+      - ${DOCKER_DATA}/toys_api/data/gluetun-toys:/gluetun
     networks:
-      - swag
+      - reseau_principal
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
       interval: 30s
@@ -85,23 +63,28 @@ services:
     # = Tout le trafic passe par le VPN + Kill switch si VPN down
     network_mode: "service:gluetun-toys"
     environment:
-      - LOG_LEVEL=${FSR_LOG_LEVEL:-info}
+      - LOG_LEVEL=${TOY_API_FSR_LOG_LEVEL}
       - LOG_HTML=false
       - CAPTCHA_SOLVER=none
-      - TZ=${TZ:-Europe/Paris}
-      - BROWSER_TIMEOUT=${FSR_TIMEOUT:-60000}
-    volumes:
-      # Volumes nommés pour éviter les volumes anonymes
-      - flaresolverr-vpn-data:/tmp
-      - flaresolverr-vpn-config:/config
+      - TZ=${TZ}
+      - BROWSER_TIMEOUT=${TOY_API_BROWSER_TIMEOUT}
     depends_on:
       gluetun-toys:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      # FlareSolverr expose /health sur le port 8191 via le réseau gluetun
+      test: ["CMD", "curl", "-sf", "http://localhost:8191/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ============================================
   # VPN Health Monitor + Rotation IP automatique
-  # - Vérifie le VPN toutes les 60 secondes
+  # - Vérifie le VPN toutes les ${TOY_API_HEALTH_CHECK_VPN_INTERVAL} secondes
   # - Relance si problème détecté (3 échecs consécutifs)
   # - Rotation IP toutes les 30 minutes
   # ============================================
@@ -114,12 +97,12 @@ services:
       - |
         apk add --no-cache curl
         echo "🛡️ VPN Monitor démarré"
-        echo "   - Health check: toutes les 60s"
-        echo "   - Rotation IP: toutes les ${ROTATION_INTERVAL:-1800}s"
+        echo "   - Health check: toutes les ${TOY_API_HEALTH_CHECK_VPN_INTERVAL:-60}s"
+        echo "   - Rotation IP: toutes les ${TOY_API_ROTATION_INTERVAL:-1800}s"
         
-        ROTATION_INTERVAL=${ROTATION_INTERVAL:-1800}
-        HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-60}
-        MAX_FAILURES=${MAX_FAILURES:-3}
+        ROTATION_INTERVAL=${TOY_API_ROTATION_INTERVAL}
+        HEALTH_CHECK_INTERVAL=${TOY_API_HEALTH_CHECK_VPN_INTERVAL}
+        MAX_FAILURES=${TOY_API_MAX_FAILURES}
         last_rotation=$$(date +%s)
         consecutive_failures=0
         
@@ -174,50 +157,94 @@ services:
           fi
         done
     environment:
-      - ROTATION_INTERVAL=${ROTATION_INTERVAL:-1800}
-      - HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-60}
-      - MAX_FAILURES=${MAX_FAILURES:-3}
+      - ROTATION_INTERVAL=${TOY_API_ROTATION_INTERVAL}
+      - HEALTH_CHECK_INTERVAL=${TOY_API_HEALTH_CHECK_VPN_INTERVAL}
+      - MAX_FAILURES=${TOY_API_MAX_FAILURES}
     networks:
-      - swag
+      - reseau_principal
     depends_on:
       gluetun-toys:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      # Vérifie que le script tourne en testant la connexion à gluetun
+      test: ["CMD", "curl", "-sf", "http://gluetun-toys:8000/v1/openvpn/status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ============================================
-  # Toys API v2.2.0 - Scraping via Puppeteer + VPN
+  # Toys API v3.2.0 - Scraping via Puppeteer + VPN
+  # Les clés API (Rebrickable, TMDB, etc.) sont fournies
+  # via header X-Encrypted-Key lors des appels
   # ============================================
   toys_api:
     image: nimai24/toys_api:latest
     container_name: toys_api
     restart: unless-stopped
     ports:
-      - "${TOYS_API_PORT:-3000}:3000"
+      - "${TOYS_API_PORT}:3000"
     environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-100}
-      - TZ=${TZ:-Europe/Paris}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
       # ========== TOUT PASSE PAR LE VPN ==========
       # FlareSolverr via VPN (pour tous les providers sauf Amazon)
       - FSR_URL=http://gluetun-toys:8191/v1
       # Proxy VPN pour Puppeteer (Amazon uniquement)
       - VPN_PROXY_URL=http://gluetun-toys:8888
-      - PUPPETEER_USE_VPN=${PUPPETEER_USE_VPN:-true}
+      - PUPPETEER_USE_VPN=${TOY_API_PUPPETEER_USE_VPN}
       # Control Gluetun pour rotation IP
       - GLUETUN_CONTROL_URL=http://gluetun-toys:8000
       # Paramètres API
-      - PORT=3000
-      - MAX_RETRIES=${MAX_RETRIES:-3}
-      - DEFAULT_LOCALE=${DEFAULT_LOCALE:-fr-FR}
-      - CACHE_TTL=${CACHE_TTL:-300000}
-      - CACHE_MAX_SIZE=${CACHE_MAX_SIZE:-100}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - PORT=${TOYS_API_PORT}
+      - MAX_RETRIES=${TOY_API_MAX_RETRIES}
+      - DEFAULT_LOCALE=${TOY_API_DEFAULT_LOCALE}
+      - CACHE_TTL=${TOY_API_CACHE_TTL}
+      - CACHE_MAX_SIZE=${TOY_API_CACHE_MAX_SIZE}
+      - LOG_LEVEL=${TOY_API_LOG_LEVEL}
       # Traduction automatique (optionnel)
-      - AUTO_TRAD_URL=${AUTO_TRAD_URL:-http://auto_trad:3255}
+      - AUTO_TRAD_URL=${TOY_API_AUTO_TRAD_URL} 
+      - API_ENCRYPTION_KEY=${TOY_API_API_ENCRYPTION_KEY}
+      # ========== MONITORING & ALERTES EMAIL ==========
+      - ENABLE_MONITORING=${TOY_API_ENABLE_MONITORING}
+      - HEALTHCHECK_INTERVAL_HOURS=${TOY_API_HEALTHCHECK_PROVIDERS_INTERVAL_HOURS} #en heures
+      # Configuration SMTP pour les alertes
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURITY=${SMTP_SECURITY}
+      - SMTP_USERNAME=${TOY_API_SMTP_USERNAME}
+      - SMTP_PASSWORD=${TOY_API_SMTP_PASSWORD}
+      - SMTP_FROM=${TOY_API_SMTP_FROM}
+      - SMTP_FROM_NAME=${TOY_API_SMTP_FROM_NAME}
+      - EMAIL_DEST=${TOY_API_EMAIL_DEST}
+      # Clés API de test pour le monitoring (optionnel)
+      - TEST_REBRICKABLE_KEY=${TOY_API_TEST_REBRICKABLE_KEY}
+      - TEST_TMDB_KEY=${TOY_API_TEST_TMDB_KEY}
+      - TEST_RAWG_KEY=${TOY_API_TEST_RAWG_KEY}
+      - TEST_TVDB_KEY=${TOY_API_TEST_TVDB_KEY}
+      - TEST_GOOGLEBOOKS_KEY=${TOY_API_TEST_GOOGLEBOOKS_KEY}
+      - TEST_COMICVINE_KEY=${TOY_API_TEST_COMICVINE_KEY}
+      - TEST_IGDB_CLIENT_ID=${TOY_API_TEST_IGDB_CLIENT_ID}
+      - TEST_IGDB_CLIENT_SECRET=${TOY_API_TEST_IGDB_CLIENT_SECRET}
+      - TEST_DISCOGS_KEY=${TOY_API_TEST_DISCOG_KEY}
+      # ========== BASE DE DONNÉES (Cache PostgreSQL) ==========
+      - TOY_API_DB_ENABLED=${TOY_API_DB_ENABLED:-true}
+      - TOY_API_DB_HOST=toys_api_postgres
+      - TOY_API_DB_PORT=5432
+      - TOY_API_DB_NAME=${TOY_API_DB_NAME:-toys_api_cache}
+      - TOY_API_DB_USER=${TOY_API_DB_USER:-toys_api}
+      - TOY_API_DB_PASSWORD=${TOY_API_DB_PASSWORD:?error}
+      - TOY_API_CACHE_MODE=${TOY_API_CACHE_MODE:-hybrid}     
     volumes:
-      - ${Dockerap:-/Docker_Data/}toys_api/data:/app/data
+      - ${DOCKER_DATA}/toys_api/data:/app/data
     networks:
-      - swag
+      - reseau_principal
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
@@ -228,14 +255,71 @@ services:
       gluetun-toys:
         condition: service_healthy
 
-networks:
-  swag:
-    external: true
-
-volumes:
-  # Volumes nommés pour FlareSolverr (cache Chromium)
-  # Évite la création de volumes anonymes avec hash
-  flaresolverr-vpn-data:
-    name: flaresolverr-vpn-data
-  flaresolverr-vpn-config:
-    name: flaresolverr-vpn-config
+  # ============================================
+  # Snow Shelf API - Recherche par image
+  # ============================================
+  snow_shelf_api:
+    image: nimai24/snow_shelf_api:latest
+    container_name: snow_shelf_api
+    restart: unless-stopped
+    ports:
+      - "${TOY_API_SNOWSHELF_API_PORT}:8088"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - TOYS_API_URL=http://toys_api:3000
+      - ENABLE_CLIP=true
+      - ENABLE_OCR=true
+      - OMP_NUM_THREADS=4
+      - MKL_NUM_THREADS=4
+      - CLIP_THREADS=4
+      - CACHE_TTL=300
+    volumes:
+      - ${DOCKER_DATA}/snow_shelf_api/logs:/app/logs
+      - ${DOCKER_DATA}/snow_shelf_api/uploads:/app/uploads
+      - ${DOCKER_DATA}/snow_shelf_api/tmp:/app/tmp
+    networks:
+      - reseau_principal
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+    depends_on:
+      - toys_api
+  # ============================================
+  # PostgreSQL - Base de données cache toys_api
+  # Stockage persistant des données récupérées
+  # ============================================
+  toys_api_postgres:
+    image: postgres:16-alpine
+    container_name: toys_api_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${TOY_API_DB_NAME:-toys_api_cache}
+      - POSTGRES_USER=${TOY_API_DB_USER:-toys_api}
+      - POSTGRES_PASSWORD=${TOY_API_DB_PASSWORD:?error}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKER_DATA}/toys_api/postgres:/var/lib/postgresql/data
+    networks:
+      - reseau_principal
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TOY_API_DB_USER:-toys_api} -d ${TOY_API_DB_NAME:-toys_api_cache}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
