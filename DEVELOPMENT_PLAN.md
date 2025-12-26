@@ -148,14 +148,12 @@ Transformer toys_api en une base de données auto-alimentée qui stocke progress
 | 4.2 | Endpoint `/local/stats` | ✅ | Statistiques complètes |
 | 4.3 | Endpoint `/local/export` | ✅ | JSON et NDJSON (streaming) |
 | 4.4 | Endpoint `/local/import` | ✅ | modes: upsert, skip, replace |
-| 4.5 | Endpoint `/local/refresh/:source/:id` | ⬜ | Paramètre ?refresh=true sur /details |
+| 4.5 | Endpoint `/local/refresh` | ✅ | Paramètre ?refresh=true sur /details |
 | 4.6 | Endpoint `/local/popular` | ✅ | Items les plus demandés |
 | 4.7 | Dashboard monitoring DB | ✅ | Via /local/stats et /local/status |
-| 4.5 | Endpoint `/local/refresh/:source/:id` | ⬜ | Force refresh |
-| 4.6 | Endpoint `/local/popular` | ⬜ | Items les plus demandés |
-| 4.7 | Dashboard monitoring DB | ⬜ | Dans `/monitoring/status` |
+| 4.8 | Endpoint `/local/purge` | ✅ | Purge des items anciens |
 
-### Phase 5 : Optimisations 🟢 NON COMMENCÉE
+### Phase 5 : Optimisations 🟡 PARTIELLE
 **Durée estimée** : 1 jour
 
 | # | Tâche | Statut | Notes |
@@ -164,7 +162,7 @@ Transformer toys_api en une base de données auto-alimentée qui stocke progress
 | 5.2 | Index optimisés | ✅ | GIN trigram pour full-text |
 | 5.3 | Compression JSON (optionnel) | ⬜ | Si volume important |
 | 5.4 | API de "warm-up" | ⬜ | Pré-remplissage massif |
-| 5.5 | Backup automatique | ⬜ | Vers /NAS/Data/Backups |
+| 5.5 | Backup automatique | ✅ | scripts/backup.sh + container backup | |
 
 ---
 

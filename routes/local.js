@@ -301,7 +301,7 @@ localRouter.get('/export', asyncHandler(async (req, res) => {
   if (conditions.length > 0) {
     sql += ' WHERE ' + conditions.join(' AND ');
   }
-  sql += ' ORDER BY source, external_id';
+  sql += ' ORDER BY source, source_id';
   
   const result = await query(sql, params);
   
