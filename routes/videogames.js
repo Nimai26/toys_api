@@ -27,6 +27,7 @@ import {
   formatSearchResponse,
   formatDetailResponse
 } from '../lib/utils/index.js';
+import { translateText } from '../lib/utils/translator.js';
 import {
   RAWG_DEFAULT_MAX,
   RAWG_MAX_LIMIT,
@@ -40,6 +41,35 @@ import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper
 const rawgCache = createProviderCache('rawg', 'videogame');
 const igdbCache = createProviderCache('igdb', 'videogame');
 const jvcCache = createProviderCache('jeuxvideo', 'videogame');
+
+/**
+ * Traduit les descriptions des résultats de recherche si autoTrad est activé
+ * @param {Array} items - Les items à traduire
+ * @param {boolean} autoTrad - Si la traduction automatique est activée
+ * @param {string} lang - La langue cible
+ * @returns {Promise<Array>} - Les items avec descriptions traduites
+ */
+async function translateSearchDescriptions(items, autoTrad, lang) {
+  if (!autoTrad || !lang || lang === 'en') {
+    return items;
+  }
+  
+  // Traduire les descriptions en parallèle
+  const translatedItems = await Promise.all(
+    items.map(async (item) => {
+      if (!item.description) return item;
+      
+      const translated = await translateText(item.description, lang, { enabled: true });
+      return {
+        ...item,
+        description: translated.text,
+        descriptionTranslated: translated.translated
+      };
+    })
+  );
+  
+  return translatedItems;
+}
 
 // ============================================================================
 // RAWG Router
@@ -87,9 +117,12 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
     { params: { page, max: effectiveMax, platforms, genres, ordering, dates, metacritic }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'rawg',
     query: q,
     pagination: { page, totalResults: result.total, totalPages: result.totalPages },
@@ -171,9 +204,12 @@ igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (re
     { params: { max: effectiveMax, platforms, genres }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'igdb',
     query: q,
     total: result.total,
