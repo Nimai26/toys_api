@@ -1,4 +1,4 @@
-// index.js - toys_api v2.3.0
+// index.js - toys_api v4.0.0
 import express from "express";
 import crypto from "crypto";
 import compression from "compression";
@@ -24,6 +24,17 @@ import {
   API_VERSION,
   FSR_BASE
 } from './lib/config.js';
+
+// Import du module base de données (cache PostgreSQL)
+import { 
+  initDatabase, 
+  runMigrations, 
+  DB_ENABLED, 
+  CACHE_MODE,
+  isCacheEnabled,
+  getPoolStats,
+  closePool
+} from './lib/database/index.js';
 
 const log = createLogger('Server');
 
@@ -141,6 +152,23 @@ if (isEncryptionEnabled()) {
   log.info("Chiffrement des clés API désactivé");
 }
 
+// Initialisation de la base de données PostgreSQL (cache local)
+let dbInitialized = false;
+if (DB_ENABLED) {
+  log.info(`📦 Database cache: ${CACHE_MODE} mode`);
+  try {
+    await initDatabase();
+    await runMigrations();
+    dbInitialized = true;
+    log.info("✅ Database cache initialisé avec succès");
+  } catch (err) {
+    log.error("⚠️  Erreur initialisation database cache", { error: err.message });
+    log.warn("   Le serveur continuera sans cache persistant (mode API-only)");
+  }
+} else {
+  log.info("📦 Database cache: désactivé (DB_ENABLED=false)");
+}
+
 // ============================================================================
 // MONTAGE DES ROUTERS (Phase 3)
 // ============================================================================
@@ -237,7 +265,7 @@ app.post("/crypto/encrypt", express.json(), (req, res) => {
 });
 
 // Endpoint de santé avec métriques avancées
-app.get("/health", (req, res) => {
+app.get("/health", async (req, res) => {
   const uptime = Math.floor((Date.now() - metrics.startTime) / 1000);
   const avgResponseTime = metrics.responseTimeCount > 0 
     ? Math.round(metrics.responseTimeSum / metrics.responseTimeCount) 
@@ -246,6 +274,34 @@ app.get("/health", (req, res) => {
     ? Math.round((metrics.requests.cached / metrics.requests.total) * 100) 
     : 0;
   const cacheStats = getCacheStats();
+  
+  // Stats base de données
+  let dbStatus = { enabled: false };
+  if (DB_ENABLED && dbInitialized) {
+    try {
+      const poolStats = getPoolStats();
+      dbStatus = {
+        enabled: true,
+        mode: CACHE_MODE,
+        connected: true,
+        pool: poolStats
+      };
+    } catch (err) {
+      dbStatus = {
+        enabled: true,
+        mode: CACHE_MODE,
+        connected: false,
+        error: err.message
+      };
+    }
+  } else if (DB_ENABLED) {
+    dbStatus = {
+      enabled: true,
+      mode: CACHE_MODE,
+      connected: false,
+      error: 'Initialization failed'
+    };
+  }
   
   res.json({ 
     status: "ok", 
@@ -257,6 +313,7 @@ app.get("/health", (req, res) => {
       ttl: CACHE_TTL / 1000,
       hitRate: `${cacheHitRate}%`
     },
+    database: dbStatus,
     metrics: {
       requests: {
         total: metrics.requests.total,
@@ -428,6 +485,17 @@ const gracefulShutdown = async (signal) => {
       log.info("Session FSR détruite");
     } catch (err) {
       log.error("Erreur destruction session FSR", { error: err.message });
+    }
+  }
+  
+  // Fermer la connexion PostgreSQL si active
+  if (DB_ENABLED && dbInitialized) {
+    try {
+      log.info("Fermeture du pool PostgreSQL...");
+      await closePool();
+      log.info("Pool PostgreSQL fermé");
+    } catch (err) {
+      log.error("Erreur fermeture pool PostgreSQL", { error: err.message });
     }
   }
   

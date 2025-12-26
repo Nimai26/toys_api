@@ -1,9 +1,9 @@
 {
   "name": "toys-api",
-  "version": "3.2.26",
+  "version": "4.0.0",
   "type": "module",
   "main": "index.js",
-  "description": "API REST multi-sources pour jouets, LEGO, jeux vidéo, BD, musique et collectibles avec traduction automatique",
+  "description": "API REST multi-sources pour jouets, LEGO, jeux vidéo, BD, musique et collectibles avec traduction automatique et cache PostgreSQL",
   "scripts": {
     "start": "node index.js"
   },
@@ -11,6 +11,7 @@
     "compression": "^1.7.4",
     "express": "^4.18.2",
     "nodemailer": "^6.9.16",
+    "pg": "^8.13.1",
     "puppeteer": "^24.33.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2"
