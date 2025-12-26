@@ -1,5 +1,6 @@
-// routes/comics.js - Endpoints Comic Vine, MangaDex et Bedetheque (toys_api v3.1.0)
+// routes/comics.js - Endpoints Comic Vine, MangaDex et Bedetheque (toys_api v4.0.0)
 import { Router } from 'express';
+import { createLogger } from '../lib/utils/logger.js';
 import {
   searchComicVine,
   getComicVineVolumeNormalized,
@@ -29,7 +30,10 @@ import {
   formatDetailResponse,
   requireApiKey
 } from '../lib/utils/index.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 import { COMICVINE_DEFAULT_MAX, COMICVINE_MAX_LIMIT, MANGADEX_DEFAULT_MAX, MANGADEX_MAX_LIMIT, BEDETHEQUE_DEFAULT_MAX } from '../lib/config.js';
+
+const log = createLogger('Route:Comics');
 
 // ============================================================================
 // Comic Vine Router (Requires API Key)
@@ -133,9 +137,12 @@ comicvineRouter.get("/issue/:id", comicvineAuth, asyncHandler(async (req, res) =
 }));
 
 // ============================================================================
-// MangaDex Router
+// MangaDex Router (avec cache PostgreSQL)
 // ============================================================================
 const mangadexRouter = Router();
+
+// Cache provider pour MangaDex
+const mangadexCache = createProviderCache('mangadex', 'manga');
 
 // Normalisé: /mangadex/search
 mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
@@ -167,20 +174,30 @@ mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res
   }));
 }));
 
-// Normalisé: /mangadex/details
+// Normalisé: /mangadex/details (avec cache PostgreSQL + X-Cache header)
 mangadexRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
   const cleanId = cleanSourceId(id, 'mangadex');
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)) {
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un UUID" });
   }
 
-  const result = await getMangaDexByIdNormalized(cleanId, { lang, autoTrad });
+  // Utilise le cache PostgreSQL
+  const result = await mangadexCache.getWithCache(
+    cleanId,
+    () => getMangaDexByIdNormalized(cleanId, { lang, autoTrad }),
+    { forceRefresh }
+  );
+  
   if (!result) return res.status(404).json({ error: `Manga ${cleanId} non trouvé` });
   
-  addCacheHeaders(res, 3600);
+  // Ajouter headers avec info de cache
+  const cacheInfo = getCacheInfo();
+  log.debug('getCacheInfo result:', cacheInfo);
+  addCacheHeaders(res, 3600, cacheInfo);
   res.json(formatDetailResponse({ data: result, provider: 'mangadex', id: cleanId, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -202,9 +219,12 @@ mangadexRouter.get("/manga/:id", asyncHandler(async (req, res) => {
 }));
 
 // ============================================================================
-// Bedetheque Router (scraping)
+// Bedetheque Router (scraping + cache PostgreSQL)
 // ============================================================================
 const bedethequeRouter = Router();
+
+// Cache provider pour Bedetheque
+const bedethequeCache = createProviderCache('bedetheque', 'book');
 
 // Normalisé: /bedetheque/search
 bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
@@ -244,23 +264,36 @@ bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
   }));
 }));
 
-// Normalisé: /bedetheque/details
+// Normalisé: /bedetheque/details (avec cache PostgreSQL)
 bedethequeRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id, type } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
   if (!/^\d+$/.test(id)) return res.status(400).json({ error: "Format d'ID invalide" });
 
+  const numericId = parseInt(id, 10);
   let result;
+  
   if (type === 'album') {
-    result = await getBedethequeAlbumByIdNormalized(parseInt(id, 10));
+    // Utilise le cache pour les albums
+    result = await bedethequeCache.getWithCache(
+      `album_${id}`,
+      () => getBedethequeAlbumByIdNormalized(numericId),
+      { type: 'book', forceRefresh }
+    );
     if (!result || !result.name) return res.status(404).json({ error: `Album ${id} non trouvé` });
   } else {
-    result = await getBedethequeSerieByIdNormalized(parseInt(id, 10));
+    // Utilise le cache pour les séries
+    result = await bedethequeCache.getWithCache(
+      `serie_${id}`,
+      () => getBedethequeSerieByIdNormalized(numericId),
+      { type: 'book_series', forceRefresh }
+    );
     if (!result || !result.name) return res.status(404).json({ error: `Série ${id} non trouvée` });
   }
   
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'bedetheque', id, meta: { lang, locale, autoTrad, type } }));
 }));
 

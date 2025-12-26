@@ -1,4 +1,4 @@
-// routes/videogames.js - Endpoints RAWG, IGDB et JVC (toys_api v3.0.0)
+// routes/videogames.js - Endpoints RAWG, IGDB et JVC (toys_api v4.0.0)
 import { Router } from 'express';
 import {
   searchRawg,
@@ -34,6 +34,12 @@ import {
   IGDB_MAX_LIMIT,
   JVC_DEFAULT_MAX
 } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
+
+// Caches PostgreSQL pour les jeux vidéo
+const rawgCache = createProviderCache('rawg', 'videogame');
+const igdbCache = createProviderCache('igdb', 'videogame');
+const jvcCache = createProviderCache('jeuxvideo', 'videogame');
 
 // ============================================================================
 // RAWG Router
@@ -79,13 +85,19 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
   }));
 }));
 
-// Normalisé: /rawg/details
+// Normalisé: /rawg/details (avec cache PostgreSQL)
 rawgRouter.get("/details", validateDetailsParams, rawgAuth, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
   
-  const result = await getRawgGameDetailsNormalized(id, req.apiKey, { lang, autoTrad });
-  addCacheHeaders(res, 3600);
+  const result = await rawgCache.getWithCache(
+    id,
+    async () => getRawgGameDetailsNormalized(id, req.apiKey, { lang, autoTrad }),
+    { forceRefresh }
+  );
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'rawg', id, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -144,16 +156,22 @@ igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (re
   }));
 }));
 
-// Normalisé: /igdb/details
+// Normalisé: /igdb/details (avec cache PostgreSQL)
 igdbRouter.get("/details", validateDetailsParams, igdbAuth, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
   
   const { clientId, clientSecret } = parseIgdbCredentials(req.apiKey);
   const accessToken = await getIgdbToken(clientId, clientSecret);
   
-  const result = await getIgdbGameDetailsNormalized(id, clientId, accessToken, { lang, autoTrad });
-  addCacheHeaders(res, 3600);
+  const result = await igdbCache.getWithCache(
+    id,
+    async () => getIgdbGameDetailsNormalized(id, clientId, accessToken, { lang, autoTrad }),
+    { forceRefresh }
+  );
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'igdb', id, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -208,21 +226,27 @@ jeuxvideoRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
   }));
 }));
 
-// Normalisé: /jeuxvideo/details
+// Normalisé: /jeuxvideo/details (avec cache PostgreSQL)
 jeuxvideoRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
   
   if (!/^\d+$/.test(id)) {
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
   }
   
-  const result = await getJvcGameByIdNormalized(parseInt(id, 10));
+  const result = await jvcCache.getWithCache(
+    id,
+    async () => getJvcGameByIdNormalized(parseInt(id, 10)),
+    { forceRefresh }
+  );
+  
   if (!result || !result.name) {
     return res.status(404).json({ error: `Jeu ${id} non trouvé` });
   }
   
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'jeuxvideo', id, meta: { lang, locale, autoTrad } }));
 }));
 

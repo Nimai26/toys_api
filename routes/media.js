@@ -30,6 +30,12 @@ import {
   formatDetailResponse
 } from '../lib/utils/index.js';
 import { TVDB_DEFAULT_MAX, TMDB_DEFAULT_MAX, IMDB_DEFAULT_MAX } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
+
+// Cache providers pour media
+const tvdbCache = createProviderCache('tvdb', 'series');
+const tmdbCache = createProviderCache('tmdb', 'movie');
+const imdbCache = createProviderCache('imdb', 'movie');
 
 // ============================================================================
 // TVDB Router
@@ -67,19 +73,28 @@ tvdbRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (re
   }));
 }));
 
-// Normalisé: /tvdb/details
+// Normalisé: /tvdb/details (avec cache PostgreSQL)
 tvdbRouter.get("/details", validateDetailsParams, tvdbAuth, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id, type } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
-  let result;
-  if (type === 'movie') {
-    result = await getTvdbMovieByIdNormalized(id, req.apiKey, { lang, autoTrad });
-  } else {
-    result = await getTvdbSeriesByIdNormalized(id, req.apiKey, { lang, autoTrad });
+  const cacheType = type === 'movie' ? 'movie' : 'series';
+  
+  // Utilise le cache PostgreSQL
+  const result = await tvdbCache.getWithCache(
+    `${type}_${id}`,
+    () => type === 'movie' 
+      ? getTvdbMovieByIdNormalized(id, req.apiKey, { lang, autoTrad })
+      : getTvdbSeriesByIdNormalized(id, req.apiKey, { lang, autoTrad }),
+    { type: cacheType, forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `${type} ${id} non trouvé` });
   }
   
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'tvdb', id, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -142,19 +157,28 @@ tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (re
   }));
 }));
 
-// Normalisé: /tmdb/details
+// Normalisé: /tmdb/details (avec cache PostgreSQL)
 tmdbRouter.get("/details", validateDetailsParams, tmdbAuth, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id, type } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
-  let result;
-  if (type === 'movie') {
-    result = await getTmdbMovieByIdNormalized(id, req.apiKey, { lang: locale, autoTrad });
-  } else {
-    result = await getTmdbTvByIdNormalized(id, req.apiKey, { lang: locale, autoTrad });
+  const cacheType = type === 'movie' ? 'movie' : 'series';
+  
+  // Utilise le cache PostgreSQL
+  const result = await tmdbCache.getWithCache(
+    `${type}_${id}`,
+    () => type === 'movie'
+      ? getTmdbMovieByIdNormalized(id, req.apiKey, { lang: locale, autoTrad })
+      : getTmdbTvByIdNormalized(id, req.apiKey, { lang: locale, autoTrad }),
+    { type: cacheType, forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `${type} ${id} non trouvé` });
   }
   
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'tmdb', id, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -212,24 +236,32 @@ imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =>
   }));
 }));
 
-// Normalisé: /imdb/details
+// Normalisé: /imdb/details (avec cache PostgreSQL)
 imdbRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id, type } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
   if (!/^tt\d{7,}$/.test(id)) {
     return res.status(400).json({ error: "Format d'ID IMDB invalide", hint: "Format: tt suivi d'au moins 7 chiffres" });
   }
   
-  // Déterminer le type (movie ou series) - par défaut movie
-  let result;
-  if (type === 'series') {
-    result = await getImdbSeriesByIdNormalized(id, { lang, autoTrad });
-  } else {
-    result = await getImdbMovieByIdNormalized(id, { lang, autoTrad });
+  const cacheType = type === 'series' ? 'series' : 'movie';
+  
+  // Utilise le cache PostgreSQL
+  const result = await imdbCache.getWithCache(
+    id,
+    () => type === 'series'
+      ? getImdbSeriesByIdNormalized(id, { lang, autoTrad })
+      : getImdbMovieByIdNormalized(id, { lang, autoTrad }),
+    { type: cacheType, forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Titre IMDB ${id} non trouvé` });
   }
   
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'imdb', id, meta: { lang, locale, autoTrad } }));
 }));
 

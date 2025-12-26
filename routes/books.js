@@ -25,8 +25,13 @@ import {
   formatDetailResponse
 } from '../lib/utils/index.js';
 import { GOOGLE_BOOKS_DEFAULT_MAX, OPENLIBRARY_DEFAULT_MAX } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
 
 const router = Router();
+
+// Cache providers pour les livres
+const googleBooksCache = createProviderCache('googlebooks', 'book');
+const openLibraryCache = createProviderCache('openlibrary', 'book');
 const googleAuth = requireApiKey('Google Books', 'https://console.cloud.google.com/apis/credentials');
 
 // ============================================================================
@@ -65,15 +70,26 @@ router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req,
   }));
 }));
 
-// Normalisé: /googlebooks/details
+// Normalisé: /googlebooks/details (avec cache PostgreSQL)
 router.get("/details", validateDetailsParams, googleAuth, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
   const cleanId = cleanSourceId(id, 'googlebooks');
-  const result = await getGoogleBookByIdNormalized(cleanId, req.apiKey, { lang, autoTrad });
   
-  addCacheHeaders(res, 3600);
+  // Utilise le cache PostgreSQL
+  const result = await googleBooksCache.getWithCache(
+    cleanId,
+    () => getGoogleBookByIdNormalized(cleanId, req.apiKey, { lang, autoTrad }),
+    { forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Livre ${cleanId} non trouvé` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'googlebooks', id: cleanId, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -172,15 +188,26 @@ olRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   }));
 }));
 
-// Normalisé: /openlibrary/details
+// Normalisé: /openlibrary/details (avec cache PostgreSQL)
 olRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
   const cleanId = cleanSourceId(id, 'openlibrary');
-  const result = await getOpenLibraryByIdNormalized(cleanId);
   
-  addCacheHeaders(res, 3600);
+  // Utilise le cache PostgreSQL
+  const result = await openLibraryCache.getWithCache(
+    cleanId,
+    () => getOpenLibraryByIdNormalized(cleanId),
+    { forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Livre ${cleanId} non trouvé` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'openlibrary', id: cleanId, meta: { lang, locale, autoTrad } }));
 }));
 

@@ -1,0 +1,531 @@
+// routes/local.js - Endpoints pour la base de données locale (toys_api v4.0.0)
+import { Router } from 'express';
+import { asyncHandler, addCacheHeaders } from '../lib/utils/index.js';
+import { 
+  DB_ENABLED, 
+  CACHE_MODE, 
+  isDatabaseConnected,
+  getStats,
+  getPopularItems,
+  getItemsToRefresh,
+  searchLocal,
+  query
+} from '../lib/database/index.js';
+
+const localRouter = Router();
+
+/**
+ * GET /local/status
+ * Statut de la base de données locale
+ */
+localRouter.get('/status', asyncHandler(async (req, res) => {
+  const connected = isDatabaseConnected();
+  
+  let dbInfo = null;
+  if (connected) {
+    try {
+      const result = await query('SELECT version() as version, current_database() as database, NOW() as server_time');
+      dbInfo = result.rows[0];
+    } catch (err) {
+      dbInfo = { error: err.message };
+    }
+  }
+  
+  res.json({
+    enabled: DB_ENABLED,
+    mode: CACHE_MODE,
+    connected,
+    database: dbInfo
+  });
+}));
+
+/**
+ * GET /local/stats
+ * Statistiques globales du cache
+ */
+localRouter.get('/stats', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const stats = await getStats();
+  addCacheHeaders(res, 60);
+  res.json(stats);
+}));
+
+/**
+ * GET /local/stats/sources
+ * Statistiques par source (provider)
+ */
+localRouter.get('/stats/sources', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const result = await query(`
+    SELECT 
+      source,
+      COUNT(*) as total_items,
+      COUNT(DISTINCT type) as types,
+      MIN(created_at) as first_item,
+      MAX(updated_at) as last_update,
+      SUM(hit_count) as total_hits,
+      AVG(hit_count) as avg_hits
+    FROM items
+    GROUP BY source
+    ORDER BY total_items DESC
+  `);
+  
+  addCacheHeaders(res, 60);
+  res.json({
+    sources: result.rows,
+    total_sources: result.rows.length
+  });
+}));
+
+/**
+ * GET /local/stats/types
+ * Statistiques par type de données
+ */
+localRouter.get('/stats/types', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const result = await query(`
+    SELECT 
+      type,
+      COUNT(*) as total_items,
+      COUNT(DISTINCT source) as sources,
+      MIN(year) as min_year,
+      MAX(year) as max_year,
+      SUM(hit_count) as total_hits
+    FROM items
+    GROUP BY type
+    ORDER BY total_items DESC
+  `);
+  
+  addCacheHeaders(res, 60);
+  res.json({
+    types: result.rows,
+    total_types: result.rows.length
+  });
+}));
+
+/**
+ * GET /local/popular
+ * Items les plus consultés
+ */
+localRouter.get('/popular', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 20), 100);
+  const source = req.query.source || null;
+  const type = req.query.type || null;
+  
+  const items = await getPopularItems({ limit, source, type });
+  
+  addCacheHeaders(res, 120);
+  res.json({
+    items,
+    total: items.length,
+    filters: { source, type, limit }
+  });
+}));
+
+/**
+ * GET /local/search
+ * Recherche dans la base locale
+ */
+localRouter.get('/search', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const q = req.query.q || req.query.query || '';
+  const source = req.query.source || null;
+  const type = req.query.type || null;
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 20), 100);
+  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+  
+  if (!q && !source && !type) {
+    return res.status(400).json({ 
+      error: 'Au moins un critère de recherche requis',
+      hint: 'Utilisez q, source, ou type'
+    });
+  }
+  
+  // searchLocal attend (query, options)
+  const results = await searchLocal(q, { source, type, limit, offset });
+  
+  addCacheHeaders(res, 60);
+  res.json({
+    results,
+    total: results.length,
+    query: q,
+    filters: { source, type },
+    pagination: { limit, offset }
+  });
+}));
+
+/**
+ * GET /local/item/:source/:id
+ * Récupère un item spécifique par source et ID
+ */
+localRouter.get('/item/:source/:id', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const { source, id } = req.params;
+  
+  const result = await query(
+    'SELECT * FROM items WHERE source = $1 AND external_id = $2',
+    [source, id]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: 'Item non trouvé', source, id });
+  }
+  
+  // Incrémenter le hit_count
+  await query(
+    'UPDATE items SET hit_count = hit_count + 1, last_accessed = NOW() WHERE source = $1 AND external_id = $2',
+    [source, id]
+  );
+  
+  const item = result.rows[0];
+  addCacheHeaders(res, 300);
+  res.json({
+    ...item.data,
+    _cache: {
+      source: item.source,
+      external_id: item.external_id,
+      type: item.type,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      hit_count: item.hit_count + 1,
+      last_accessed: new Date()
+    }
+  });
+}));
+
+/**
+ * GET /local/refresh
+ * Liste des items à rafraîchir (TTL expiré)
+ */
+localRouter.get('/refresh', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 50), 200);
+  
+  const items = await getItemsToRefresh(limit);
+  
+  res.json({
+    items,
+    total: items.length,
+    hint: 'Ces items ont dépassé leur TTL et devraient être rafraîchis'
+  });
+}));
+
+/**
+ * GET /local/recent
+ * Items récemment ajoutés ou mis à jour
+ */
+localRouter.get('/recent', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 20), 100);
+  const hours = Math.min(Math.max(1, parseInt(req.query.hours, 10) || 24), 168); // Max 7 jours
+  
+  const result = await query(`
+    SELECT 
+      source,
+      external_id,
+      type,
+      name,
+      year,
+      created_at,
+      updated_at
+    FROM items
+    WHERE updated_at > NOW() - INTERVAL '${hours} hours'
+    ORDER BY updated_at DESC
+    LIMIT $1
+  `, [limit]);
+  
+  addCacheHeaders(res, 60);
+  res.json({
+    items: result.rows,
+    total: result.rows.length,
+    period: `${hours}h`
+  });
+}));
+
+/**
+ * GET /local/export
+ * Export complet de la base de données en JSON
+ * 
+ * @query {string} source - Filtrer par source (optionnel)
+ * @query {string} type - Filtrer par type (optionnel)
+ * @query {string} format - Format: 'json' (défaut) ou 'ndjson' (streaming)
+ */
+localRouter.get('/export', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const source = req.query.source || null;
+  const type = req.query.type || null;
+  const format = req.query.format || 'json';
+  
+  // Construire la requête avec filtres optionnels
+  let sql = 'SELECT source, external_id, type, name, year, image, data, created_at, updated_at, hit_count FROM items';
+  const params = [];
+  const conditions = [];
+  
+  if (source) {
+    params.push(source);
+    conditions.push(`source = $${params.length}`);
+  }
+  if (type) {
+    params.push(type);
+    conditions.push(`type = $${params.length}`);
+  }
+  
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+  sql += ' ORDER BY source, external_id';
+  
+  const result = await query(sql, params);
+  
+  // Métadonnées de l'export
+  const exportMeta = {
+    version: '4.0.0',
+    exported_at: new Date().toISOString(),
+    total_items: result.rows.length,
+    filters: { source, type }
+  };
+  
+  if (format === 'ndjson') {
+    // Streaming NDJSON pour gros exports
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    res.setHeader('Content-Disposition', `attachment; filename="toys_api_export_${Date.now()}.ndjson"`);
+    
+    // Écrire les métadonnées en premier
+    res.write(JSON.stringify({ _meta: exportMeta }) + '\n');
+    
+    // Streamer chaque item
+    for (const row of result.rows) {
+      res.write(JSON.stringify({
+        source: row.source,
+        external_id: row.external_id,
+        type: row.type,
+        name: row.name,
+        year: row.year,
+        image: row.image,
+        data: row.data,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        hit_count: row.hit_count
+      }) + '\n');
+    }
+    res.end();
+  } else {
+    // JSON standard
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="toys_api_export_${Date.now()}.json"`);
+    
+    res.json({
+      _meta: exportMeta,
+      items: result.rows.map(row => ({
+        source: row.source,
+        external_id: row.external_id,
+        type: row.type,
+        name: row.name,
+        year: row.year,
+        image: row.image,
+        data: row.data,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        hit_count: row.hit_count
+      }))
+    });
+  }
+}));
+
+/**
+ * POST /local/import
+ * Import de données depuis un export JSON
+ * 
+ * @body {object} _meta - Métadonnées (optionnel, pour validation)
+ * @body {array} items - Tableau d'items à importer
+ * @query {string} mode - 'upsert' (défaut), 'skip' (ignorer existants), 'replace' (écraser tout)
+ */
+localRouter.post('/import', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const { items, _meta } = req.body;
+  const mode = req.query.mode || 'upsert';
+  
+  if (!items || !Array.isArray(items)) {
+    return res.status(400).json({ 
+      error: 'Format invalide',
+      hint: 'Le body doit contenir un tableau "items"'
+    });
+  }
+  
+  if (!['upsert', 'skip', 'replace'].includes(mode)) {
+    return res.status(400).json({ 
+      error: 'Mode invalide',
+      validModes: ['upsert', 'skip', 'replace']
+    });
+  }
+  
+  const stats = {
+    total: items.length,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+    errors: 0
+  };
+  
+  // Si mode replace, vider la table d'abord
+  if (mode === 'replace') {
+    await query('TRUNCATE TABLE items RESTART IDENTITY');
+  }
+  
+  for (const item of items) {
+    try {
+      if (!item.source || !item.external_id) {
+        stats.errors++;
+        continue;
+      }
+      
+      // Vérifier si l'item existe déjà
+      const existing = await query(
+        'SELECT id FROM items WHERE source = $1 AND external_id = $2',
+        [item.source, item.external_id]
+      );
+      
+      if (existing.rows.length > 0) {
+        if (mode === 'skip') {
+          stats.skipped++;
+          continue;
+        }
+        
+        // Mode upsert: mettre à jour
+        await query(`
+          UPDATE items SET
+            type = COALESCE($3, type),
+            name = COALESCE($4, name),
+            year = COALESCE($5, year),
+            image = COALESCE($6, image),
+            data = COALESCE($7, data),
+            updated_at = NOW(),
+            hit_count = COALESCE($8, hit_count)
+          WHERE source = $1 AND external_id = $2
+        `, [
+          item.source,
+          item.external_id,
+          item.type || null,
+          item.name || item.data?.name || null,
+          item.year || item.data?.year || null,
+          item.image || item.data?.image || null,
+          item.data || null,
+          item.hit_count || 0
+        ]);
+        stats.updated++;
+      } else {
+        // Insérer le nouvel item
+        await query(`
+          INSERT INTO items (source, external_id, type, name, year, image, data, hit_count, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9::timestamp, NOW()), NOW())
+        `, [
+          item.source,
+          item.external_id,
+          item.type || 'unknown',
+          item.name || item.data?.name || null,
+          item.year || item.data?.year || null,
+          item.image || item.data?.image || null,
+          item.data || {},
+          item.hit_count || 0,
+          item.created_at || null
+        ]);
+        stats.inserted++;
+      }
+    } catch (err) {
+      console.error(`Erreur import item ${item.source}/${item.external_id}:`, err.message);
+      stats.errors++;
+    }
+  }
+  
+  res.json({
+    success: true,
+    mode,
+    import_meta: _meta || null,
+    stats
+  });
+}));
+
+/**
+ * DELETE /local/purge
+ * Purge des items anciens ou jamais consultés
+ * 
+ * @query {number} days - Items non consultés depuis X jours (défaut: 90)
+ * @query {boolean} dry - Mode simulation (défaut: true)
+ */
+localRouter.delete('/purge', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const days = Math.max(7, parseInt(req.query.days, 10) || 90);
+  const dry = req.query.dry !== 'false';
+  
+  // Compter d'abord les items à purger
+  const countResult = await query(`
+    SELECT COUNT(*) as count, source, type
+    FROM items
+    WHERE last_accessed < NOW() - INTERVAL '${days} days'
+       OR (last_accessed IS NULL AND created_at < NOW() - INTERVAL '${days} days')
+    GROUP BY source, type
+    ORDER BY count DESC
+  `);
+  
+  const totalToPurge = countResult.rows.reduce((acc, row) => acc + parseInt(row.count, 10), 0);
+  
+  if (dry) {
+    return res.json({
+      dry_run: true,
+      days_threshold: days,
+      items_to_purge: totalToPurge,
+      breakdown: countResult.rows,
+      hint: 'Ajoutez ?dry=false pour exécuter la purge'
+    });
+  }
+  
+  // Exécuter la purge
+  const deleteResult = await query(`
+    DELETE FROM items
+    WHERE last_accessed < NOW() - INTERVAL '${days} days'
+       OR (last_accessed IS NULL AND created_at < NOW() - INTERVAL '${days} days')
+  `);
+  
+  res.json({
+    success: true,
+    days_threshold: days,
+    items_purged: deleteResult.rowCount,
+    breakdown: countResult.rows
+  });
+}));
+
+export { localRouter };

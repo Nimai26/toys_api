@@ -1,9 +1,9 @@
 /**
- * Routes Mega Construx - toys_api v3.0.0
+ * Routes Mega Construx - toys_api v4.0.0
  * 
  * Endpoints normalisés :
  * - GET /search : Recherche avec q, lang, max, autoTrad
- * - GET /details : Détails via detailUrl
+ * - GET /details : Détails via detailUrl (avec cache PostgreSQL)
  * - GET /product/:id : (legacy) Détails par ID direct
  */
 
@@ -21,6 +21,7 @@ import {
   formatDetailResponse
 } from '../lib/utils/index.js';
 import { MEGA_DEFAULT_MAX, MEGA_DEFAULT_LANG } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 
 import {
   searchMega as searchMegaLib,
@@ -31,6 +32,9 @@ import {
 
 const router = Router();
 const log = createLogger('Route:Mega');
+
+// Cache PostgreSQL pour Mega Construx
+const megaCache = createProviderCache('mega', 'construct_toy');
 
 // ============================================================================
 // ENDPOINTS NORMALISÉS v3.0.0
@@ -76,39 +80,52 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
 
 /**
  * GET /mega/details
- * Détails d'un produit Mega via detailUrl
+ * Détails d'un produit Mega via detailUrl (avec cache PostgreSQL)
  */
 router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
 
-  const result = await getMegaProductByIdNormalized(id, { lang: locale, autoTrad });
+  const result = await megaCache.getWithCache(
+    id,
+    async () => {
+      const data = await getMegaProductByIdNormalized(id, { lang: locale, autoTrad });
+      if (!data || !data.name) {
+        return null;
+      }
+      
+      // Ajouter les instructions (enrichissement supplémentaire)
+      const skuForInstructions = data.sku || id;
+      try {
+        const instructionsResult = await getMegaInstructions(skuForInstructions);
+        if (instructionsResult && instructionsResult.instructionsUrl) {
+          if (!data.instructions) data.instructions = {};
+          data.instructions.manuals = [{
+            url: instructionsResult.instructionsUrl,
+            format: instructionsResult.format || 'PDF',
+            productName: instructionsResult.productName
+          }];
+          data.instructions.available = true;
+        } else if (!data.instructions || !data.instructions.available) {
+          data.instructions = { available: false, manuals: [] };
+        }
+      } catch (err) {
+        if (!data.instructions) {
+          data.instructions = { available: false, manuals: [] };
+        }
+      }
+      
+      return data;
+    },
+    { forceRefresh }
+  );
+  
   if (!result || !result.name) {
     return res.status(404).json({ error: `Produit ${id} non trouvé` });
   }
   
-  // Ajouter les instructions (enrichissement supplémentaire)
-  const skuForInstructions = result.sku || id;
-  try {
-    const instructionsResult = await getMegaInstructions(skuForInstructions);
-    if (instructionsResult && instructionsResult.instructionsUrl) {
-      if (!result.instructions) result.instructions = {};
-      result.instructions.manuals = [{
-        url: instructionsResult.instructionsUrl,
-        format: instructionsResult.format || 'PDF',
-        productName: instructionsResult.productName
-      }];
-      result.instructions.available = true;
-    } else if (!result.instructions || !result.instructions.available) {
-      result.instructions = { available: false, manuals: [] };
-    }
-  } catch (err) {
-    if (!result.instructions) {
-      result.instructions = { available: false, manuals: [] };
-    }
-  }
-  
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({
     data: result,
     provider: 'mega',

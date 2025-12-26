@@ -20,9 +20,14 @@ import {
   formatDetailResponse
 } from '../lib/utils/index.js';
 import { JIKAN_DEFAULT_MAX } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
 
 // Router principal (legacy + unifié)
 const router = Router();
+
+// Cache providers pour anime/manga (Jikan)
+const jikanAnimeCache = createProviderCache('jikan', 'anime');
+const jikanMangaCache = createProviderCache('jikan', 'manga');
 
 // Router spécifique anime
 const animeRouter = Router();
@@ -86,25 +91,42 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   }));
 }));
 
-// Normalisé: /jikan/details
+// Normalisé: /jikan/details (avec cache PostgreSQL)
 router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id, type } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
   
   const cleanId = cleanSourceId(id, 'jikan');
   if (!/^\d+$/.test(cleanId)) {
     return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un nombre entier" });
   }
   
+  const numericId = parseInt(cleanId, 10);
   let result;
+  
   if (type === 'manga') {
-    result = await getJikanMangaByIdNormalized(parseInt(cleanId, 10), { lang, autoTrad });
+    // Utilise le cache PostgreSQL pour manga
+    result = await jikanMangaCache.getWithCache(
+      cleanId,
+      () => getJikanMangaByIdNormalized(numericId, { lang, autoTrad }),
+      { type: 'manga', forceRefresh }
+    );
   } else {
-    result = await getJikanAnimeByIdNormalized(parseInt(cleanId, 10), { lang, autoTrad });
+    // Utilise le cache PostgreSQL pour anime
+    result = await jikanAnimeCache.getWithCache(
+      cleanId,
+      () => getJikanAnimeByIdNormalized(numericId, { lang, autoTrad }),
+      { type: 'anime', forceRefresh }
+    );
+  }
+  
+  if (!result) {
+    return res.status(404).json({ error: `${type || 'anime'} ${cleanId} non trouvé` });
   }
   
   metrics.requests.total++;
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'jikan', id: cleanId, meta: { lang, locale, autoTrad, type } }));
 }));
 

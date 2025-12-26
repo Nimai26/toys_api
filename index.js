@@ -33,7 +33,7 @@ import {
   CACHE_MODE,
   isCacheEnabled,
   getPoolStats,
-  closePool
+  closeDatabase
 } from './lib/database/index.js';
 
 const log = createLogger('Server');
@@ -72,7 +72,8 @@ import {
   jikanMangaRouter,
   comicvineRouter,
   mangadexRouter,
-  bedethequeRouter
+  bedethequeRouter,
+  localRouter
 } from './routes/index.js';
 
 // Import du monitoring
@@ -138,6 +139,18 @@ app.use((req, res, next) => {
 
 // Middleware pour gérer le bypass du cache (paramètre noCache ou fresh)
 app.use(handleCacheControl);
+
+// Middleware pour ajouter X-Response-Time sur toutes les réponses
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    // Note: Le header ne sera visible que si ajouté avant res.send()
+  });
+  // Stocker le startTime pour usage ultérieur
+  req.startTime = startTime;
+  next();
+});
 
 log.info("=========================================");
 log.info(`🧸 Toys API v${API_VERSION}`);
@@ -223,6 +236,9 @@ app.use('/luluberlu', luluberluRouter);
 app.use('/consolevariations', consolevariationsRouter);
 app.use('/transformerland', transformerlandRouter);
 app.use('/paninimania', paninimanaRouter);
+
+// Local database cache (v4.0.0)
+app.use('/local', localRouter);
 
 // Monitoring (tests de santé automatisés)
 app.use('/monitoring', monitoringRouter);
@@ -492,7 +508,7 @@ const gracefulShutdown = async (signal) => {
   if (DB_ENABLED && dbInitialized) {
     try {
       log.info("Fermeture du pool PostgreSQL...");
-      await closePool();
+      await closeDatabase();
       log.info("Pool PostgreSQL fermé");
     } catch (err) {
       log.error("Erreur fermeture pool PostgreSQL", { error: err.message });

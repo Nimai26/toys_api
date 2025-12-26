@@ -1,9 +1,9 @@
 /**
- * Routes Playmobil - toys_api v3.0.0
+ * Routes Playmobil - toys_api v4.0.0
  * 
  * Endpoints normalisés :
  * - GET /search : Recherche avec q, lang, max, autoTrad
- * - GET /details : Détails via detailUrl
+ * - GET /details : Détails via detailUrl (avec cache PostgreSQL)
  * - GET /product/:id : (legacy) Détails par ID direct
  * - GET /instructions/:id : Instructions de montage
  */
@@ -20,6 +20,7 @@ import {
   formatSearchResponse,
   formatDetailResponse
 } from '../lib/utils/index.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 
 import {
   searchPlaymobil as searchPlaymobilLib,
@@ -32,6 +33,9 @@ import {
 
 const router = Router();
 const log = createLogger('Route:Playmobil');
+
+// Cache PostgreSQL pour Playmobil
+const playmobilCache = createProviderCache('playmobil', 'construct_toy');
 
 // ============================================================================
 // ENDPOINTS NORMALISÉS v3.0.0
@@ -105,11 +109,12 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
 
 /**
  * GET /playmobil/details
- * Détails d'un produit Playmobil via detailUrl
+ * Détails d'un produit Playmobil via detailUrl (avec cache PostgreSQL)
  */
 router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
 
   const cleanId = extractPlaymobilProductId(id);
   if (!cleanId || !isValidPlaymobilProductId(cleanId)) {
@@ -119,26 +124,39 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
     });
   }
   
-  const result = await getPlaymobilProductDetailsNormalized(cleanId, locale);
+  // Utiliser le cache PostgreSQL
+  const result = await playmobilCache.getWithCache(
+    cleanId,
+    async () => {
+      const data = await getPlaymobilProductDetailsNormalized(cleanId, locale);
+      if (!data || !data.name) {
+        return null;
+      }
+      
+      // Ajouter les instructions (enrichissement supplémentaire)
+      try {
+        const instructions = await getPlaymobilInstructions(cleanId);
+        if (instructions && instructions.available) {
+          data.instructions = instructions;
+        } else if (!data.instructions) {
+          data.instructions = { available: false };
+        }
+      } catch (err) {
+        if (!data.instructions) {
+          data.instructions = { available: false, error: err.message };
+        }
+      }
+      
+      return data;
+    },
+    { forceRefresh }
+  );
+  
   if (!result || !result.name) {
     return res.status(404).json({ error: `Produit ${cleanId} non trouvé` });
   }
   
-  // Ajouter les instructions (enrichissement supplémentaire)
-  try {
-    const instructions = await getPlaymobilInstructions(cleanId);
-    if (instructions && instructions.available) {
-      result.instructions = instructions;
-    } else if (!result.instructions) {
-      result.instructions = { available: false };
-    }
-  } catch (err) {
-    if (!result.instructions) {
-      result.instructions = { available: false, error: err.message };
-    }
-  }
-  
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({
     data: result,
     provider: 'playmobil',

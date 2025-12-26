@@ -1,9 +1,9 @@
 /**
- * Routes Rebrickable - toys_api v3.0.0
+ * Routes Rebrickable - toys_api v4.0.0
  * 
  * Endpoints normalisés :
  * - GET /search : Recherche avec q, lang, max, autoTrad
- * - GET /details : Détails via detailUrl
+ * - GET /details : Détails via detailUrl (avec cache PostgreSQL)
  * - GET /set/:setNum : (legacy) Détails par numéro de set
  */
 
@@ -21,6 +21,10 @@ import {
   formatDetailResponse
 } from '../lib/utils/index.js';
 import { DEFAULT_LOCALE, REBRICKABLE_DEFAULT_MAX } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
+
+// Cache PostgreSQL pour Rebrickable
+const rebrickableCache = createProviderCache('rebrickable', 'construct_toy');
 
 import {
   smartRebrickableSearch as smartRebrickableSearchLib,
@@ -120,30 +124,40 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
 
 /**
  * GET /rebrickable/details
- * Détails d'un set via detailUrl
+ * Détails d'un set via detailUrl (avec cache PostgreSQL)
  */
 router.get("/details", validateDetailsParams, rebrickableAuth, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
   
   const setNum = legoIdToRebrickable(id);
   const enrichLego = req.query.enrich_lego !== 'false';
   
-  let result = await getRebrickableSetNormalized(setNum, req.apiKey, {
-    includeParts: true,
-    includeMinifigs: true,
-    maxParts: 500
-  });
+  // Utiliser le cache PostgreSQL
+  let result = await rebrickableCache.getWithCache(
+    setNum,
+    async () => {
+      let data = await getRebrickableSetNormalized(setNum, req.apiKey, {
+        includeParts: true,
+        includeMinifigs: true,
+        maxParts: 500
+      });
+      
+      if (enrichLego) {
+        data = await enrichRebrickableWithLego(data, locale);
+      }
+      
+      if (data.sourceId && !data.lego_id) {
+        data.lego_id = rebrickableIdToLego(data.sourceId);
+      }
+      
+      return data;
+    },
+    { forceRefresh }
+  );
   
-  if (enrichLego) {
-    result = await enrichRebrickableWithLego(result, locale);
-  }
-  
-  if (result.sourceId && !result.lego_id) {
-    result.lego_id = rebrickableIdToLego(result.sourceId);
-  }
-  
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatDetailResponse({
     data: result,
     provider: 'rebrickable',

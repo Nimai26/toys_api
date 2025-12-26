@@ -1,5 +1,5 @@
 /**
- * Routes Music - toys_api v3.0.0
+ * Routes Music - toys_api v4.0.0
  * Endpoints pour la recherche de musique (MusicBrainz, Deezer, Discogs, iTunes)
  */
 
@@ -20,6 +20,7 @@ import {
   metrics
 } from '../lib/utils/index.js';
 import { MUSIC_DEFAULT_MAX } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 
 import {
   searchMusicBrainz as searchMusicBrainzLib,
@@ -42,6 +43,11 @@ import {
 
 const router = Router();
 const log = createLogger('Route:Music');
+
+// Caches PostgreSQL pour la musique
+const musicbrainzCache = createProviderCache('musicbrainz', 'album');
+const deezerCache = createProviderCache('deezer', 'album');
+const discogsCache = createProviderCache('discogs', 'album');
 
 // ============================================================================
 // ENDPOINTS NORMALISÉS
@@ -116,32 +122,38 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   res.json(response);
 }));
 
-// Normalisé: /music/details
+// Normalisé: /music/details (avec cache PostgreSQL)
 router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id, type, provider } = req.parsedDetailUrl;
-  
-  const cacheKey = `music:details:${provider}:${type}:${id}`;
-  const cached = getCached(cacheKey);
-  if (cached) {
-    return res.json(cached);
-  }
+  const forceRefresh = req.query.refresh === 'true';
   
   let result;
   
   if (provider === 'musicbrainz' || provider === 'mb') {
-    result = await getMusicBrainzAlbumNormalized(id);
+    result = await musicbrainzCache.getWithCache(
+      id,
+      async () => getMusicBrainzAlbumNormalized(id),
+      { forceRefresh }
+    );
   } else if (provider === 'discogs') {
     const token = req.query.token || req.headers['x-discogs-token'];
-    result = await getDiscogsReleaseNormalized(id, token);
+    result = await discogsCache.getWithCache(
+      id,
+      async () => getDiscogsReleaseNormalized(id, token),
+      { forceRefresh }
+    );
   } else {
-    result = await getDeezerAlbumNormalized(id);
+    result = await deezerCache.getWithCache(
+      id,
+      async () => getDeezerAlbumNormalized(id),
+      { forceRefresh }
+    );
   }
   
   const response = formatDetailResponse({ data: result, provider, id, meta: { lang, locale, autoTrad } });
   
-  setCache(cacheKey, response);
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(response);
 }));
 

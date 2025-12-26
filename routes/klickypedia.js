@@ -1,6 +1,6 @@
 /**
  * routes/klickypedia.js - Routes Klickypedia
- * toys_api v3.0.0
+ * toys_api v4.0.0
  * 
  * Endpoints normalisés pour l'encyclopédie Playmobil Klickypedia
  */
@@ -18,9 +18,13 @@ import {
   formatSearchResponse,
   formatDetailResponse
 } from '../lib/utils/index.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 
 const router = Router();
 const log = createLogger('Route:Klickypedia');
+
+// Cache PostgreSQL pour Klickypedia
+const klickypediaCache = createProviderCache('klickypedia', 'construct_toy');
 
 // ============================================================================
 // ENDPOINTS NORMALISÉS v3.0.0
@@ -74,22 +78,27 @@ router.get('/search', validateSearchParams, async (req, res) => {
 
 /**
  * GET /klickypedia/details
- * Détails d'un set Playmobil via detailUrl
+ * Détails d'un set Playmobil via detailUrl (avec cache PostgreSQL)
  */
 router.get('/details', validateDetailsParams, async (req, res) => {
   try {
     const { lang, locale, autoTrad } = req.standardParams;
     const { id } = req.parsedDetailUrl;
+    const forceRefresh = req.query.refresh === 'true';
     
     log.info(`Détails Klickypedia: ${id} (lang=${locale})`);
     
-    const product = await getKlickypediaProductDetailsNormalized(id, locale);
+    const product = await klickypediaCache.getWithCache(
+      id,
+      async () => getKlickypediaProductDetailsNormalized(id, locale),
+      { forceRefresh }
+    );
     
     if (!product) {
       return res.status(404).json({ error: 'Produit non trouvé', message: `Aucun produit trouvé avec l'ID ${id}` });
     }
     
-    addCacheHeaders(res, 3600);
+    addCacheHeaders(res, 3600, getCacheInfo());
     res.json(formatDetailResponse({
       data: product,
       provider: 'klickypedia',

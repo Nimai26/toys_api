@@ -1,5 +1,5 @@
 /**
- * Routes Collectibles - toys_api v3.0.0
+ * Routes Collectibles - toys_api v4.0.0
  * Routers séparés pour Coleka, Lulu-Berlu, ConsoleVariations, Transformerland
  */
 
@@ -17,6 +17,7 @@ import {
   formatDetailResponse
 } from '../lib/utils/index.js';
 import { COLEKA_DEFAULT_NBPP, LULUBERLU_DEFAULT_MAX, CONSOLEVARIATIONS_DEFAULT_MAX, TRANSFORMERLAND_DEFAULT_MAX, PANINIMANIA_DEFAULT_MAX } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 
 import {
   searchColeka as searchColekaLib,
@@ -40,6 +41,12 @@ import {
   searchPaninimania as searchPaninimanaLib,
   getPaninimanialbumDetailsNormalized
 } from '../lib/providers/paninimania.js';
+
+// Caches PostgreSQL pour les collectibles
+const luluberluCache = createProviderCache('luluberlu', 'collectible');
+const consolevariationsCache = createProviderCache('consolevariations', 'collectible');
+const transformerlandCache = createProviderCache('transformerland', 'collectible');
+const paninimanaCache = createProviderCache('paninimania', 'album');
 
 // ============================================================================
 // COLEKA ROUTER
@@ -118,15 +125,20 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
   }));
 }));
 
-// Normalisé: /luluberlu/details
+// Normalisé: /luluberlu/details (avec cache PostgreSQL)
 luluberluRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
 
   metrics.sources.luluberlu.requests++;
-  const result = await getLuluBerluItemDetailsNormalized(decodeURIComponent(id));
+  const result = await luluberluCache.getWithCache(
+    id,
+    async () => getLuluBerluItemDetailsNormalized(decodeURIComponent(id)),
+    { forceRefresh }
+  );
   
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'luluberlu', id, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -194,15 +206,20 @@ consolevariationsRouter.get("/search", validateSearchParams, asyncHandler(async 
   }));
 }));
 
-// Normalisé: /consolevariations/details
+// Normalisé: /consolevariations/details (avec cache PostgreSQL)
 consolevariationsRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
   
   metrics.sources.consolevariations.requests++;
-  const result = await getConsoleVariationsItemNormalized(id, undefined, { lang, autoTrad });
+  const result = await consolevariationsCache.getWithCache(
+    id,
+    async () => getConsoleVariationsItemNormalized(id, undefined, { lang, autoTrad }),
+    { forceRefresh }
+  );
   
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'consolevariations', id, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -276,15 +293,20 @@ transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (r
   }));
 }));
 
-// Normalisé: /transformerland/details
+// Normalisé: /transformerland/details (avec cache PostgreSQL)
 transformerlandRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
   
   metrics.sources.transformerland.requests++;
-  const result = await getTransformerlandItemDetailsNormalized(id, undefined, { lang, autoTrad });
+  const result = await transformerlandCache.getWithCache(
+    id,
+    async () => getTransformerlandItemDetailsNormalized(id, undefined, { lang, autoTrad }),
+    { forceRefresh }
+  );
   
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'transformerland', id, meta: { lang, locale, autoTrad } }));
 }));
 
@@ -336,15 +358,20 @@ paninimanaRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
   }));
 }));
 
-// Normalisé: /paninimania/details
+// Normalisé: /paninimania/details (avec cache PostgreSQL)
 paninimanaRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
   
   metrics.sources.paninimania.requests++;
-  const result = await getPaninimanialbumDetailsNormalized(id);
+  const result = await paninimanaCache.getWithCache(
+    id,
+    async () => getPaninimanialbumDetailsNormalized(id),
+    { forceRefresh }
+  );
   
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatDetailResponse({ data: result, provider: 'paninimania', id, meta: { lang, locale, autoTrad } }));
 }));
 

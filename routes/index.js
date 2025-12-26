@@ -1,5 +1,5 @@
 /**
- * Routes Index - toys_api v3.0.0
+ * Routes Index - toys_api v4.0.0
  * Export centralisé de tous les routers
  */
 
@@ -45,3 +45,6 @@ export {
   transformerlandRouter,
   paninimanaRouter
 } from './collectibles.js';
+
+// Local database cache (v4.0.0)
+export { localRouter } from './local.js';

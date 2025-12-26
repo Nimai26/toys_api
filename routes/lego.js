@@ -24,6 +24,7 @@ import {
   formatDetailResponse
 } from '../lib/utils/index.js';
 import { DEFAULT_LOCALE, MAX_RETRIES } from '../lib/config.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
 
 import { 
   callLegoGraphql as callLegoGraphqlLib, 
@@ -34,6 +35,9 @@ import {
 
 const router = Router();
 const log = createLogger('Route:Lego');
+
+// Cache provider pour LEGO
+const legoCache = createProviderCache('lego', 'construct_toy');
 
 // ============================================================================
 // ENDPOINTS NORMALISÉS v3.0.0
@@ -87,39 +91,53 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
 
 /**
  * GET /lego/details
- * Détails d'un produit LEGO via detailUrl
+ * Détails d'un produit LEGO via detailUrl (avec cache PostgreSQL)
  * 
  * @query {string} detailUrl - URL fournie par /search (requis)
  * @query {string} lang - Langue (défaut: fr)
  * @query {boolean} autoTrad - Traduction automatique
+ * @query {boolean} refresh - Forcer le refresh depuis l'API
  */
 router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
 
   metrics.sources.lego.requests++;
-  let result = await getProductDetailsNormalized(id, locale);
   
-  // Ajouter les instructions (enrichissement supplémentaire)
-  try {
-    const instructions = await getBuildingInstructions(id, locale);
-    if (instructions && instructions.manuals && instructions.manuals.length > 0) {
-      result.instructions = {
-        available: true,
-        count: instructions.manuals.length,
-        manuals: instructions.manuals
-      };
-    } else if (!result.instructions || !result.instructions.available) {
-      result.instructions = { available: false, count: 0, manuals: [] };
-    }
-  } catch (instructionsErr) {
-    log.warn(`Instructions non disponibles pour ${id}: ${instructionsErr.message}`);
-    if (!result.instructions) {
-      result.instructions = { available: false, count: 0, manuals: [], error: instructionsErr.message };
-    }
+  // Utilise le cache PostgreSQL
+  let result = await legoCache.getWithCache(
+    id,
+    async () => {
+      const product = await getProductDetailsNormalized(id, locale);
+      
+      // Ajouter les instructions (enrichissement)
+      try {
+        const instructions = await getBuildingInstructions(id, locale);
+        if (instructions && instructions.manuals && instructions.manuals.length > 0) {
+          product.instructions = {
+            available: true,
+            count: instructions.manuals.length,
+            manuals: instructions.manuals
+          };
+        } else {
+          product.instructions = { available: false, count: 0, manuals: [] };
+        }
+      } catch (instructionsErr) {
+        log.warn(`Instructions non disponibles pour ${id}: ${instructionsErr.message}`);
+        product.instructions = { available: false, count: 0, manuals: [], error: instructionsErr.message };
+      }
+      
+      return product;
+    },
+    { forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Produit LEGO ${id} non trouvé` });
   }
   
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatDetailResponse({
     data: result,
     provider: 'lego',
