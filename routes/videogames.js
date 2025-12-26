@@ -49,7 +49,7 @@ const rawgAuth = requireApiKey('RAWG', 'https://rawg.io/apidocs');
 
 // Normalisé: /rawg/search (avec cache PostgreSQL)
 rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, page, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, page, autoTrad, refresh } = req.standardParams;
   const effectiveMax = Math.min(max, RAWG_MAX_LIMIT);
   const platforms = req.query.platforms || null;
   const genres = req.query.genres || null;
@@ -84,7 +84,7 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
         totalPages: Math.ceil(rawResult.count / effectiveMax)
       };
     },
-    { params: { page, max: effectiveMax, platforms, genres, ordering, dates, metacritic } }
+    { params: { page, max: effectiveMax, platforms, genres, ordering, dates, metacritic }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -137,7 +137,7 @@ const igdbAuth = requireApiKey('IGDB', 'https://dev.twitch.tv/console/apps (form
 
 // Normalisé: /igdb/search (avec cache PostgreSQL)
 igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   const effectiveMax = Math.min(max, IGDB_MAX_LIMIT);
   const platforms = req.query.platforms || null;
   const genres = req.query.genres || null;
@@ -167,7 +167,7 @@ igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (re
       
       return { results: items, total: rawResult.count || items.length };
     },
-    { params: { max: effectiveMax, platforms, genres } }
+    { params: { max: effectiveMax, platforms, genres }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 300, getCacheInfo());
@@ -226,7 +226,7 @@ const jeuxvideoRouter = Router();
 
 // Normalisé: /jeuxvideo/search (avec cache PostgreSQL)
 jeuxvideoRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
   
   const result = await jvcCache.searchWithCache(
     q,
@@ -249,7 +249,7 @@ jeuxvideoRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
       
       return { results: items, total: items.length };
     },
-    { params: { max } }
+    { params: { max }, forceRefresh: refresh }
   );
   
   addCacheHeaders(res, 3600, getCacheInfo());
