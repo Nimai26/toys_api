@@ -14,7 +14,8 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import { COLEKA_DEFAULT_NBPP, LULUBERLU_DEFAULT_MAX, CONSOLEVARIATIONS_DEFAULT_MAX, TRANSFORMERLAND_DEFAULT_MAX, PANINIMANIA_DEFAULT_MAX } from '../lib/config.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
@@ -86,9 +87,12 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
     { params: { nbpp, lang }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'coleka',
     query: q,
     total: result.total,
@@ -135,9 +139,12 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
     { params: { max }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'luluberlu',
     query: q,
     total: result.total,
@@ -228,9 +235,12 @@ consolevariationsRouter.get("/search", validateSearchParams, asyncHandler(async 
     { params: { max, type: searchType } }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'consolevariations',
     query: q,
     total: result.total,
@@ -326,9 +336,12 @@ transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (r
     { params: { max }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'transformerland',
     query: q,
     total: result.total,
@@ -403,9 +416,12 @@ paninimanaRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
     { params: { max }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'paninimania',
     query: q,
     total: result.total,

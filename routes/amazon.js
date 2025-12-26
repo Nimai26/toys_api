@@ -24,7 +24,8 @@ import {
   validateCodeParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import {
   searchAmazon,
@@ -100,9 +101,12 @@ function createAmazonCategoryRouter(category, logName, providerName) {
       { params: { country, max }, forceRefresh: refresh }
     );
     
+    // Traduire les descriptions si autoTrad est activé (après le cache)
+    const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+    
     addCacheHeaders(res, AMAZON_CACHE_TTL, getCacheInfo());
     res.json(formatSearchResponse({
-      items: result.results || [],
+      items: translatedResults,
       provider: providerName,
       query: q,
       total: result.total,

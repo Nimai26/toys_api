@@ -25,9 +25,9 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
-import { translateText } from '../lib/utils/translator.js';
 import {
   RAWG_DEFAULT_MAX,
   RAWG_MAX_LIMIT,
@@ -41,35 +41,6 @@ import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper
 const rawgCache = createProviderCache('rawg', 'videogame');
 const igdbCache = createProviderCache('igdb', 'videogame');
 const jvcCache = createProviderCache('jeuxvideo', 'videogame');
-
-/**
- * Traduit les descriptions des résultats de recherche si autoTrad est activé
- * @param {Array} items - Les items à traduire
- * @param {boolean} autoTrad - Si la traduction automatique est activée
- * @param {string} lang - La langue cible
- * @returns {Promise<Array>} - Les items avec descriptions traduites
- */
-async function translateSearchDescriptions(items, autoTrad, lang) {
-  if (!autoTrad || !lang || lang === 'en') {
-    return items;
-  }
-  
-  // Traduire les descriptions en parallèle
-  const translatedItems = await Promise.all(
-    items.map(async (item) => {
-      if (!item.description) return item;
-      
-      const translated = await translateText(item.description, lang, { enabled: true });
-      return {
-        ...item,
-        description: translated.text,
-        descriptionTranslated: translated.translated
-      };
-    })
-  );
-  
-  return translatedItems;
-}
 
 // ============================================================================
 // RAWG Router

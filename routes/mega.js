@@ -18,7 +18,8 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import { MEGA_DEFAULT_MAX, MEGA_DEFAULT_LANG } from '../lib/config.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
@@ -70,9 +71,12 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     { params: { locale, max, page } }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 1800, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'mega',
     query: q,
     total: result.total,

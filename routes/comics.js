@@ -28,7 +28,8 @@ import {
   generateDetailUrl,
   formatSearchResponse,
   formatDetailResponse,
-  requireApiKey
+  requireApiKey,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 import { COMICVINE_DEFAULT_MAX, COMICVINE_MAX_LIMIT, MANGADEX_DEFAULT_MAX, MANGADEX_MAX_LIMIT, BEDETHEQUE_DEFAULT_MAX } from '../lib/config.js';
@@ -88,9 +89,12 @@ comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler
     { params: { type, max: effectiveMax }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'comicvine',
     query: q,
     total: result.total,
@@ -185,9 +189,12 @@ mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res
     { params: { lang, max: effectiveMax }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'mangadex',
     query: q,
     total: result.total,
@@ -287,9 +294,12 @@ bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, r
     { params: { type, max: effectiveMax }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 600, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'bedetheque',
     query: q,
     total: result.total,

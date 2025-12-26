@@ -16,7 +16,8 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 
@@ -68,9 +69,12 @@ router.get('/search', validateSearchParams, async (req, res) => {
       { params: { locale, max } }
     );
     
+    // Traduire les descriptions si autoTrad est activé (après le cache)
+    const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+    
     addCacheHeaders(res, 1800, getCacheInfo());
     res.json(formatSearchResponse({
-      items: result.results || [],
+      items: translatedResults,
       provider: 'klickypedia',
       query: q,
       pagination: {

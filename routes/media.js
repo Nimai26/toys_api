@@ -27,7 +27,8 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import { TVDB_DEFAULT_MAX, TMDB_DEFAULT_MAX, IMDB_DEFAULT_MAX } from '../lib/config.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
@@ -72,9 +73,12 @@ tvdbRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (re
     { params: { max, type, lang, year } }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'tvdb',
     query: q,
     total: result.total,
@@ -171,9 +175,12 @@ tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (re
     { params: { max, type, locale, page, year, includeAdult } }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'tmdb',
     query: q,
     pagination: { page, totalResults: result.total, totalPages: result.totalPages },
@@ -262,9 +269,12 @@ imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =>
     { params: { max } }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'imdb',
     query: q,
     total: result.total,

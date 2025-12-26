@@ -17,7 +17,8 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import { JIKAN_DEFAULT_MAX } from '../lib/config.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
@@ -91,10 +92,13 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     { params: { type, page, max, status, rating, orderBy, sort }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   metrics.requests.total++;
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'jikan',
     query: q,
     total: result.total,

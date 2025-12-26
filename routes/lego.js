@@ -21,7 +21,8 @@ import {
   parseDetailUrl,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse
+  formatDetailResponse,
+  translateSearchDescriptions
 } from '../lib/utils/index.js';
 import { DEFAULT_LOCALE, MAX_RETRIES } from '../lib/config.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
@@ -83,9 +84,12 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     { params: { locale, max }, forceRefresh: refresh }
   );
   
+  // Traduire les descriptions si autoTrad est activé (après le cache)
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items: result.results || [],
+    items: translatedResults,
     provider: 'lego',
     query: q,
     total: result.total,
