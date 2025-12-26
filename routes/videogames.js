@@ -62,7 +62,7 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
     async () => {
       const rawResult = await searchRawg(q, req.apiKey, { max: effectiveMax, page, platforms, genres, ordering, dates, metacritic });
       
-      const items = (rawResult.results || rawResult.games || []).map(game => ({
+      const items = (rawResult.games || rawResult.results || []).map(game => ({
         type: 'videogame',
         source: 'rawg',
         sourceId: game.id || game.slug,
@@ -70,18 +70,18 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
         name_original: game.name,
         description: game.description_raw || null,
         year: game.released ? parseInt(game.released.substring(0, 4), 10) : null,
-        image: game.background_image,
-        src_url: `https://rawg.io/games/${game.slug || game.id}`,
+        image: game.backgroundImage || game.thumb || (Array.isArray(game.image) ? game.image[0] : game.image) || null,
+        src_url: game.url || `https://rawg.io/games/${game.slug || game.id}`,
         released: game.released,
         rating: game.rating,
-        platforms: game.platforms?.map(p => p.platform?.name) || [],
+        platforms: game.platforms?.map(p => p.name || p.platform?.name) || [],
         detailUrl: generateDetailUrl('rawg', game.id || game.slug, 'game')
       }));
       
       return { 
         results: items, 
-        total: rawResult.count,
-        totalPages: Math.ceil(rawResult.count / effectiveMax)
+        total: rawResult.totalResults || rawResult.count,
+        totalPages: rawResult.totalPages || Math.ceil((rawResult.count || 0) / effectiveMax)
       };
     },
     { params: { page, max: effectiveMax, platforms, genres, ordering, dates, metacritic }, forceRefresh: refresh }
@@ -157,11 +157,12 @@ igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (re
         name: game.name,
         name_original: game.name,
         description: game.summary || null,
-        year: game.first_release_date ? new Date(game.first_release_date * 1000).getFullYear() : null,
-        image: game.cover?.url ? `https:${game.cover.url.replace('t_thumb', 't_cover_big')}` : null,
+        year: game.releaseDate ? parseInt(game.releaseDate.substring(0, 4), 10) : null,
+        image: game.thumb || game.cover?.coverBig || (Array.isArray(game.image) ? game.image[0] : game.image) || null,
         src_url: game.url || `https://www.igdb.com/games/${game.slug || game.id}`,
-        released: game.first_release_date ? new Date(game.first_release_date * 1000).toISOString().split('T')[0] : null,
+        released: game.releaseDate || null,
         rating: game.rating,
+        platforms: game.platforms?.map(p => p.name || p.abbreviation) || [],
         detailUrl: generateDetailUrl('igdb', game.id, 'game')
       }));
       
