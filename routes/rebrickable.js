@@ -63,7 +63,7 @@ const rebrickableAuth = requireApiKey('Rebrickable', 'https://rebrickable.com/ap
  * car Rebrickable indexe uniquement en anglais.
  */
 router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async (req, res) => {
-  const { q, lang, locale, max, page, autoTrad } = req.standardParams;
+  const { q, lang, locale, max, page, autoTrad, refresh } = req.standardParams;
   const enrichLego = req.query.enrich_lego !== 'false';
   
   // Traduire le terme de recherche en anglais (Rebrickable indexe en anglais)
@@ -72,9 +72,9 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
   const wasTranslated = translation.translated;
   
   if (wasTranslated) {
-    log.info(`Recherche traduite: "${q}" → "${searchQuery}"`);
+    log.info(`Recherche traduite: "${q}" → "${searchQuery}"${refresh ? ' (refresh)' : ''}`);
   } else {
-    log.info(`Recherche: "${q}" (lang=${lang}, max=${max})`);
+    log.info(`Recherche: "${q}" (lang=${lang}, max=${max})${refresh ? ' (refresh)' : ''}`);
   }
 
   const result = await rebrickableCache.searchWithCache(
@@ -129,7 +129,10 @@ router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async 
       
       return { results: items, total: totalResults, hasMore, searchType };
     },
-    { params: { page, max, locale, enrichLego } }
+    { 
+      params: { page, max, locale, enrichLego },
+      forceRefresh: refresh 
+    }
   );
   
   addCacheHeaders(res, result.searchType === 'set_id' ? 3600 : 300, getCacheInfo());
