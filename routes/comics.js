@@ -13,7 +13,8 @@ import {
   searchBedetheque,
   searchBedethequeAlbums,
   getBedethequeSerieByIdNormalized,
-  getBedethequeAlbumByIdNormalized
+  getBedethequeAlbumByIdNormalized,
+  getBedethequeAlbumById
 } from '../lib/providers/bedetheque.js';
 import { 
   cleanSourceId, 
