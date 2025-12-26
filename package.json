@@ -5,7 +5,13 @@
   "main": "index.js",
   "description": "API REST multi-sources pour jouets, LEGO, jeux vidéo, BD, musique et collectibles avec traduction automatique et cache PostgreSQL",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   },
   "dependencies": {
     "compression": "^1.7.4",

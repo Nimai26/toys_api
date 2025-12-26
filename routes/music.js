@@ -48,12 +48,13 @@ const log = createLogger('Route:Music');
 const musicbrainzCache = createProviderCache('musicbrainz', 'album');
 const deezerCache = createProviderCache('deezer', 'album');
 const discogsCache = createProviderCache('discogs', 'album');
+const itunesCache = createProviderCache('itunes', 'album');
 
 // ============================================================================
 // ENDPOINTS NORMALISÉS
 // ============================================================================
 
-// Normalisé: /music/search
+// Normalisé: /music/search (avec cache PostgreSQL)
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const source = req.query.source || 'deezer';
@@ -61,64 +62,83 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const country = locale ? locale.split('-')[1]?.toUpperCase() || 'FR' : 'FR';
   const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'];
   
-  const cacheKey = `music:search:${source}:${type}:${q}:${max}:${country}`;
-  const cached = getCached(cacheKey);
-  if (cached) {
-    return res.json(cached);
-  }
-  
-  let rawResult;
+  // Sélectionner le bon cache selon la source
+  let providerCache;
   let provider = source;
   
   switch (source.toLowerCase()) {
     case 'musicbrainz':
     case 'mb':
       provider = 'musicbrainz';
-      rawResult = await searchMusicBrainzLib(q, { limit: max, type: type === 'album' ? 'release-group' : type });
+      providerCache = musicbrainzCache;
       break;
-      
     case 'discogs':
       provider = 'discogs';
-      const discogsType = type === 'album' ? 'release' : type;
-      rawResult = await searchDiscogsLib(q, { limit: max, type: discogsType, token: discogsToken });
+      providerCache = discogsCache;
       break;
-      
     case 'itunes':
       provider = 'itunes';
-      const itunesEntity = type === 'album' ? 'album' : type === 'artist' ? 'musicArtist' : 'song';
-      rawResult = await searchItunesLib(q, { limit: max, entity: itunesEntity, country });
+      providerCache = itunesCache;
       break;
-      
     case 'deezer':
     default:
       provider = 'deezer';
-      rawResult = await searchDeezerLib(q, { limit: max, type });
+      providerCache = deezerCache;
       break;
   }
   
-  const items = (rawResult.results || rawResult.albums || rawResult.data || []).map(item => ({
-    type: type,
-    source: provider,
-    sourceId: item.id || item.mbid,
-    name: item.title || item.name || item.collectionName,
-    name_original: item.title || item.name,
-    description: null,
-    year: item.releaseDate ? parseInt(item.releaseDate.substring(0, 4), 10) : (item.year || item.date?.split('-')[0] ? parseInt(item.date?.split('-')[0], 10) : null),
-    image: item.cover || item.artworkUrl100 || item.thumb,
-    src_url: item.link || item.collectionViewUrl || item.uri || null,
-    artist: item.artist || item.artistName,
-    detailUrl: generateDetailUrl(provider, item.id || item.mbid, type)
-  }));
+  const result = await providerCache.searchWithCache(
+    q,
+    async () => {
+      let rawResult;
+      
+      switch (source.toLowerCase()) {
+        case 'musicbrainz':
+        case 'mb':
+          rawResult = await searchMusicBrainzLib(q, { limit: max, type: type === 'album' ? 'release-group' : type });
+          break;
+        case 'discogs':
+          const discogsType = type === 'album' ? 'release' : type;
+          rawResult = await searchDiscogsLib(q, { limit: max, type: discogsType, token: discogsToken });
+          break;
+        case 'itunes':
+          const itunesEntity = type === 'album' ? 'album' : type === 'artist' ? 'musicArtist' : 'song';
+          rawResult = await searchItunesLib(q, { limit: max, entity: itunesEntity, country });
+          break;
+        case 'deezer':
+        default:
+          rawResult = await searchDeezerLib(q, { limit: max, type });
+          break;
+      }
+      
+      const items = (rawResult.results || rawResult.albums || rawResult.data || []).map(item => ({
+        type: type,
+        source: provider,
+        sourceId: item.id || item.mbid,
+        name: item.title || item.name || item.collectionName,
+        name_original: item.title || item.name,
+        description: null,
+        year: item.releaseDate ? parseInt(item.releaseDate.substring(0, 4), 10) : (item.year || item.date?.split('-')[0] ? parseInt(item.date?.split('-')[0], 10) : null),
+        image: item.cover || item.artworkUrl100 || item.thumb,
+        src_url: item.link || item.collectionViewUrl || item.uri || null,
+        artist: item.artist || item.artistName,
+        detailUrl: generateDetailUrl(provider, item.id || item.mbid, type)
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max, type, country } }
+  );
   
   const response = formatSearchResponse({
-    items,
+    items: result.results || [],
     provider,
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad, type, country }
   });
   
-  setCache(cacheKey, response);
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(response);
 }));
 

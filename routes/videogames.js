@@ -47,7 +47,7 @@ const jvcCache = createProviderCache('jeuxvideo', 'videogame');
 const rawgRouter = Router();
 const rawgAuth = requireApiKey('RAWG', 'https://rawg.io/apidocs');
 
-// Normalisé: /rawg/search
+// Normalisé: /rawg/search (avec cache PostgreSQL)
 rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
   const effectiveMax = Math.min(max, RAWG_MAX_LIMIT);
@@ -57,30 +57,42 @@ rawgRouter.get("/search", validateSearchParams, rawgAuth, asyncHandler(async (re
   const dates = req.query.dates || null;
   const metacritic = req.query.metacritic || null;
   
-  const rawResult = await searchRawg(q, req.apiKey, { max: effectiveMax, page, platforms, genres, ordering, dates, metacritic });
+  const result = await rawgCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchRawg(q, req.apiKey, { max: effectiveMax, page, platforms, genres, ordering, dates, metacritic });
+      
+      const items = (rawResult.results || rawResult.games || []).map(game => ({
+        type: 'videogame',
+        source: 'rawg',
+        sourceId: game.id || game.slug,
+        name: game.name,
+        name_original: game.name,
+        description: game.description_raw || null,
+        year: game.released ? parseInt(game.released.substring(0, 4), 10) : null,
+        image: game.background_image,
+        src_url: `https://rawg.io/games/${game.slug || game.id}`,
+        released: game.released,
+        rating: game.rating,
+        platforms: game.platforms?.map(p => p.platform?.name) || [],
+        detailUrl: generateDetailUrl('rawg', game.id || game.slug, 'game')
+      }));
+      
+      return { 
+        results: items, 
+        total: rawResult.count,
+        totalPages: Math.ceil(rawResult.count / effectiveMax)
+      };
+    },
+    { params: { page, max: effectiveMax, platforms, genres, ordering, dates, metacritic } }
+  );
   
-  const items = (rawResult.results || rawResult.games || []).map(game => ({
-    type: 'videogame',
-    source: 'rawg',
-    sourceId: game.id || game.slug,
-    name: game.name,
-    name_original: game.name,
-    description: game.description_raw || null,
-    year: game.released ? parseInt(game.released.substring(0, 4), 10) : null,
-    image: game.background_image,
-    src_url: `https://rawg.io/games/${game.slug || game.id}`,
-    released: game.released,
-    rating: game.rating,
-    platforms: game.platforms?.map(p => p.platform?.name) || [],
-    detailUrl: generateDetailUrl('rawg', game.id || game.slug, 'game')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'rawg',
     query: q,
-    pagination: { page, totalResults: rawResult.count, totalPages: Math.ceil(rawResult.count / effectiveMax) },
+    pagination: { page, totalResults: result.total, totalPages: result.totalPages },
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -120,7 +132,7 @@ rawgRouter.get("/game/:id", rawgAuth, asyncHandler(async (req, res) => {
 const igdbRouter = Router();
 const igdbAuth = requireApiKey('IGDB', 'https://dev.twitch.tv/console/apps (format: clientId:clientSecret)');
 
-// Normalisé: /igdb/search
+// Normalisé: /igdb/search (avec cache PostgreSQL)
 igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const effectiveMax = Math.min(max, IGDB_MAX_LIMIT);
@@ -130,28 +142,37 @@ igdbRouter.get("/search", validateSearchParams, igdbAuth, asyncHandler(async (re
   const { clientId, clientSecret } = parseIgdbCredentials(req.apiKey);
   const accessToken = await getIgdbToken(clientId, clientSecret);
   
-  const rawResult = await searchIgdb(q, clientId, accessToken, { max: effectiveMax, platforms, genres });
+  const result = await igdbCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchIgdb(q, clientId, accessToken, { max: effectiveMax, platforms, genres });
+      
+      const items = (rawResult.games || rawResult.results || []).map(game => ({
+        type: 'videogame',
+        source: 'igdb',
+        sourceId: game.id,
+        name: game.name,
+        name_original: game.name,
+        description: game.summary || null,
+        year: game.first_release_date ? new Date(game.first_release_date * 1000).getFullYear() : null,
+        image: game.cover?.url ? `https:${game.cover.url.replace('t_thumb', 't_cover_big')}` : null,
+        src_url: game.url || `https://www.igdb.com/games/${game.slug || game.id}`,
+        released: game.first_release_date ? new Date(game.first_release_date * 1000).toISOString().split('T')[0] : null,
+        rating: game.rating,
+        detailUrl: generateDetailUrl('igdb', game.id, 'game')
+      }));
+      
+      return { results: items, total: rawResult.count || items.length };
+    },
+    { params: { max: effectiveMax, platforms, genres } }
+  );
   
-  const items = (rawResult.games || rawResult.results || []).map(game => ({
-    type: 'videogame',
-    source: 'igdb',
-    sourceId: game.id,
-    name: game.name,
-    name_original: game.name,
-    description: game.summary || null,
-    year: game.first_release_date ? new Date(game.first_release_date * 1000).getFullYear() : null,
-    image: game.cover?.url ? `https:${game.cover.url.replace('t_thumb', 't_cover_big')}` : null,
-    src_url: game.url || `https://www.igdb.com/games/${game.slug || game.id}`,
-    released: game.first_release_date ? new Date(game.first_release_date * 1000).toISOString().split('T')[0] : null,
-    rating: game.rating,
-    detailUrl: generateDetailUrl('igdb', game.id, 'game')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'igdb',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -197,31 +218,40 @@ igdbRouter.get("/game/:id", igdbAuth, asyncHandler(async (req, res) => {
 // ============================================================================
 const jeuxvideoRouter = Router();
 
-// Normalisé: /jeuxvideo/search
+// Normalisé: /jeuxvideo/search (avec cache PostgreSQL)
 jeuxvideoRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   
-  const rawResult = await searchJVC(q, { max });
+  const result = await jvcCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchJVC(q, { max });
+      
+      const items = (rawResult.games || rawResult.results || []).map(game => ({
+        type: 'videogame',
+        source: 'jeuxvideo',
+        sourceId: game.id,
+        name: game.title || game.name,
+        name_original: game.title || game.name,
+        description: game.description || null,
+        year: game.releaseDate ? parseInt(game.releaseDate.substring(0, 4), 10) : null,
+        image: game.image || game.cover,
+        src_url: game.url || null,
+        platform: game.platform,
+        detailUrl: generateDetailUrl('jeuxvideo', game.id, 'game')
+      }));
+      
+      return { results: items, total: items.length };
+    },
+    { params: { max } }
+  );
   
-  const items = (rawResult.games || rawResult.results || []).map(game => ({
-    type: 'videogame',
-    source: 'jeuxvideo',
-    sourceId: game.id,
-    name: game.title || game.name,
-    name_original: game.title || game.name,
-    description: game.description || null,
-    year: game.releaseDate ? parseInt(game.releaseDate.substring(0, 4), 10) : null,
-    image: game.image || game.cover,
-    src_url: game.url || null,
-    platform: game.platform,
-    detailUrl: generateDetailUrl('jeuxvideo', game.id, 'game')
-  }));
-  
-  addCacheHeaders(res, 3600);
+  addCacheHeaders(res, 3600, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'jeuxvideo',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));

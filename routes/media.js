@@ -43,32 +43,41 @@ const imdbCache = createProviderCache('imdb', 'movie');
 const tvdbRouter = Router();
 const tvdbAuth = requireApiKey('TVDB', 'https://thetvdb.com/api-information');
 
-// Normalisé: /tvdb/search
+// Normalisé: /tvdb/search (avec cache PostgreSQL)
 tvdbRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const type = req.query.type || null;
   const year = req.query.year ? parseInt(req.query.year, 10) : null;
 
-  const rawResult = await searchTvdb(q, req.apiKey, { max, type, lang, year });
+  const result = await tvdbCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchTvdb(q, req.apiKey, { max, type, lang, year });
+      
+      const items = (rawResult.results || rawResult.data || []).map(item => ({
+        type: item.type === 'movie' ? 'movie' : 'series',
+        source: 'tvdb',
+        sourceId: item.tvdb_id || item.id,
+        name: item.name || item.title,
+        name_original: item.name_original || item.name,
+        description: item.overview || item.description || null,
+        year: item.year || (item.first_aired ? parseInt(item.first_aired.substring(0, 4), 10) : null),
+        image: item.image || item.thumbnail,
+        src_url: `https://thetvdb.com/${item.type === 'movie' ? 'movies' : 'series'}/${item.slug || item.tvdb_id || item.id}`,
+        detailUrl: generateDetailUrl('tvdb', item.tvdb_id || item.id, item.type === 'movie' ? 'movie' : 'series')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max, type, lang, year } }
+  );
   
-  const items = (rawResult.results || rawResult.data || []).map(item => ({
-    type: item.type === 'movie' ? 'movie' : 'series',
-    source: 'tvdb',
-    sourceId: item.tvdb_id || item.id,
-    name: item.name || item.title,
-    name_original: item.name_original || item.name,
-    description: item.overview || item.description || null,
-    year: item.year || (item.first_aired ? parseInt(item.first_aired.substring(0, 4), 10) : null),
-    image: item.image || item.thumbnail,
-    src_url: `https://thetvdb.com/${item.type === 'movie' ? 'movies' : 'series'}/${item.slug || item.tvdb_id || item.id}`,
-    detailUrl: generateDetailUrl('tvdb', item.tvdb_id || item.id, item.type === 'movie' ? 'movie' : 'series')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'tvdb',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -125,34 +134,46 @@ tvdbRouter.get("/movie/:id", tvdbAuth, asyncHandler(async (req, res) => {
 const tmdbRouter = Router();
 const tmdbAuth = requireApiKey('TMDB', 'https://www.themoviedb.org/settings/api');
 
-// Normalisé: /tmdb/search
+// Normalisé: /tmdb/search (avec cache PostgreSQL)
 tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
   const type = req.query.type || null;
   const year = req.query.year ? parseInt(req.query.year, 10) : null;
   const includeAdult = req.query.adult === 'true';
 
-  const rawResult = await searchTmdb(q, req.apiKey, { max, type, lang: locale, page, year, includeAdult });
+  const result = await tmdbCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchTmdb(q, req.apiKey, { max, type, lang: locale, page, year, includeAdult });
+      
+      const items = (rawResult.results || []).map(item => ({
+        type: item.media_type === 'movie' ? 'movie' : 'series',
+        source: 'tmdb',
+        sourceId: item.id,
+        name: item.title || item.name,
+        name_original: item.original_title || item.original_name,
+        description: item.overview || null,
+        year: item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : (item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : null),
+        image: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
+        src_url: `https://www.themoviedb.org/${item.media_type === 'movie' ? 'movie' : 'tv'}/${item.id}`,
+        detailUrl: generateDetailUrl('tmdb', item.id, item.media_type === 'movie' ? 'movie' : 'tv')
+      }));
+      
+      return { 
+        results: items, 
+        total: rawResult.total_results,
+        totalPages: rawResult.total_pages
+      };
+    },
+    { params: { max, type, locale, page, year, includeAdult } }
+  );
   
-  const items = (rawResult.results || []).map(item => ({
-    type: item.media_type === 'movie' ? 'movie' : 'series',
-    source: 'tmdb',
-    sourceId: item.id,
-    name: item.title || item.name,
-    name_original: item.original_title || item.original_name,
-    description: item.overview || null,
-    year: item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : (item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : null),
-    image: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
-    src_url: `https://www.themoviedb.org/${item.media_type === 'movie' ? 'movie' : 'tv'}/${item.id}`,
-    detailUrl: generateDetailUrl('tmdb', item.id, item.media_type === 'movie' ? 'movie' : 'tv')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'tmdb',
     query: q,
-    pagination: { page, totalResults: rawResult.total_results, totalPages: rawResult.total_pages },
+    pagination: { page, totalResults: result.total, totalPages: result.totalPages },
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -208,30 +229,39 @@ tmdbRouter.get("/tv/:id", tmdbAuth, asyncHandler(async (req, res) => {
 // ============================================================================
 const imdbRouter = Router();
 
-// Normalisé: /imdb/search
+// Normalisé: /imdb/search (avec cache PostgreSQL)
 imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, max, lang, locale, autoTrad } = req.standardParams;
 
-  const rawResult = await searchImdb(q, { max });
+  const result = await imdbCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchImdb(q, { max });
+      
+      const items = (rawResult.results || []).map(item => ({
+        type: item.type === 'TV Series' ? 'series' : 'movie',
+        source: 'imdb',
+        sourceId: item.id,
+        name: item.title,
+        name_original: item.originalTitle || item.title,
+        description: item.description || item.plot || null,
+        year: item.year || null,
+        image: item.image || item.poster || null,
+        src_url: `https://www.imdb.com/title/${item.id}/`,
+        detailUrl: generateDetailUrl('imdb', item.id, 'title')
+      }));
+      
+      return { results: items, total: items.length };
+    },
+    { params: { max } }
+  );
   
-  const items = (rawResult.results || []).map(item => ({
-    type: item.type === 'TV Series' ? 'series' : 'movie',
-    source: 'imdb',
-    sourceId: item.id,
-    name: item.title,
-    name_original: item.originalTitle || item.title,
-    description: item.description || item.plot || null,
-    year: item.year || null,
-    image: item.image || item.poster || null,
-    src_url: `https://www.imdb.com/title/${item.id}/`,
-    detailUrl: generateDetailUrl('imdb', item.id, 'title')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'imdb',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));

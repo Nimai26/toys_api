@@ -38,34 +38,44 @@ const googleAuth = requireApiKey('Google Books', 'https://console.cloud.google.c
 // GOOGLE BOOKS (nécessite clé API)
 // ============================================================================
 
-// Normalisé: /googlebooks/search
+// Normalisé: /googlebooks/search (avec cache PostgreSQL)
 router.get("/search", validateSearchParams, googleAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   
-  const rawResult = await searchGoogleBooks(q, req.apiKey, { lang, maxResults: max });
+  // Utilise le cache de recherche PostgreSQL
+  const result = await googleBooksCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchGoogleBooks(q, req.apiKey, { lang, maxResults: max });
+      
+      const items = (rawResult.books || []).map(book => ({
+        type: 'book',
+        source: 'googlebooks',
+        sourceId: book.id,
+        name: book.title,
+        name_original: book.title,
+        description: book.description || null,
+        year: book.publishedDate ? parseInt(book.publishedDate.substring(0, 4), 10) : null,
+        image: book.thumbnail || book.image,
+        src_url: book.infoLink || `https://books.google.com/books?id=${book.id}`,
+        authors: book.authors,
+        publisher: book.publisher,
+        publishedDate: book.publishedDate,
+        isbn: book.isbn13 || book.isbn10,
+        detailUrl: generateDetailUrl('googlebooks', book.id, 'book')
+      }));
+      
+      return { results: items, total: rawResult.totalItems || items.length };
+    },
+    { params: { lang, max } }
+  );
   
-  const items = (rawResult.books || []).map(book => ({
-    type: 'book',
-    source: 'googlebooks',
-    sourceId: book.id,
-    name: book.title,
-    name_original: book.title,
-    description: book.description || null,
-    year: book.publishedDate ? parseInt(book.publishedDate.substring(0, 4), 10) : null,
-    image: book.thumbnail || book.image,
-    src_url: book.infoLink || `https://books.google.com/books?id=${book.id}`,
-    authors: book.authors,
-    publisher: book.publisher,
-    publishedDate: book.publishedDate,
-    isbn: book.isbn13 || book.isbn10,
-    detailUrl: generateDetailUrl('googlebooks', book.id, 'book')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'googlebooks',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -156,34 +166,44 @@ router.get("/isbn/:isbn", googleAuth, asyncHandler(async (req, res) => {
 
 const olRouter = Router();
 
-// Normalisé: /openlibrary/search
+// Normalisé: /openlibrary/search (avec cache PostgreSQL)
 olRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   
-  const rawResult = await searchOpenLibrary(q, { lang, maxResults: max });
+  // Utilise le cache de recherche PostgreSQL
+  const result = await openLibraryCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchOpenLibrary(q, { lang, maxResults: max });
+      
+      const items = (rawResult.books || []).map(book => ({
+        type: 'book',
+        source: 'openlibrary',
+        sourceId: book.key || book.id,
+        name: book.title,
+        name_original: book.title,
+        description: book.first_sentence?.value || book.description || null,
+        year: book.first_publish_year || book.releaseDate || null,
+        image: Array.isArray(book.image) ? book.image[0] : book.image,
+        thumbnail: Array.isArray(book.image) && book.image.length > 1 ? book.image[2] : null,
+        src_url: book.url || (book.key ? `https://openlibrary.org${book.key}` : null),
+        authors: book.author_name || book.authors,
+        publishedDate: book.first_publish_year || book.releaseDate,
+        isbn: book.isbn ? (Array.isArray(book.isbn) ? book.isbn[0] : book.isbn) : null,
+        detailUrl: generateDetailUrl('openlibrary', book.key || book.id, 'book')
+      }));
+      
+      return { results: items, total: rawResult.numFound || items.length };
+    },
+    { params: { lang, max } }
+  );
   
-  const items = (rawResult.books || []).map(book => ({
-    type: 'book',
-    source: 'openlibrary',
-    sourceId: book.key || book.id,
-    name: book.title,
-    name_original: book.title,
-    description: book.first_sentence?.value || book.description || null,
-    year: book.first_publish_year || book.releaseDate || null,
-    image: Array.isArray(book.image) ? book.image[0] : book.image,  // Prendre la première image (taille L)
-    thumbnail: Array.isArray(book.image) && book.image.length > 1 ? book.image[2] : null,  // Taille S pour thumbnail
-    src_url: book.url || (book.key ? `https://openlibrary.org${book.key}` : null),
-    authors: book.author_name || book.authors,
-    publishedDate: book.first_publish_year || book.releaseDate,
-    isbn: book.isbn ? (Array.isArray(book.isbn) ? book.isbn[0] : book.isbn) : null,
-    detailUrl: generateDetailUrl('openlibrary', book.key || book.id, 'book')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'openlibrary',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));

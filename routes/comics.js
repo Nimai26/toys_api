@@ -41,7 +41,10 @@ const log = createLogger('Route:Comics');
 const comicvineRouter = Router();
 const comicvineAuth = requireApiKey('Comic Vine', 'https://comicvine.gamespot.com/api/');
 
-// Normalisé: /comicvine/search
+// Cache provider pour Comic Vine
+const comicvineCache = createProviderCache('comicvine', 'volume');
+
+// Normalisé: /comicvine/search (avec cache PostgreSQL)
 comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const type = req.query.type || 'volume';
@@ -52,36 +55,45 @@ comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler
     return res.status(400).json({ error: "Type de ressource invalide", validTypes, hint: "Utilisez 'volume' pour les séries" });
   }
 
-  const rawResult = await searchComicVine(q, req.apiKey, { type, max: effectiveMax });
+  const result = await comicvineCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchComicVine(q, req.apiKey, { type, max: effectiveMax });
+      
+      const items = (rawResult.results || rawResult.volumes || []).map(item => {
+        // Le provider retourne image comme tableau [original, medium, thumb]
+        const imageArray = Array.isArray(item.image) ? item.image : [];
+        const imageUrl = imageArray[1] || imageArray[0] || null;  // Préférer medium_url (index 1)
+        const thumbnailUrl = imageArray[2] || imageArray[1] || null;  // thumb_url (index 2)
+        
+        return {
+          type: type,
+          source: 'comicvine',
+          sourceId: item.id,
+          name: item.name || item.title,
+          name_original: item.name || item.title,
+          description: item.deck || item.synopsis || null,
+          year: item.releaseDate ? parseInt(item.releaseDate, 10) : null,
+          image: imageUrl,
+          thumbnail: thumbnailUrl,
+          src_url: item.url || `https://comicvine.gamespot.com/volume/${item.id}/`,
+          publisher: item.editors?.[0] || null,
+          startYear: item.releaseDate,
+          detailUrl: generateDetailUrl('comicvine', item.id, type)
+        };
+      });
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { type, max: effectiveMax } }
+  );
   
-  const items = (rawResult.results || rawResult.volumes || []).map(item => {
-    // Le provider retourne image comme tableau [original, medium, thumb]
-    const imageArray = Array.isArray(item.image) ? item.image : [];
-    const imageUrl = imageArray[1] || imageArray[0] || null;  // Préférer medium_url (index 1)
-    const thumbnailUrl = imageArray[2] || imageArray[1] || null;  // thumb_url (index 2)
-    
-    return {
-      type: type,
-      source: 'comicvine',
-      sourceId: item.id,
-      name: item.name || item.title,
-      name_original: item.name || item.title,
-      description: item.deck || item.synopsis || null,
-      year: item.releaseDate ? parseInt(item.releaseDate, 10) : null,
-      image: imageUrl,
-      thumbnail: thumbnailUrl,
-      src_url: item.url || `https://comicvine.gamespot.com/volume/${item.id}/`,
-      publisher: item.editors?.[0] || null,
-      startYear: item.releaseDate,
-      detailUrl: generateDetailUrl('comicvine', item.id, type)
-    };
-  });
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'comicvine',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad, type }
   }));
 }));
@@ -144,32 +156,41 @@ const mangadexRouter = Router();
 // Cache provider pour MangaDex
 const mangadexCache = createProviderCache('mangadex', 'manga');
 
-// Normalisé: /mangadex/search
+// Normalisé: /mangadex/search (avec cache PostgreSQL)
 mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const effectiveMax = Math.min(Math.max(1, max), MANGADEX_MAX_LIMIT);
 
-  const rawResult = await searchMangaDex(q, { lang, max: effectiveMax });
+  const result = await mangadexCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchMangaDex(q, { lang, max: effectiveMax });
+      
+      const items = (rawResult.results || rawResult.mangas || rawResult.data || []).map(item => ({
+        type: 'manga',
+        source: 'mangadex',
+        sourceId: item.id,
+        name: item.attributes?.title?.en || item.title || item.name,
+        name_original: item.attributes?.title?.ja || item.title_original,
+        description: item.attributes?.description?.en || item.description || null,
+        year: item.attributes?.year || null,
+        image: item.cover || item.coverUrl,
+        src_url: `https://mangadex.org/title/${item.id}`,
+        status: item.attributes?.status,
+        detailUrl: generateDetailUrl('mangadex', item.id, 'manga')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { lang, max: effectiveMax } }
+  );
   
-  const items = (rawResult.results || rawResult.mangas || rawResult.data || []).map(item => ({
-    type: 'manga',
-    source: 'mangadex',
-    sourceId: item.id,
-    name: item.attributes?.title?.en || item.title || item.name,
-    name_original: item.attributes?.title?.ja || item.title_original,
-    description: item.attributes?.description?.en || item.description || null,
-    year: item.attributes?.year || null,
-    image: item.cover || item.coverUrl,
-    src_url: `https://mangadex.org/title/${item.id}`,
-    status: item.attributes?.status,
-    detailUrl: generateDetailUrl('mangadex', item.id, 'manga')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'mangadex',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -226,40 +247,49 @@ const bedethequeRouter = Router();
 // Cache provider pour Bedetheque
 const bedethequeCache = createProviderCache('bedetheque', 'book');
 
-// Normalisé: /bedetheque/search
+// Normalisé: /bedetheque/search (avec cache PostgreSQL)
 bedethequeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const type = req.query.type || 'album';  // Par défaut: albums (pas séries)
   const effectiveMax = Math.min(Math.max(1, max), 50);
 
-  let rawResult;
-  if (type === 'album') {
-    const serieId = req.query.serieId || req.query.serie_id || null;
-    const serieName = req.query.serieName || req.query.serie_name || null;
-    rawResult = await searchBedethequeAlbums(q, { max: effectiveMax, serieId, serieName });
-  } else {
-    rawResult = await searchBedetheque(q, { max: effectiveMax });
-  }
+  const result = await bedethequeCache.searchWithCache(
+    q,
+    async () => {
+      let rawResult;
+      if (type === 'album') {
+        const serieId = req.query.serieId || req.query.serie_id || null;
+        const serieName = req.query.serieName || req.query.serie_name || null;
+        rawResult = await searchBedethequeAlbums(q, { max: effectiveMax, serieId, serieName });
+      } else {
+        rawResult = await searchBedetheque(q, { max: effectiveMax });
+      }
+      
+      const items = (rawResult.results || rawResult.series || rawResult.albums || []).map(item => ({
+        type: type === 'album' ? 'album' : 'serie',
+        source: 'bedetheque',
+        sourceId: item.id,
+        name: item.name || item.title,
+        name_original: item.name || item.title,
+        description: item.description || item.resume || null,
+        year: item.year || item.parution || null,
+        image: item.image || item.cover,
+        src_url: item.url || null,
+        author: item.author,
+        detailUrl: generateDetailUrl('bedetheque', item.id, type === 'album' ? 'album' : 'serie')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { type, max: effectiveMax } }
+  );
   
-  const items = (rawResult.results || rawResult.series || rawResult.albums || []).map(item => ({
-    type: type === 'album' ? 'album' : 'serie',
-    source: 'bedetheque',
-    sourceId: item.id,
-    name: item.name || item.title,
-    name_original: item.name || item.title,
-    description: item.description || item.resume || null,
-    year: item.year || item.parution || null,
-    image: item.image || item.cover,
-    src_url: item.url || null,
-    author: item.author,
-    detailUrl: generateDetailUrl('bedetheque', item.id, type === 'album' ? 'album' : 'serie')
-  }));
-  
-  addCacheHeaders(res, 600);
+  addCacheHeaders(res, 600, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'bedetheque',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad, type }
   }));
 }));

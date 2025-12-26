@@ -39,54 +39,66 @@ const mangaRouter = Router();
 // Endpoints normalisés
 // ============================================================================
 
-// Normalisé: /jikan/search (anime par défaut, type=manga pour manga)
+// Normalisé: /jikan/search (anime par défaut, type=manga pour manga) - avec cache PostgreSQL
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
-  const type = req.query.type || null; // null par défaut, pas 'anime'
+  const type = req.query.type || null;
   const status = req.query.status || null;
   const rating = req.query.rating || null;
   const orderBy = req.query.orderBy || null;
   const sort = req.query.sort || null;
 
-  let rawResult;
-  let mediaType;
-  
   // Types manga: manga, novel, lightnovel, oneshot, doujin, manhwa, manhua
   const mangaTypes = ['manga', 'novel', 'lightnovel', 'oneshot', 'doujin', 'manhwa', 'manhua'];
+  const isManga = type && mangaTypes.includes(type.toLowerCase());
+  const mediaType = isManga ? 'manga' : 'anime';
+  const cache = isManga ? jikanMangaCache : jikanAnimeCache;
   
-  if (type && mangaTypes.includes(type.toLowerCase())) {
-    rawResult = await searchJikanManga(q, { max, page, type, status, orderBy, sort });
-    mediaType = 'manga';
-  } else {
-    // Types anime valides: tv, movie, ova, special, ona, music (ou null pour tous)
-    const animeType = type && ['tv', 'movie', 'ova', 'special', 'ona', 'music'].includes(type.toLowerCase()) ? type : null;
-    rawResult = await searchJikanAnime(q, { max, page, type: animeType, status, rating, orderBy, sort });
-    mediaType = 'anime';
-  }
-  
-  const items = (rawResult.results || rawResult.data || []).map(item => ({
-    type: mediaType,
-    source: 'jikan',
-    sourceId: item.mal_id || item.id,
-    name: item.title || item.name,
-    name_original: item.title_japanese || item.title,
-    description: item.synopsis || null,
-    year: item.year || (item.aired?.from ? parseInt(item.aired.from.substring(0, 4), 10) : null),
-    image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || item.image,
-    src_url: item.url || `https://myanimelist.net/${mediaType}/${item.mal_id || item.id}`,
-    score: item.score,
-    episodes: item.episodes,
-    chapters: item.chapters,
-    detailUrl: generateDetailUrl('jikan', item.mal_id || item.id, mediaType)
-  }));
+  // Utilise le cache de recherche PostgreSQL
+  const result = await cache.searchWithCache(
+    q,
+    async () => {
+      let rawResult;
+      if (isManga) {
+        rawResult = await searchJikanManga(q, { max, page, type, status, orderBy, sort });
+      } else {
+        const animeType = type && ['tv', 'movie', 'ova', 'special', 'ona', 'music'].includes(type.toLowerCase()) ? type : null;
+        rawResult = await searchJikanAnime(q, { max, page, type: animeType, status, rating, orderBy, sort });
+      }
+      
+      const items = (rawResult.results || rawResult.data || []).map(item => ({
+        type: mediaType,
+        source: 'jikan',
+        sourceId: item.mal_id || item.id,
+        name: item.title || item.name,
+        name_original: item.title_japanese || item.title,
+        description: item.synopsis || null,
+        year: item.year || (item.aired?.from ? parseInt(item.aired.from.substring(0, 4), 10) : null),
+        image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || item.image,
+        src_url: item.url || `https://myanimelist.net/${mediaType}/${item.mal_id || item.id}`,
+        score: item.score,
+        episodes: item.episodes,
+        chapters: item.chapters,
+        detailUrl: generateDetailUrl('jikan', item.mal_id || item.id, mediaType)
+      }));
+      
+      return { 
+        results: items, 
+        total: rawResult.pagination?.items?.total || items.length,
+        pagination: { page, hasNextPage: rawResult.pagination?.has_next_page }
+      };
+    },
+    { params: { type, page, max, status, rating, orderBy, sort } }
+  );
   
   metrics.requests.total++;
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'jikan',
     query: q,
-    pagination: { page, hasNextPage: rawResult.pagination?.has_next_page },
+    total: result.total,
+    pagination: result.pagination || { page, hasNextPage: false },
     meta: { lang, locale, autoTrad, mediaType }
   }));
 }));

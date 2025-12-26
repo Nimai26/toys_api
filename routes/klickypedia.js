@@ -31,7 +31,7 @@ const klickypediaCache = createProviderCache('klickypedia', 'construct_toy');
 // ============================================================================
 
 /**
- * GET /klickypedia/search
+ * GET /klickypedia/search (avec cache PostgreSQL)
  * Recherche de sets Playmobil sur Klickypedia
  */
 router.get('/search', validateSearchParams, async (req, res) => {
@@ -40,32 +40,44 @@ router.get('/search', validateSearchParams, async (req, res) => {
     
     log.info(`Recherche Klickypedia: "${q}" (lang=${locale}, max=${max})`);
     
-    const rawResult = await searchKlickypedia(q, locale, 3, max);
+    const result = await klickypediaCache.searchWithCache(
+      q,
+      async () => {
+        const rawResult = await searchKlickypedia(q, locale, 3, max);
+        
+        // Transformer au format normalisé
+        const items = (rawResult.products || []).map(product => ({
+          type: 'construct_toy',
+          source: 'klickypedia',
+          sourceId: product.productId || product.id,
+          name: product.name,
+          name_original: product.name,
+          description: product.description || null,
+          year: product.year || product.releaseYear || null,
+          image: product.image || product.primaryImage,
+          src_url: product.url || `https://www.klickypedia.com/product/${product.productId || product.id}`,
+          detailUrl: generateDetailUrl('klickypedia', product.productId || product.id, 'product')
+        }));
+        
+        return {
+          results: items,
+          total: rawResult.total || items.length,
+          hasMore: (rawResult.total || 0) > items.length
+        };
+      },
+      { params: { locale, max } }
+    );
     
-    // Transformer au format normalisé
-    const items = (rawResult.products || []).map(product => ({
-      type: 'construct_toy',
-      source: 'klickypedia',
-      sourceId: product.productId || product.id,
-      name: product.name,
-      name_original: product.name,
-      description: product.description || null,
-      year: product.year || product.releaseYear || null,
-      image: product.image || product.primaryImage,
-      src_url: product.url || `https://www.klickypedia.com/product/${product.productId || product.id}`,
-      detailUrl: generateDetailUrl('klickypedia', product.productId || product.id, 'product')
-    }));
-    
-    addCacheHeaders(res, 1800);
+    addCacheHeaders(res, 1800, getCacheInfo());
     res.json(formatSearchResponse({
-      items,
+      items: result.results || [],
       provider: 'klickypedia',
       query: q,
       pagination: {
         page: 1,
-        pageSize: items.length,
-        totalResults: rawResult.total || items.length,
-        hasMore: (rawResult.total || 0) > items.length
+        pageSize: (result.results || []).length,
+        totalResults: result.total,
+        hasMore: result.hasMore
       },
       meta: { lang, locale, autoTrad }
     }));

@@ -43,6 +43,7 @@ import {
 } from '../lib/providers/paninimania.js';
 
 // Caches PostgreSQL pour les collectibles
+const colekaCache = createProviderCache('coleka', 'collectible');
 const luluberluCache = createProviderCache('luluberlu', 'collectible');
 const consolevariationsCache = createProviderCache('consolevariations', 'collectible');
 const transformerlandCache = createProviderCache('transformerland', 'collectible');
@@ -53,35 +54,44 @@ const paninimanaCache = createProviderCache('paninimania', 'album');
 // ============================================================================
 export const colekaRouter = Router();
 
-// Normalisé: /coleka/search
+// Normalisé: /coleka/search (avec cache PostgreSQL)
 colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const nbpp = req.query.nbpp ? parseInt(req.query.nbpp, 10) : max;
 
   metrics.sources.coleka.requests++;
-  const rawResult = await searchColekaLib(q, nbpp, lang);
+  const result = await colekaCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchColekaLib(q, nbpp, lang);
+      
+      const items = (rawResult.products || rawResult.results || rawResult.items || []).map(item => ({
+        type: 'collectible',
+        source: 'coleka',
+        sourceId: item.id,
+        name: item.name || item.title,
+        name_original: item.name || item.title,
+        description: item.description || null,
+        year: item.year || null,
+        image: item.image,
+        src_url: item.url || null,
+        url: item.url,
+        category: item.category,
+        collection: item.collection,
+        detailUrl: generateDetailUrl('coleka', item.id, 'item')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { nbpp, lang } }
+  );
   
-  const items = (rawResult.products || rawResult.results || rawResult.items || []).map(item => ({
-    type: 'collectible',
-    source: 'coleka',
-    sourceId: item.id,
-    name: item.name || item.title,
-    name_original: item.name || item.title,
-    description: item.description || null,
-    year: item.year || null,
-    image: item.image,
-    src_url: item.url || null,
-    url: item.url,
-    category: item.category,
-    collection: item.collection,
-    detailUrl: generateDetailUrl('coleka', item.id, 'item')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'coleka',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -94,33 +104,42 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
 // ============================================================================
 export const luluberluRouter = Router();
 
-// Normalisé: /luluberlu/search
+// Normalisé: /luluberlu/search (avec cache PostgreSQL)
 luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
 
   metrics.sources.luluberlu.requests++;
-  const rawResult = await searchLuluBerluLib(q, max);
+  const result = await luluberluCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchLuluBerluLib(q, max);
+      
+      const items = (rawResult.products || rawResult.results || rawResult.items || []).map(item => ({
+        type: 'collectible',
+        source: 'luluberlu',
+        sourceId: item.id || item.url,
+        name: item.name || item.title,
+        name_original: item.name || item.title,
+        description: item.description || null,
+        year: item.year || null,
+        image: item.image,
+        src_url: item.url || null,
+        price: item.price,
+        url: item.url,
+        detailUrl: generateDetailUrl('luluberlu', item.id || encodeURIComponent(item.url), 'item')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max } }
+  );
   
-  const items = (rawResult.products || rawResult.results || rawResult.items || []).map(item => ({
-    type: 'collectible',
-    source: 'luluberlu',
-    sourceId: item.id || item.url,
-    name: item.name || item.title,
-    name_original: item.name || item.title,
-    description: item.description || null,
-    year: item.year || null,
-    image: item.image,
-    src_url: item.url || null,
-    price: item.price,
-    url: item.url,
-    detailUrl: generateDetailUrl('luluberlu', item.id || encodeURIComponent(item.url), 'item')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'luluberlu',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -168,7 +187,7 @@ luluberluRouter.get("/item", asyncHandler(async (req, res) => {
 // ============================================================================
 export const consolevariationsRouter = Router();
 
-// Normalisé: /consolevariations/search
+// Normalisé: /consolevariations/search (avec cache PostgreSQL)
 consolevariationsRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const searchType = req.query.type || 'all';
@@ -181,27 +200,36 @@ consolevariationsRouter.get("/search", validateSearchParams, asyncHandler(async 
   }
   
   metrics.sources.consolevariations.requests++;
-  const rawResult = await searchConsoleVariationsLib(q, max, searchType);
+  const result = await consolevariationsCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchConsoleVariationsLib(q, max, searchType);
+      
+      const items = (rawResult.results || rawResult.items || []).map(item => ({
+        type: searchType === 'all' ? 'collectible' : searchType.slice(0, -1),
+        source: 'consolevariations',
+        sourceId: item.slug || item.id,
+        name: item.name || item.title,
+        name_original: item.name || item.title,
+        description: item.description || null,
+        year: item.year || item.releaseYear || null,
+        image: item.image,
+        src_url: item.slug ? `https://consolevariations.com/variation/${item.slug}` : null,
+        platform: item.platform,
+        detailUrl: generateDetailUrl('consolevariations', item.slug || item.id, 'item')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max, type: searchType } }
+  );
   
-  const items = (rawResult.results || rawResult.items || []).map(item => ({
-    type: searchType === 'all' ? 'collectible' : searchType.slice(0, -1),
-    source: 'consolevariations',
-    sourceId: item.slug || item.id,
-    name: item.name || item.title,
-    name_original: item.name || item.title,
-    description: item.description || null,
-    year: item.year || item.releaseYear || null,
-    image: item.image,
-    src_url: item.slug ? `https://consolevariations.com/variation/${item.slug}` : null,
-    platform: item.platform,
-    detailUrl: generateDetailUrl('consolevariations', item.slug || item.id, 'item')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'consolevariations',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad, type: searchType }
   }));
 }));
@@ -264,31 +292,40 @@ consolevariationsRouter.get("/browse/:platform", asyncHandler(async (req, res) =
 // ============================================================================
 export const transformerlandRouter = Router();
 
-// Normalisé: /transformerland/search
+// Normalisé: /transformerland/search (avec cache PostgreSQL)
 transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   
   metrics.sources.transformerland.requests++;
-  const rawResult = await searchTransformerlandLib(q, max);
+  const result = await transformerlandCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchTransformerlandLib(q, max);
+      
+      const items = (rawResult.results || rawResult.items || []).map(item => ({
+        type: 'collectible',
+        source: 'transformerland',
+        sourceId: item.id,
+        name: item.name || item.title,
+        name_original: item.name || item.title,
+        description: item.description || null,
+        year: item.year || null,
+        image: item.image,
+        src_url: item.url || null,
+        detailUrl: generateDetailUrl('transformerland', item.id, 'item')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max } }
+  );
   
-  const items = (rawResult.results || rawResult.items || []).map(item => ({
-    type: 'collectible',
-    source: 'transformerland',
-    sourceId: item.id,
-    name: item.name || item.title,
-    name_original: item.name || item.title,
-    description: item.description || null,
-    year: item.year || null,
-    image: item.image,
-    src_url: item.url || null,
-    detailUrl: generateDetailUrl('transformerland', item.id, 'item')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'transformerland',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));
@@ -329,31 +366,40 @@ transformerlandRouter.get("/item/:id", asyncHandler(async (req, res) => {
 // ============================================================================
 export const paninimanaRouter = Router();
 
-// Normalisé: /paninimania/search
+// Normalisé: /paninimania/search (avec cache PostgreSQL)
 paninimanaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   
   metrics.sources.paninimania.requests++;
-  const rawResult = await searchPaninimanaLib(q, max);
+  const result = await paninimanaCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchPaninimanaLib(q, max);
+      
+      const items = (rawResult.results || rawResult.albums || []).map(item => ({
+        type: 'album',
+        source: 'paninimania',
+        sourceId: item.id,
+        name: item.name || item.title,
+        name_original: item.name || item.title,
+        description: item.description || null,
+        year: item.year,
+        image: item.image,
+        src_url: item.url || null,
+        detailUrl: generateDetailUrl('paninimania', item.id, 'album')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max } }
+  );
   
-  const items = (rawResult.results || rawResult.albums || []).map(item => ({
-    type: 'album',
-    source: 'paninimania',
-    sourceId: item.id,
-    name: item.name || item.title,
-    name_original: item.name || item.title,
-    description: item.description || null,
-    year: item.year,
-    image: item.image,
-    src_url: item.url || null,
-    detailUrl: generateDetailUrl('paninimania', item.id, 'album')
-  }));
-  
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'paninimania',
     query: q,
+    total: result.total,
     meta: { lang, locale, autoTrad }
   }));
 }));

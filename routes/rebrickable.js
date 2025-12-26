@@ -48,77 +48,81 @@ const rebrickableAuth = requireApiKey('Rebrickable', 'https://rebrickable.com/ap
 // ============================================================================
 
 /**
- * GET /rebrickable/search
+ * GET /rebrickable/search (avec cache PostgreSQL)
  * Recherche de sets LEGO via Rebrickable
  */
 router.get("/search", validateSearchParams, rebrickableAuth, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
   const enrichLego = req.query.enrich_lego !== 'false';
 
-  const rawResult = await smartRebrickableSearchLib(q, req.apiKey, {
-    page,
-    pageSize: max,
-    lang: locale,
-    enrichWithLego: enrichLego,
-    maxParts: 500
-  });
+  const result = await rebrickableCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await smartRebrickableSearchLib(q, req.apiKey, {
+        page,
+        pageSize: max,
+        lang: locale,
+        enrichWithLego: enrichLego,
+        maxParts: 500
+      });
+      
+      let items = [];
+      let totalResults = 0;
+      let hasMore = false;
+      let searchType = rawResult.type;
+      
+      if (rawResult.type === 'set_id') {
+        items = [{
+          type: 'construct_toy',
+          source: 'rebrickable',
+          sourceId: rawResult.set_num,
+          name: rawResult.name,
+          name_original: rawResult.name,
+          description: null,
+          year: rawResult.year,
+          image: rawResult.set_img_url,
+          src_url: `https://rebrickable.com/sets/${rawResult.set_num}/`,
+          num_parts: rawResult.num_parts,
+          num_minifigs: rawResult.minifigs?.length || 0,
+          detailUrl: generateDetailUrl('rebrickable', rawResult.set_num, 'set')
+        }];
+        totalResults = 1;
+      } else {
+        items = (rawResult.sets || rawResult.results || []).map(set => ({
+          type: 'construct_toy',
+          source: 'rebrickable',
+          sourceId: set.set_num,
+          name: set.name,
+          name_original: set.name,
+          description: null,
+          year: set.year,
+          image: set.set_img_url,
+          src_url: `https://rebrickable.com/sets/${set.set_num}/`,
+          num_parts: set.num_parts,
+          detailUrl: generateDetailUrl('rebrickable', set.set_num, 'set')
+        }));
+        totalResults = rawResult.pagination?.total_count || rawResult.count || items.length;
+        hasMore = rawResult.pagination?.has_next || rawResult.next !== null;
+      }
+      
+      return { results: items, total: totalResults, hasMore, searchType };
+    },
+    { params: { page, max, locale, enrichLego } }
+  );
   
-  // Transformer au format normalisé
-  // rawResult peut être: 
-  // - Un objet set unique (type: 'set_id') avec set_num, name, etc.
-  // - Un résultat de recherche (type: 'text_search') avec sets: [...]
-  let items = [];
-  let totalResults = 0;
-  let hasMore = false;
-  
-  if (rawResult.type === 'set_id') {
-    // Recherche par ID → un seul set retourné
-    items = [{
-      type: 'construct_toy',
-      source: 'rebrickable',
-      sourceId: rawResult.set_num,
-      name: rawResult.name,
-      name_original: rawResult.name,
-      description: null,
-      year: rawResult.year,
-      image: rawResult.set_img_url,
-      src_url: `https://rebrickable.com/sets/${rawResult.set_num}/`,
-      num_parts: rawResult.num_parts,
-      num_minifigs: rawResult.minifigs?.length || 0,
-      detailUrl: generateDetailUrl('rebrickable', rawResult.set_num, 'set')
-    }];
-    totalResults = 1;
-  } else {
-    // Recherche texte → tableau de sets
-    items = (rawResult.sets || rawResult.results || []).map(set => ({
-      type: 'construct_toy',
-      source: 'rebrickable',
-      sourceId: set.set_num,
-      name: set.name,
-      name_original: set.name,
-      description: null,
-      year: set.year,
-      image: set.set_img_url,
-      src_url: `https://rebrickable.com/sets/${set.set_num}/`,
-      num_parts: set.num_parts,
-      detailUrl: generateDetailUrl('rebrickable', set.set_num, 'set')
-    }));
-    totalResults = rawResult.pagination?.total_count || rawResult.count || items.length;
-    hasMore = rawResult.pagination?.has_next || rawResult.next !== null;
-  }
-  
-  addCacheHeaders(res, rawResult.type === 'set_id' ? 3600 : 300);
+  addCacheHeaders(res, result.searchType === 'set_id' ? 3600 : 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'rebrickable',
     query: q,
+    total: result.total,
     pagination: {
       page,
-      pageSize: items.length,
-      totalResults,
-      hasMore
+      pageSize: (result.results || []).length,
+      totalResults: result.total,
+      hasMore: result.hasMore || false
     },
-    meta: { lang, locale, autoTrad, searchType: rawResult.type }
+    meta: { lang, locale, autoTrad, searchType: result.searchType }
   }));
 }));
 

@@ -57,33 +57,43 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
 
   metrics.sources.lego.requests++;
   const perPage = Math.max(1, Math.min(max, 100));
-  const rawResult = await callLegoGraphqlLib(q, locale, MAX_RETRIES, perPage);
   
-  // Transformer les résultats au format normalisé
-  const items = (rawResult.products || []).map(product => ({
-    type: 'construct_toy',
-    source: 'lego',
-    sourceId: product.productCode || product.id,
-    name: product.name,
-    name_original: product.name, // LEGO retourne déjà traduit selon locale
-    description: product.description || product.shortDescription || null,
-    year: product.launchDate ? parseInt(product.launchDate.substring(0, 4), 10) : (product.year || null),
-    image: product.primaryImage || product.image,
-    src_url: product.url || `https://www.lego.com/product/${product.productCode || product.id}`,
-    detailUrl: generateDetailUrl('lego', product.productCode || product.id, 'product')
-  }));
+  // Utilise le cache de recherche PostgreSQL
+  const result = await legoCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await callLegoGraphqlLib(q, locale, MAX_RETRIES, perPage);
+      
+      const items = (rawResult.products || []).map(product => ({
+        type: 'construct_toy',
+        source: 'lego',
+        sourceId: product.productCode || product.id,
+        name: product.name,
+        name_original: product.name,
+        description: product.description || product.shortDescription || null,
+        year: product.launchDate ? parseInt(product.launchDate.substring(0, 4), 10) : (product.year || null),
+        image: product.primaryImage || product.image,
+        src_url: product.url || `https://www.lego.com/product/${product.productCode || product.id}`,
+        detailUrl: generateDetailUrl('lego', product.productCode || product.id, 'product')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { locale, max } }
+  );
   
-  addCacheHeaders(res, 300);
+  addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'lego',
     query: q,
+    total: result.total,
     pagination: {
       page: 1,
-      pageSize: items.length,
-      totalResults: rawResult.total || items.length,
-      totalPages: Math.ceil((rawResult.total || items.length) / perPage),
-      hasMore: (rawResult.total || 0) > items.length
+      pageSize: (result.results || []).length,
+      totalResults: result.total || 0,
+      totalPages: Math.ceil((result.total || 1) / perPage),
+      hasMore: (result.total || 0) > (result.results || []).length
     },
     meta: { lang, locale, autoTrad }
   }));

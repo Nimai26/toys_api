@@ -41,38 +41,46 @@ const megaCache = createProviderCache('mega', 'construct_toy');
 // ============================================================================
 
 /**
- * GET /mega/search
+ * GET /mega/search (avec cache PostgreSQL)
  * Recherche de produits Mega Construx
  */
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
 
-  const rawResult = await searchMegaLib(q, { max, page, lang: locale });
+  const result = await megaCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchMegaLib(q, { max, page, lang: locale });
+      
+      const items = (rawResult.products || []).map(product => ({
+        type: 'construct_toy',
+        source: 'mega',
+        sourceId: product.id || product.sku,
+        name: product.title || product.name,
+        name_original: product.title || product.name,
+        description: product.description || product.shortDescription || null,
+        year: product.year || null,
+        image: product.image || product.primaryImage,
+        src_url: product.url || product.handle ? `https://megaconstrux.com/products/${product.handle}` : null,
+        detailUrl: generateDetailUrl('mega', product.id || product.sku, 'product')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { locale, max, page } }
+  );
   
-  // Transformer au format normalisé
-  const items = (rawResult.products || []).map(product => ({
-    type: 'construct_toy',
-    source: 'mega',
-    sourceId: product.id || product.sku,
-    name: product.title || product.name,
-    name_original: product.title || product.name,
-    description: product.description || product.shortDescription || null,
-    year: product.year || null,
-    image: product.image || product.primaryImage,
-    src_url: product.url || product.handle ? `https://megaconstrux.com/products/${product.handle}` : null,
-    detailUrl: generateDetailUrl('mega', product.id || product.sku, 'product')
-  }));
-  
-  addCacheHeaders(res, 1800);
+  addCacheHeaders(res, 1800, getCacheInfo());
   res.json(formatSearchResponse({
-    items,
+    items: result.results || [],
     provider: 'mega',
     query: q,
+    total: result.total,
     pagination: {
       page,
-      pageSize: items.length,
-      totalResults: rawResult.total || items.length,
-      hasMore: (rawResult.total || 0) > items.length
+      pageSize: (result.results || []).length,
+      totalResults: result.total || 0,
+      hasMore: (result.total || 0) > (result.results || []).length
     },
     meta: { lang, locale, autoTrad }
   }));

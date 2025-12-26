@@ -36,6 +36,9 @@ import {
   closeDatabase
 } from './lib/database/index.js';
 
+// Import des background jobs
+import { startBackgroundJobs, stopBackgroundJobs, getJobStats } from './lib/database/background-jobs.js';
+
 const log = createLogger('Server');
 
 // Import des routers
@@ -487,6 +490,13 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   } else {
     log.info(`   - Monitoring automatique: désactivé (ENABLE_MONITORING=false)`);
   }
+  
+  // Démarrer les background jobs de maintenance DB
+  if (DB_ENABLED && dbInitialized) {
+    if (startBackgroundJobs()) {
+      log.info(`   - Background jobs: activés (maintenance cache)`);
+    }
+  }
 });
 
 // Graceful shutdown - fermeture propre lors de l'arrêt
@@ -507,6 +517,8 @@ const gracefulShutdown = async (signal) => {
   // Fermer la connexion PostgreSQL si active
   if (DB_ENABLED && dbInitialized) {
     try {
+      log.info("Arrêt des background jobs...");
+      stopBackgroundJobs();
       log.info("Fermeture du pool PostgreSQL...");
       await closeDatabase();
       log.info("Pool PostgreSQL fermé");

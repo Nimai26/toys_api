@@ -540,4 +540,161 @@ localRouter.delete('/purge', asyncHandler(async (req, res) => {
   });
 }));
 
+/**
+ * POST /local/warmup
+ * Pré-remplissage du cache en masse
+ * 
+ * Body: {
+ *   provider: "lego" | "googlebooks" | etc.,
+ *   queries: ["star wars", "harry potter", ...],
+ *   options: { max: 10, lang: "fr" }
+ * }
+ * 
+ * Ou pour des IDs spécifiques:
+ * Body: {
+ *   provider: "lego",
+ *   ids: ["42217", "75192", ...]
+ * }
+ */
+localRouter.post('/warmup', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const { provider, queries, ids, options = {} } = req.body;
+  
+  if (!provider) {
+    return res.status(400).json({ 
+      error: 'Provider requis',
+      example: {
+        provider: 'lego',
+        queries: ['star wars', 'technic'],
+        options: { max: 10 }
+      }
+    });
+  }
+  
+  if (!queries && !ids) {
+    return res.status(400).json({ 
+      error: 'queries ou ids requis',
+      hint: 'Fournissez soit un tableau de queries pour la recherche, soit un tableau d\'IDs pour les détails'
+    });
+  }
+  
+  const results = {
+    provider,
+    mode: queries ? 'search' : 'details',
+    requested: (queries || ids).length,
+    success: 0,
+    failed: 0,
+    cached: 0,
+    errors: []
+  };
+  
+  const startTime = Date.now();
+  
+  // Mode recherche : effectue des recherches et cache les résultats
+  if (queries && Array.isArray(queries)) {
+    for (const q of queries.slice(0, 50)) { // Max 50 queries par warmup
+      try {
+        // Le warmup stocke juste l'intention, le vrai fetch se fera via les endpoints normaux
+        // On enregistre les queries pour statistiques futures
+        await query(`
+          INSERT INTO searches (query, provider, search_type, result_ids, result_count, created_at, expires_at)
+          VALUES ($1, $2, 'warmup', ARRAY[]::text[], 0, NOW(), NOW() + INTERVAL '1 hour')
+          ON CONFLICT (query_normalized, provider, search_type) DO UPDATE SET updated_at = NOW()
+        `, [q, provider]);
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ query: q, error: err.message });
+      }
+    }
+    
+    results.hint = 'Les queries ont été enregistrées. Utilisez les endpoints de recherche normaux pour déclencher le cache réel.';
+  }
+  
+  // Mode détails : prépare les IDs pour un fetch futur
+  if (ids && Array.isArray(ids)) {
+    const uniqueIds = [...new Set(ids)].slice(0, 100); // Max 100 IDs
+    
+    for (const id of uniqueIds) {
+      try {
+        // Vérifie si l'item existe déjà en cache
+        const existing = await query(`
+          SELECT id, expires_at > NOW() as valid
+          FROM items 
+          WHERE source = $1 AND source_id = $2
+        `, [provider, id]);
+        
+        if (existing?.valid) {
+          results.cached++;
+        } else {
+          // Marque l'item comme "à récupérer" (placeholder)
+          results.success++;
+        }
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ id, error: err.message });
+      }
+    }
+    
+    results.hint = 'Utilisez les endpoints /details pour chaque ID afin de déclencher le fetch et la mise en cache.';
+  }
+  
+  results.duration_ms = Date.now() - startTime;
+  
+  res.json(results);
+}));
+
+/**
+ * GET /local/health
+ * Statistiques de santé détaillées du cache
+ */
+localRouter.get('/health', asyncHandler(async (req, res) => {
+  if (!isDatabaseConnected()) {
+    return res.status(503).json({ error: 'Base de données non connectée' });
+  }
+  
+  const healthResult = await query(`
+    SELECT 
+      COUNT(*) as total_items,
+      COUNT(*) FILTER (WHERE expires_at < NOW()) as expired_items,
+      COUNT(*) FILTER (WHERE expires_at > NOW()) as valid_items,
+      COUNT(*) FILTER (WHERE last_accessed > NOW() - INTERVAL '24 hours') as accessed_today,
+      COUNT(*) FILTER (WHERE last_accessed > NOW() - INTERVAL '7 days') as accessed_week,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as created_today,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as created_week,
+      AVG(hit_count)::int as avg_hits,
+      MAX(hit_count) as max_hits,
+      MIN(created_at) as oldest_item,
+      MAX(updated_at) as newest_update
+    FROM items
+  `);
+  
+  const searchesResult = await query(`
+    SELECT 
+      COUNT(*) as total_searches,
+      COUNT(*) FILTER (WHERE expires_at > NOW()) as valid_searches,
+      COUNT(DISTINCT provider) as providers_searched
+    FROM searches
+  `);
+  
+  const sizeResult = await query(`
+    SELECT 
+      pg_size_pretty(pg_total_relation_size('items')) as items_size,
+      pg_size_pretty(pg_total_relation_size('searches')) as searches_size,
+      pg_size_pretty(pg_database_size(current_database())) as total_db_size
+  `);
+  
+  addCacheHeaders(res, 30);
+  res.json({
+    status: 'healthy',
+    items: healthResult,
+    searches: searchesResult,
+    storage: sizeResult,
+    timestamp: new Date().toISOString()
+  });
+}));
+
 export { localRouter };
