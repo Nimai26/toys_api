@@ -285,7 +285,7 @@ localRouter.get('/export', asyncHandler(async (req, res) => {
   const format = req.query.format || 'json';
   
   // Construire la requête avec filtres optionnels
-  let sql = 'SELECT source, external_id, type, name, year, image, data, created_at, updated_at, hit_count FROM items';
+  let sql = 'SELECT source, source_id, type, subtype, name, name_original, year, authors, publisher, genres, language, tome, series_name, series_id, piece_count, figure_count, theme, runtime, pages, isbn, ean, imdb_id, data, image_url, thumbnail_url, source_url, detail_url, created_at, updated_at, expires_at, fetch_count, last_accessed FROM items';
   const params = [];
   const conditions = [];
   
@@ -323,18 +323,7 @@ localRouter.get('/export', asyncHandler(async (req, res) => {
     
     // Streamer chaque item
     for (const row of result.rows) {
-      res.write(JSON.stringify({
-        source: row.source,
-        external_id: row.external_id,
-        type: row.type,
-        name: row.name,
-        year: row.year,
-        image: row.image,
-        data: row.data,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        hit_count: row.hit_count
-      }) + '\n');
+      res.write(JSON.stringify(row) + '\n');
     }
     res.end();
   } else {
@@ -344,18 +333,7 @@ localRouter.get('/export', asyncHandler(async (req, res) => {
     
     res.json({
       _meta: exportMeta,
-      items: result.rows.map(row => ({
-        source: row.source,
-        external_id: row.external_id,
-        type: row.type,
-        name: row.name,
-        year: row.year,
-        image: row.image,
-        data: row.data,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        hit_count: row.hit_count
-      }))
+      items: result.rows
     });
   }
 }));
@@ -405,15 +383,20 @@ localRouter.post('/import', asyncHandler(async (req, res) => {
   
   for (const item of items) {
     try {
-      if (!item.source || !item.external_id) {
+      // Accepter source_id ou external_id pour rétrocompatibilité
+      const sourceId = item.source_id || item.external_id;
+      if (!item.source || !sourceId) {
         stats.errors++;
         continue;
       }
       
+      // Générer l'ID composite
+      const id = `${item.source}:${sourceId}`;
+      
       // Vérifier si l'item existe déjà
       const existing = await query(
-        'SELECT id FROM items WHERE source = $1 AND external_id = $2',
-        [item.source, item.external_id]
+        'SELECT id FROM items WHERE id = $1',
+        [id]
       );
       
       if (existing.rows.length > 0) {
@@ -425,45 +408,74 @@ localRouter.post('/import', asyncHandler(async (req, res) => {
         // Mode upsert: mettre à jour
         await query(`
           UPDATE items SET
-            type = COALESCE($3, type),
+            type = COALESCE($2, type),
+            subtype = COALESCE($3, subtype),
             name = COALESCE($4, name),
-            year = COALESCE($5, year),
-            image = COALESCE($6, image),
-            data = COALESCE($7, data),
+            name_original = COALESCE($5, name_original),
+            year = COALESCE($6, year),
+            authors = COALESCE($7, authors),
+            publisher = COALESCE($8, publisher),
+            genres = COALESCE($9, genres),
+            language = COALESCE($10, language),
+            tome = COALESCE($11, tome),
+            series_name = COALESCE($12, series_name),
+            series_id = COALESCE($13, series_id),
+            piece_count = COALESCE($14, piece_count),
+            figure_count = COALESCE($15, figure_count),
+            theme = COALESCE($16, theme),
+            runtime = COALESCE($17, runtime),
+            pages = COALESCE($18, pages),
+            isbn = COALESCE($19, isbn),
+            ean = COALESCE($20, ean),
+            imdb_id = COALESCE($21, imdb_id),
+            data = COALESCE($22, data),
+            image_url = COALESCE($23, image_url),
+            thumbnail_url = COALESCE($24, thumbnail_url),
+            source_url = COALESCE($25, source_url),
+            detail_url = COALESCE($26, detail_url),
             updated_at = NOW(),
-            hit_count = COALESCE($8, hit_count)
-          WHERE source = $1 AND external_id = $2
+            fetch_count = COALESCE($27, fetch_count)
+          WHERE id = $1
         `, [
-          item.source,
-          item.external_id,
-          item.type || null,
-          item.name || item.data?.name || null,
-          item.year || item.data?.year || null,
-          item.image || item.data?.image || null,
-          item.data || null,
-          item.hit_count || 0
+          id,
+          item.type, item.subtype,
+          item.name || item.data?.name, item.name_original,
+          item.year || item.data?.year,
+          item.authors, item.publisher, item.genres, item.language,
+          item.tome, item.series_name, item.series_id,
+          item.piece_count, item.figure_count, item.theme,
+          item.runtime, item.pages, item.isbn, item.ean, item.imdb_id,
+          item.data || {},
+          item.image_url || item.image, item.thumbnail_url,
+          item.source_url, item.detail_url,
+          item.fetch_count || item.hit_count || 0
         ]);
         stats.updated++;
       } else {
         // Insérer le nouvel item
         await query(`
-          INSERT INTO items (source, external_id, type, name, year, image, data, hit_count, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9::timestamp, NOW()), NOW())
+          INSERT INTO items (id, source, source_id, type, subtype, name, name_original, year, authors, publisher, genres, language, tome, series_name, series_id, piece_count, figure_count, theme, runtime, pages, isbn, ean, imdb_id, data, image_url, thumbnail_url, source_url, detail_url, created_at, updated_at, fetch_count)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, COALESCE($29::timestamp, NOW()), NOW(), $30)
         `, [
-          item.source,
-          item.external_id,
-          item.type || 'unknown',
-          item.name || item.data?.name || null,
-          item.year || item.data?.year || null,
-          item.image || item.data?.image || null,
+          id,
+          item.source, sourceId,
+          item.type || 'unknown', item.subtype,
+          item.name || item.data?.name || 'Unknown', item.name_original,
+          item.year || item.data?.year,
+          item.authors, item.publisher, item.genres, item.language,
+          item.tome, item.series_name, item.series_id,
+          item.piece_count, item.figure_count, item.theme,
+          item.runtime, item.pages, item.isbn, item.ean, item.imdb_id,
           item.data || {},
-          item.hit_count || 0,
-          item.created_at || null
+          item.image_url || item.image, item.thumbnail_url,
+          item.source_url, item.detail_url,
+          item.created_at,
+          item.fetch_count || item.hit_count || 0
         ]);
         stats.inserted++;
       }
     } catch (err) {
-      console.error(`Erreur import item ${item.source}/${item.external_id}:`, err.message);
+      console.error(`Erreur import item ${item.source}/${item.source_id || item.external_id}:`, err.message);
       stats.errors++;
     }
   }
