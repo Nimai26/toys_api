@@ -182,6 +182,7 @@ services:
   # via header X-Encrypted-Key lors des appels
   # ============================================
   toys_api:
+    build: .
     image: nimai24/toys_api:latest
     container_name: toys_api
     restart: unless-stopped
