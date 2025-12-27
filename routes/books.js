@@ -235,10 +235,11 @@ olRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) =>
   
   const cleanId = cleanSourceId(id, 'openlibrary');
   
-  // Utilise le cache PostgreSQL
+  // Utilise le cache PostgreSQL (clé inclut lang+autoTrad pour le cache de traduction)
+  const cacheKey = autoTrad && lang ? `${cleanId}:${lang}` : cleanId;
   const result = await openLibraryCache.getWithCache(
-    cleanId,
-    () => getOpenLibraryByIdNormalized(cleanId),
+    cacheKey,
+    () => getOpenLibraryByIdNormalized(cleanId, { lang, autoTrad }),
     { forceRefresh }
   );
   
