@@ -3,6 +3,7 @@ node_modules/
 
 # Environment & Secrets
 .env
+.env.*
 .env.local
 .env.*.local
 *.credentials
@@ -59,3 +60,7 @@ docker-compose.yml
 docker-compose.amazon-vpn.yml
 
 # Templates publics autorisés:
+
+# Copies de fichiers .env
+.env*
+!.env.example
