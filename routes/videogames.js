@@ -12,7 +12,8 @@ import {
 } from '../lib/providers/igdb.js';
 import {
   searchJVC,
-  getJvcGameByIdNormalized
+  getJvcGameByIdNormalized,
+  getJVCGameById
 } from '../lib/providers/jvc.js';
 import { 
   addCacheHeaders, 
