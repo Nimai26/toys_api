@@ -43,17 +43,17 @@ const comicvineRouter = Router();
 const comicvineAuth = requireApiKey('Comic Vine', 'https://comicvine.gamespot.com/api/');
 
 // Cache provider pour Comic Vine
-const comicvineCache = createProviderCache('comicvine', 'volume');
+const comicvineCache = createProviderCache('comicvine', 'issue');
 
 // Normalisé: /comicvine/search (avec cache PostgreSQL)
 comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
-  const type = req.query.type || 'volume';
+  const type = req.query.type || 'issue';  // Par défaut: issues (numéros individuels)
   const effectiveMax = Math.min(Math.max(1, max), COMICVINE_MAX_LIMIT);
 
   const validTypes = ['volume', 'issue', 'character', 'person'];
   if (!validTypes.includes(type)) {
-    return res.status(400).json({ error: "Type de ressource invalide", validTypes, hint: "Utilisez 'volume' pour les séries" });
+    return res.status(400).json({ error: "Type de ressource invalide", validTypes, hint: "Utilisez 'issue' pour les numéros individuels, 'volume' pour les séries" });
   }
 
   const result = await comicvineCache.searchWithCache(
@@ -67,19 +67,56 @@ comicvineRouter.get("/search", comicvineAuth, validateSearchParams, asyncHandler
         const imageUrl = imageArray[1] || imageArray[0] || null;  // Préférer medium_url (index 1)
         const thumbnailUrl = imageArray[2] || imageArray[1] || null;  // thumb_url (index 2)
         
+        // Construire le nom selon le type
+        let displayName = item.name || item.title;
+        let seriesName = null;
+        let issueNumber = null;
+        
+        if (type === 'issue') {
+          // Pour les issues: utiliser le nom de la série + numéro
+          seriesName = item.serie?.name || null;
+          issueNumber = item.tome || null;
+          if (seriesName && issueNumber) {
+            displayName = `${seriesName} #${issueNumber}`;
+          } else if (seriesName) {
+            displayName = seriesName;
+          }
+          // Garder le nom original de l'issue (souvent le titre de l'histoire)
+          if (item.name || item.title) {
+            displayName = item.name || item.title;
+            // Si le nom ne contient pas le numéro, l'ajouter
+            if (issueNumber && !displayName.includes('#')) {
+              displayName = `${displayName} #${issueNumber}`;
+            }
+          }
+        }
+        
+        // Extraire l'année depuis releaseDate (format YYYY-MM-DD ou YYYY)
+        let year = null;
+        if (item.releaseDate) {
+          const yearMatch = String(item.releaseDate).match(/^(\d{4})/);
+          year = yearMatch ? parseInt(yearMatch[1], 10) : null;
+        }
+        
         return {
           type: type,
           source: 'comicvine',
           sourceId: item.id,
-          name: item.name || item.title,
+          name: displayName,
           name_original: item.name || item.title,
           description: item.deck || item.synopsis || null,
-          year: item.releaseDate ? parseInt(item.releaseDate, 10) : null,
+          year: year,
           image: imageUrl,
           thumbnail: thumbnailUrl,
-          src_url: item.url || `https://comicvine.gamespot.com/volume/${item.id}/`,
+          src_url: item.url || `https://comicvine.gamespot.com/${type}/${item.id}/`,
           publisher: item.editors?.[0] || null,
-          startYear: item.releaseDate,
+          // Champs spécifiques aux issues
+          series: type === 'issue' ? (item.serie || null) : null,
+          issueNumber: type === 'issue' ? issueNumber : null,
+          // Champs spécifiques aux volumes
+          issueCount: type === 'volume' ? item.issueCount : null,
+          startYear: type === 'volume' ? item.releaseDate : null,
+          releaseDate: type === 'issue' ? item.releaseDate : null,
           detailUrl: generateDetailUrl('comicvine', item.id, type)
         };
       });
