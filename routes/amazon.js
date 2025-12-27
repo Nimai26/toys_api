@@ -78,23 +78,34 @@ function createAmazonCategoryRouter(category, logName, providerName) {
       async () => {
         const rawResult = await searchAmazon(q, { country, category, limit: max });
         
-        const items = (rawResult.products || rawResult.results || []).map(product => ({
-          type: category || 'product',
-          source: providerName,
-          sourceId: product.asin,
-          name: product.title || product.name,
-          name_original: product.title || product.name,
-          description: product.description || null,
-          year: product.publicationDate ? parseInt(product.publicationDate.substring(0, 4), 10) : null,
-          image: product.image || product.thumbnail,
-          src_url: product.url || `https://www.amazon.fr/dp/${product.asin}`,
-          price: product.price,
-          currency: product.currency,
-          rating: product.rating,
-          reviewCount: product.reviewCount,
-          url: product.url,
-          detailUrl: generateDetailUrl(providerName, product.asin, 'product')
-        }));
+        const items = (rawResult.products || rawResult.results || []).map(product => {
+          const item = {
+            type: category || 'product',
+            source: providerName,
+            sourceId: product.asin,
+            name: product.title || product.name,
+            name_original: product.title || product.name,
+            description: product.description || null,
+            year: product.publicationDate ? parseInt(product.publicationDate.substring(0, 4), 10) : null,
+            image: product.image || product.thumbnail,
+            src_url: product.url || `https://www.amazon.fr/dp/${product.asin}`,
+            price: product.price,
+            priceValue: product.priceValue,
+            currency: product.currency,
+            rating: product.rating,
+            reviewCount: product.reviewCount,
+            isPrime: product.isPrime,
+            url: product.url,
+            detailUrl: generateDetailUrl(providerName, product.asin, 'product')
+          };
+          
+          // Champs spécifiques jeux vidéo
+          if (category === 'videogames') {
+            item.platform = product.platform || null;
+          }
+          
+          return item;
+        });
         
         return { results: items, total: rawResult.totalItems || items.length };
       },
