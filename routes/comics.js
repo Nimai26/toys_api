@@ -318,19 +318,22 @@ bedethequeRouter.get("/details", validateDetailsParams, asyncHandler(async (req,
   const numericId = parseInt(id, 10);
   let result;
   
+  // Clé de cache incluant lang+autoTrad pour les traductions
+  const cacheKey = autoTrad && lang ? `${id}:${lang}` : id;
+  
   if (type === 'album') {
     // Utilise le cache pour les albums
     result = await bedethequeCache.getWithCache(
-      `album_${id}`,
-      () => getBedethequeAlbumByIdNormalized(numericId),
+      `album_${cacheKey}`,
+      () => getBedethequeAlbumByIdNormalized(numericId, { lang, autoTrad }),
       { type: 'book', forceRefresh }
     );
     if (!result || !result.name) return res.status(404).json({ error: `Album ${id} non trouvé` });
   } else {
     // Utilise le cache pour les séries
     result = await bedethequeCache.getWithCache(
-      `serie_${id}`,
-      () => getBedethequeSerieByIdNormalized(numericId),
+      `serie_${cacheKey}`,
+      () => getBedethequeSerieByIdNormalized(numericId, { lang, autoTrad }),
       { type: 'book_series', forceRefresh }
     );
     if (!result || !result.name) return res.status(404).json({ error: `Série ${id} non trouvée` });
