@@ -6,11 +6,12 @@
  * - amazonGenericRouter : /amazon_generic/* (recherche tous produits)
  * - amazonBooksRouter : /amazon_books/* (livres)
  * - amazonMoviesRouter : /amazon_movies/* (films/DVD/Blu-ray)
- * - amazonMusicRouter : /amazon_music/* (musique/CD/vinyles)
+ * - amazonMusicRouter : /amazon_music/* (musique/CD/viyles)
  * - amazonToysRouter : /amazon_toys/* (jouets)
  * - amazonVideogamesRouter : /amazon_videogames/* (jeux vidéo)
  * 
  * v4.0.0: Cache PostgreSQL ajouté pour toutes les recherches et détails
+ * v4.1.0: Format harmonisé selon le type (videogame, book, movie, music)
  */
 
 import { Router } from 'express';
@@ -40,12 +41,50 @@ import {
   isAmazonAvailable,
   getAmazonStatus
 } from '../lib/providers/amazon.js';
+import {
+  normalizeAmazonVideogameSearchItem,
+  normalizeAmazonVideogameDetail,
+  normalizeAmazonBookSearchItem,
+  normalizeAmazonBookDetail,
+  normalizeAmazonMovieSearchItem,
+  normalizeAmazonMovieDetail,
+  normalizeAmazonMusicSearchItem,
+  normalizeAmazonMusicDetail,
+  normalizeAmazonToySearchItem,
+  normalizeAmazonToyDetail
+} from '../lib/normalizers/amazon.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
 
 const log = createLogger('Route:Amazon');
 
 // Cache PostgreSQL pour Amazon (TTL plus court car prix variables)
 const AMAZON_CACHE_TTL = 600; // 10 minutes pour les prix
+
+// ============================================================================
+// Mapping des normalizers par catégorie
+// ============================================================================
+const CATEGORY_NORMALIZERS = {
+  videogames: {
+    searchItem: normalizeAmazonVideogameSearchItem,
+    detail: normalizeAmazonVideogameDetail
+  },
+  books: {
+    searchItem: normalizeAmazonBookSearchItem,
+    detail: normalizeAmazonBookDetail
+  },
+  movies: {
+    searchItem: normalizeAmazonMovieSearchItem,
+    detail: normalizeAmazonMovieDetail
+  },
+  music: {
+    searchItem: normalizeAmazonMusicSearchItem,
+    detail: normalizeAmazonMusicDetail
+  },
+  toys: {
+    searchItem: normalizeAmazonToySearchItem,
+    detail: normalizeAmazonToyDetail
+  }
+};
 
 // ============================================================================
 // Fonctions helper pour créer des routers Amazon par catégorie
@@ -63,6 +102,9 @@ function createAmazonCategoryRouter(category, logName, providerName) {
   
   // Cache PostgreSQL spécifique à cette catégorie
   const amazonCache = createProviderCache(providerName, category || 'product');
+  
+  // Récupérer les normalizers pour cette catégorie (ou null pour générique)
+  const normalizers = category ? CATEGORY_NORMALIZERS[category] : null;
 
   // Normalisé: /amazon_*/search (avec cache PostgreSQL)
   router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
@@ -78,8 +120,15 @@ function createAmazonCategoryRouter(category, logName, providerName) {
       async () => {
         const rawResult = await searchAmazon(q, { country, category, limit: max });
         
+        // Mapper les résultats avec le normalizer approprié
         const items = (rawResult.products || rawResult.results || []).map(product => {
-          const item = {
+          // Si on a un normalizer pour cette catégorie, l'utiliser
+          if (normalizers && normalizers.searchItem) {
+            return normalizers.searchItem(product);
+          }
+          
+          // Sinon, format générique
+          return {
             type: category || 'product',
             source: providerName,
             sourceId: product.asin,
@@ -98,13 +147,6 @@ function createAmazonCategoryRouter(category, logName, providerName) {
             url: product.url,
             detailUrl: generateDetailUrl(providerName, product.asin, 'product')
           };
-          
-          // Champs spécifiques jeux vidéo
-          if (category === 'videogames') {
-            item.platform = product.platform || null;
-          }
-          
-          return item;
         });
         
         return { results: items, total: rawResult.totalItems || items.length };
@@ -134,11 +176,17 @@ function createAmazonCategoryRouter(category, logName, providerName) {
     metrics.sources.amazon.requests++;
     
     // Utilise le cache PostgreSQL pour les détails (bypass si refresh=true)
-    const result = await amazonCache.getWithCache(
+    const rawResult = await amazonCache.getWithCache(
       `${id}:${country}`,
       async () => getAmazonProduct(id, country),
       { type: category || 'product', forceRefresh: refresh }
     );
+    
+    // Normaliser avec le normalizer approprié
+    let result = rawResult;
+    if (normalizers && normalizers.detail) {
+      result = normalizers.detail(rawResult);
+    }
     
     addCacheHeaders(res, AMAZON_CACHE_TTL, getCacheInfo());
     res.json(formatDetailResponse({ 
@@ -157,11 +205,17 @@ function createAmazonCategoryRouter(category, logName, providerName) {
     metrics.sources.amazon.requests++;
     
     // Utilise le cache PostgreSQL (bypass si refresh=true)
-    const result = await amazonCache.getWithCache(
+    const rawResult = await amazonCache.getWithCache(
       `barcode:${code}:${country}`,
       async () => searchAmazonByBarcode(code, { country, category }),
       { type: 'barcode', forceRefresh: refresh }
     );
+    
+    // Normaliser avec le normalizer approprié
+    let result = rawResult;
+    if (normalizers && normalizers.detail) {
+      result = normalizers.detail(rawResult);
+    }
     
     addCacheHeaders(res, AMAZON_CACHE_TTL, getCacheInfo());
     res.json(formatDetailResponse({ 
@@ -183,11 +237,17 @@ function createAmazonCategoryRouter(category, logName, providerName) {
     metrics.requests.total++;
     metrics.sources.amazon.requests++;
     
-    const result = await amazonCache.getWithCache(
+    const rawResult = await amazonCache.getWithCache(
       `${asin}:${country}`,
       async () => getAmazonProduct(asin, country),
       { type: category || 'product', forceRefresh: refresh }
     );
+    
+    // Normaliser avec le normalizer approprié
+    let result = rawResult;
+    if (normalizers && normalizers.detail) {
+      result = normalizers.detail(rawResult);
+    }
     
     addCacheHeaders(res, AMAZON_CACHE_TTL, getCacheInfo());
     res.json(result);
@@ -204,11 +264,17 @@ function createAmazonCategoryRouter(category, logName, providerName) {
     metrics.requests.total++;
     metrics.sources.amazon.requests++;
     
-    const result = await amazonCache.getWithCache(
+    const rawResult = await amazonCache.getWithCache(
       `barcode:${code}:${country}`,
       async () => searchAmazonByBarcode(code, { country, category }),
       { type: 'barcode', forceRefresh: refresh }
     );
+    
+    // Normaliser avec le normalizer approprié
+    let result = rawResult;
+    if (normalizers && normalizers.detail) {
+      result = normalizers.detail(rawResult);
+    }
     
     addCacheHeaders(res, AMAZON_CACHE_TTL, getCacheInfo());
     res.json(result);
