@@ -420,11 +420,30 @@ function createConsoleVariationsAccessoriesRouter() {
           detailUrl: generateDetailUrl(providerName, item.slug || item.id, 'item')
         }));
         
-        // Fusionner et limiter au max demandé
-        const allItems = [...accessoriesItems, ...controllersItems].slice(0, max);
-        const total = (accessoriesResult.total || 0) + (controllersResult.total || 0);
+        // Fusionner, dédupliquer par sourceId et limiter au max demandé
+        // Les controllers ont priorité sur accessories pour le type
+        const seenIds = new Set();
+        const allItems = [];
         
-        return { results: allItems, total };
+        // D'abord les controllers (ils gardent leur type "controller")
+        for (const item of controllersItems) {
+          if (!seenIds.has(item.sourceId)) {
+            seenIds.add(item.sourceId);
+            allItems.push(item);
+          }
+        }
+        
+        // Ensuite les accessories (on skip les doublons)
+        for (const item of accessoriesItems) {
+          if (!seenIds.has(item.sourceId)) {
+            seenIds.add(item.sourceId);
+            allItems.push(item);
+          }
+        }
+        
+        const total = allItems.length;
+        
+        return { results: allItems.slice(0, max), total };
       },
       { params: { max }, forceRefresh: refresh }
     );
