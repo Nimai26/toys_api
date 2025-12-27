@@ -154,8 +154,33 @@ function createAmazonCategoryRouter(category, logName, providerName) {
       { params: { country, max }, forceRefresh: refresh }
     );
     
+    // Post-traitement: assurer les champs de compatibilité frontend sur les résultats en cache
+    const normalizedResults = (result.results || []).map(item => {
+      // Extraire l'ID du provider (peut être à différents endroits selon le format)
+      const itemId = item.sourceId || item.provider_id || item.source_id || item.amazon_data?.asin;
+      
+      // Extraire l'image (peut être à différents endroits)
+      const itemImage = item.image || item.images?.cover || item.images?.thumbnail || 
+                       (Array.isArray(item.images) && item.images[0]?.url) || item.poster_url || null;
+      
+      // Extraire l'URL source (peut être à différents endroits)
+      const itemSrcUrl = item.src_url || item.source_url || item.url || item.urls?.detail ||
+                        (item.amazon_data?.asin ? `https://www.amazon.fr/dp/${item.amazon_data.asin}` : null);
+      
+      // S'assurer que les champs de compatibilité frontend sont présents
+      return {
+        ...item,
+        // Champs de compatibilité frontend (priorité aux valeurs existantes)
+        name: item.name || item.title || '',
+        image: itemImage,
+        src_url: itemSrcUrl,
+        detailUrl: item.detailUrl || `/${providerName}/details?detailUrl=/${providerName}/product/${itemId}`,
+        sourceId: itemId
+      };
+    });
+    
     // Traduire les descriptions si autoTrad est activé (après le cache)
-    const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+    const translatedResults = await translateSearchDescriptions(normalizedResults, autoTrad, lang);
     
     addCacheHeaders(res, AMAZON_CACHE_TTL, getCacheInfo());
     res.json(formatSearchResponse({
