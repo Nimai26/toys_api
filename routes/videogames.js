@@ -288,7 +288,7 @@ jeuxvideoRouter.get("/details", validateDetailsParams, asyncHandler(async (req, 
     { forceRefresh }
   );
   
-  if (!result || !result.name) {
+  if (!result || !result.title) {
     return res.status(404).json({ error: `Jeu ${id} non trouvé` });
   }
   
