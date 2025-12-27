@@ -372,10 +372,99 @@ function createConsoleVariationsTypeRouter(searchType, providerName) {
   return router;
 }
 
+// Router spécifique pour accessories qui combine accessories + controllers
+function createConsoleVariationsAccessoriesRouter() {
+  const router = Router();
+  const providerName = 'consolevariations_accessories';
+  const typeCache = createProviderCache(providerName, 'accessories');
+  
+  router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+    const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
+    
+    metrics.sources.consolevariations.requests++;
+    const result = await typeCache.searchWithCache(
+      q,
+      async () => {
+        // Rechercher à la fois les accessories et les controllers
+        const [accessoriesResult, controllersResult] = await Promise.all([
+          searchConsoleVariationsLib(q, max, 'accessories'),
+          searchConsoleVariationsLib(q, max, 'controllers')
+        ]);
+        
+        // Combiner les résultats
+        const accessoriesItems = (accessoriesResult.results || accessoriesResult.items || []).map(item => ({
+          type: 'accessory',
+          source: providerName,
+          sourceId: item.slug || item.id,
+          name: item.name || item.title,
+          name_original: item.name || item.title,
+          description: item.description || null,
+          year: item.year || item.releaseYear || null,
+          image: item.image,
+          src_url: item.slug ? `https://consolevariations.com/variation/${item.slug}` : null,
+          platform: item.platform,
+          detailUrl: generateDetailUrl(providerName, item.slug || item.id, 'item')
+        }));
+        
+        const controllersItems = (controllersResult.results || controllersResult.items || []).map(item => ({
+          type: 'controller',
+          source: providerName,
+          sourceId: item.slug || item.id,
+          name: item.name || item.title,
+          name_original: item.name || item.title,
+          description: item.description || null,
+          year: item.year || item.releaseYear || null,
+          image: item.image,
+          src_url: item.slug ? `https://consolevariations.com/variation/${item.slug}` : null,
+          platform: item.platform,
+          detailUrl: generateDetailUrl(providerName, item.slug || item.id, 'item')
+        }));
+        
+        // Fusionner et limiter au max demandé
+        const allItems = [...accessoriesItems, ...controllersItems].slice(0, max);
+        const total = (accessoriesResult.total || 0) + (controllersResult.total || 0);
+        
+        return { results: allItems, total };
+      },
+      { params: { max }, forceRefresh: refresh }
+    );
+    
+    // Traduire les descriptions si autoTrad est activé (après le cache)
+    const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+    
+    addCacheHeaders(res, 300, getCacheInfo());
+    res.json(formatSearchResponse({
+      items: translatedResults,
+      provider: providerName,
+      query: q,
+      total: result.total,
+      meta: { lang, locale, autoTrad, type: 'accessories+controllers' }
+    }));
+  }));
+  
+  // /consolevariations_accessories/details
+  router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+    const { lang, locale, autoTrad } = req.standardParams;
+    const { id } = req.parsedDetailUrl;
+    const forceRefresh = req.query.refresh === 'true';
+    
+    metrics.sources.consolevariations.requests++;
+    const result = await typeCache.getWithCache(
+      id,
+      async () => getConsoleVariationsItemNormalized(id, undefined, { lang, autoTrad }),
+      { forceRefresh }
+    );
+    
+    addCacheHeaders(res, 300, getCacheInfo());
+    res.json(formatDetailResponse({ data: result, provider: providerName, id, meta: { lang, locale, autoTrad } }));
+  }));
+  
+  return router;
+}
+
 // Routers spécifiques par type
 export const consolevariationsConsolesRouter = createConsoleVariationsTypeRouter('consoles', 'consolevariations_consoles');
-export const consolevariationsAccessoriesRouter = createConsoleVariationsTypeRouter('accessories', 'consolevariations_accessories');
-export const consolevariationsControllersRouter = createConsoleVariationsTypeRouter('controllers', 'consolevariations_controllers');
+export const consolevariationsAccessoriesRouter = createConsoleVariationsAccessoriesRouter();
 
 // ============================================================================
 // TRANSFORMERLAND ROUTER

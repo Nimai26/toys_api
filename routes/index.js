@@ -44,7 +44,6 @@ export {
   consolevariationsRouter,
   consolevariationsConsolesRouter,
   consolevariationsAccessoriesRouter,
-  consolevariationsControllersRouter,
   transformerlandRouter,
   paninimanaRouter
 } from './collectibles.js';

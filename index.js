@@ -60,7 +60,6 @@ import {
   consolevariationsRouter,
   consolevariationsConsolesRouter,
   consolevariationsAccessoriesRouter,
-  consolevariationsControllersRouter,
   transformerlandRouter,
   paninimanaRouter,
   barcodeRouter,
@@ -242,7 +241,6 @@ app.use('/luluberlu', luluberluRouter);
 app.use('/consolevariations', consolevariationsRouter);
 app.use('/consolevariations_consoles', consolevariationsConsolesRouter);
 app.use('/consolevariations_accessories', consolevariationsAccessoriesRouter);
-app.use('/consolevariations_controllers', consolevariationsControllersRouter);
 app.use('/transformerland', transformerlandRouter);
 app.use('/paninimania', paninimanaRouter);
 
