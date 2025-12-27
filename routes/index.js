@@ -41,7 +41,10 @@ export { comicvineRouter, mangadexRouter, bedethequeRouter } from './comics.js';
 export { 
   colekaRouter, 
   luluberluRouter, 
-  consolevariationsRouter, 
+  consolevariationsRouter,
+  consolevariationsConsolesRouter,
+  consolevariationsAccessoriesRouter,
+  consolevariationsControllersRouter,
   transformerlandRouter,
   paninimanaRouter
 } from './collectibles.js';

@@ -303,6 +303,80 @@ consolevariationsRouter.get("/browse/:platform", asyncHandler(async (req, res) =
   res.json(result);
 }));
 
+// ----------------------------------------------------------------------------
+// Factory pour créer des routers ConsoleVariations par type (consoles, accessories, controllers)
+// ----------------------------------------------------------------------------
+function createConsoleVariationsTypeRouter(searchType, providerName) {
+  const router = Router();
+  const typeCache = createProviderCache(providerName, searchType);
+  
+  // /consolevariations_consoles/search, /consolevariations_accessories/search, etc.
+  router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+    const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
+    
+    metrics.sources.consolevariations.requests++;
+    const result = await typeCache.searchWithCache(
+      q,
+      async () => {
+        const rawResult = await searchConsoleVariationsLib(q, max, searchType);
+        
+        const items = (rawResult.results || rawResult.items || []).map(item => ({
+          type: searchType.slice(0, -1), // consoles -> console
+          source: providerName,
+          sourceId: item.slug || item.id,
+          name: item.name || item.title,
+          name_original: item.name || item.title,
+          description: item.description || null,
+          year: item.year || item.releaseYear || null,
+          image: item.image,
+          src_url: item.slug ? `https://consolevariations.com/variation/${item.slug}` : null,
+          platform: item.platform,
+          detailUrl: generateDetailUrl(providerName, item.slug || item.id, 'item')
+        }));
+        
+        return { results: items, total: rawResult.total || items.length };
+      },
+      { params: { max }, forceRefresh: refresh }
+    );
+    
+    // Traduire les descriptions si autoTrad est activé (après le cache)
+    const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+    
+    addCacheHeaders(res, 300, getCacheInfo());
+    res.json(formatSearchResponse({
+      items: translatedResults,
+      provider: providerName,
+      query: q,
+      total: result.total,
+      meta: { lang, locale, autoTrad, type: searchType }
+    }));
+  }));
+  
+  // /consolevariations_consoles/details
+  router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+    const { lang, locale, autoTrad } = req.standardParams;
+    const { id } = req.parsedDetailUrl;
+    const forceRefresh = req.query.refresh === 'true';
+    
+    metrics.sources.consolevariations.requests++;
+    const result = await typeCache.getWithCache(
+      id,
+      async () => getConsoleVariationsItemNormalized(id, undefined, { lang, autoTrad }),
+      { forceRefresh }
+    );
+    
+    addCacheHeaders(res, 300, getCacheInfo());
+    res.json(formatDetailResponse({ data: result, provider: providerName, id, meta: { lang, locale, autoTrad } }));
+  }));
+  
+  return router;
+}
+
+// Routers spécifiques par type
+export const consolevariationsConsolesRouter = createConsoleVariationsTypeRouter('consoles', 'consolevariations_consoles');
+export const consolevariationsAccessoriesRouter = createConsoleVariationsTypeRouter('accessories', 'consolevariations_accessories');
+export const consolevariationsControllersRouter = createConsoleVariationsTypeRouter('controllers', 'consolevariations_controllers');
+
 // ============================================================================
 // TRANSFORMERLAND ROUTER
 // ============================================================================
