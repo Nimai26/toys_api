@@ -38,6 +38,7 @@ const klickypediaCache = createProviderCache('klickypedia', 'construct_toy');
 router.get('/search', validateSearchParams, async (req, res) => {
   try {
     const { q, lang, locale, max, autoTrad } = req.standardParams;
+    const refresh = req.query.refresh === 'true';
     
     log.info(`Recherche Klickypedia: "${q}" (lang=${locale}, max=${max})`);
     
@@ -66,7 +67,7 @@ router.get('/search', validateSearchParams, async (req, res) => {
           hasMore: (rawResult.total || 0) > items.length
         };
       },
-      { params: { locale, max } }
+      { params: { locale, max }, forceRefresh: refresh }
     );
     
     // Traduire les descriptions si autoTrad est activé (après le cache)

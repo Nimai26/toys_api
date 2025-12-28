@@ -47,6 +47,7 @@ const megaCache = createProviderCache('mega', 'construct_toy');
  */
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, page, autoTrad } = req.standardParams;
+  const refresh = req.query.refresh === 'true';
 
   const result = await megaCache.searchWithCache(
     q,
@@ -68,7 +69,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { locale, max, page } }
+    { params: { locale, max, page }, forceRefresh: refresh }
   );
   
   // Traduire les descriptions si autoTrad est activé (après le cache)

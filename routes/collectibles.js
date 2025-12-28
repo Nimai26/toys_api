@@ -232,7 +232,7 @@ consolevariationsRouter.get("/search", validateSearchParams, asyncHandler(async 
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { max, type: searchType } }
+    { params: { max, type: searchType }, forceRefresh: refresh }
   );
   
   // Traduire les descriptions si autoTrad est activé (après le cache)

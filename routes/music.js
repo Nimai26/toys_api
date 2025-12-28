@@ -61,6 +61,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const type = req.query.type || 'album';
   const country = locale ? locale.split('-')[1]?.toUpperCase() || 'FR' : 'FR';
   const discogsToken = req.query.discogsToken || req.headers['x-discogs-token'];
+  const forceRefresh = req.query.refresh === 'true';
   
   // Sélectionner le bon cache selon la source
   let providerCache;
@@ -122,12 +123,13 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
         image: item.coverUrl || item.coverUrlLarge || item.cover || item.cover_medium || item.cover_xl || item.artworkUrl100 || item.thumb || item.picture || item.picture_medium,
         src_url: item.link || item.deezerUrl || item.collectionViewUrl || item.uri || null,
         artist: item.artist || item.artistName,
-        detailUrl: generateDetailUrl(provider, item.id || item.mbid, type)
+        // Utiliser /music/details avec le provider dans l'URL interne
+        detailUrl: `/music/details?detailUrl=${encodeURIComponent(`/${provider}/${type}/${item.id || item.mbid}`)}`
       }));
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { max, type, country } }
+    { params: { max, type, country }, forceRefresh }
   );
   
   const response = formatSearchResponse({

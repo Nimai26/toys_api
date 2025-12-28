@@ -48,6 +48,7 @@ const playmobilCache = createProviderCache('playmobil', 'construct_toy');
  */
 router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const refresh = req.query.refresh === 'true';
 
   /**
    * Extrait le nom depuis le slug de l'URL Playmobil
@@ -93,7 +94,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { locale, max } }
+    { params: { locale, max }, forceRefresh: refresh }
   );
   
   // Traduire les descriptions si autoTrad est activé (après le cache)

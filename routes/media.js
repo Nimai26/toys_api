@@ -49,6 +49,7 @@ tvdbRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (re
   const { q, lang, locale, max, autoTrad } = req.standardParams;
   const type = req.query.type || null;
   const year = req.query.year ? parseInt(req.query.year, 10) : null;
+  const refresh = req.query.refresh === 'true';
 
   const result = await tvdbCache.searchWithCache(
     q,
@@ -70,7 +71,7 @@ tvdbRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (re
       
       return { results: items, total: rawResult.total || items.length };
     },
-    { params: { max, type, lang, year } }
+    { params: { max, type, lang, year }, forceRefresh: refresh }
   );
   
   // Traduire les descriptions si autoTrad est activé (après le cache)
@@ -147,6 +148,7 @@ tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (re
   const type = req.query.type || null;
   const year = req.query.year ? parseInt(req.query.year, 10) : null;
   const includeAdult = req.query.adult === 'true';
+  const refresh = req.query.refresh === 'true';
 
   const result = await tmdbCache.searchWithCache(
     q,
@@ -172,7 +174,7 @@ tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (re
         totalPages: rawResult.total_pages
       };
     },
-    { params: { max, type, locale, page, year, includeAdult } }
+    { params: { max, type, locale, page, year, includeAdult }, forceRefresh: refresh }
   );
   
   // Traduire les descriptions si autoTrad est activé (après le cache)
@@ -245,6 +247,7 @@ const imdbRouter = Router();
 // Normalisé: /imdb/search (avec cache PostgreSQL)
 imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, max, lang, locale, autoTrad } = req.standardParams;
+  const refresh = req.query.refresh === 'true';
 
   const result = await imdbCache.searchWithCache(
     q,
@@ -266,7 +269,7 @@ imdbRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =>
       
       return { results: items, total: items.length };
     },
-    { params: { max } }
+    { params: { max }, forceRefresh: refresh }
   );
   
   // Traduire les descriptions si autoTrad est activé (après le cache)
