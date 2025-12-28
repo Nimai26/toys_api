@@ -179,8 +179,94 @@ function createAmazonCategoryRouter(category, logName, providerName) {
       };
     });
     
+    // Filtrage spécifique pour la catégorie "books"
+    // Amazon inclut souvent des produits dérivés (jouets, lampes, figurines) dans les résultats de livres
+    let filteredResults = normalizedResults;
+    if (category === 'books') {
+      filteredResults = normalizedResults.filter(item => {
+        const asin = item.sourceId || '';
+        const title = (item.name || '').toLowerCase();
+        
+        // ❌ Exclure les titres invalides (parsing raté - souvent nombre d'avis)
+        if (!item.name || item.name.length < 5 || /^\([0-9,.\s]+[km]?\)$/i.test(item.name)) {
+          categoryLog.debug(`Filtré (titre invalide): ${item.name}`);
+          return false;
+        }
+        
+        // ✅ ASIN numérique = ISBN-10 = certainement un livre
+        if (/^[0-9]{10}$/.test(asin)) {
+          return true;
+        }
+        
+        // ❌ Exclure les produits dérivés évidents (mots-clés dans le titre)
+        const excludeKeywords = [
+          'lampe', 'lamp', 'light', 'led',
+          'figurine', 'figure', 'statue', 'collection',
+          'puzzle', 'jeu de', 'board game', 'game',
+          'mug', 'tasse', 'cup', 'coupe de collection',
+          'peluche', 'plush', 'jouet', 'toy',
+          'poster', 'affiche', 'cadre',
+          'funko', 'pop!', 'noble collection',
+          'baguette', 'wand', 'réplique', 'replica',
+          'choixpeau', 'sorting hat',
+          'vif d\'or', 'golden snitch',
+          'ugears', 'maquette', 'kit de modèle',
+          'poupée', 'poupee', 'doll', 'barbie',
+          't-shirt', 'tee-shirt', 'vêtement', 'clothing',
+          'coussin', 'pillow', 'couverture', 'blanket',
+          'lego', 'playmobil', 'construction'
+        ];
+        
+        if (excludeKeywords.some(kw => title.includes(kw))) {
+          categoryLog.debug(`Filtré (produit dérivé): ${item.name?.substring(0, 50)}`);
+          return false;
+        }
+        
+        // ✅ Mots-clés de livres dans le titre
+        const bookKeywords = [
+          'édition', 'edition', 'illustré', 'illustrated',
+          'tome', 'volume', 'roman', 'novel',
+          'poche', 'paperback', 'hardcover', 'relié',
+          'folio', 'gallimard', 'hachette', 'pocket'
+        ];
+        
+        if (bookKeywords.some(kw => title.includes(kw))) {
+          return true;
+        }
+        
+        // Par défaut : accepter les ASIN standards (B0...) si le titre ne contient pas d'exclusions
+        return true;
+      });
+      
+      // Déduplication : Amazon peut retourner le même livre avec différents ASINs
+      // Prioriser les ISBN-10 (ASIN numérique) sur les ASIN standards (B0...)
+      const seenTitles = new Map(); // titre normalisé -> meilleur item
+      for (const item of filteredResults) {
+        const normalizedTitle = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const asin = item.sourceId || '';
+        const isIsbn = /^[0-9]{10}$/.test(asin);
+        
+        if (!seenTitles.has(normalizedTitle)) {
+          seenTitles.set(normalizedTitle, item);
+        } else {
+          // Si on a déjà ce titre, garder celui avec ISBN
+          const existing = seenTitles.get(normalizedTitle);
+          const existingIsIsbn = /^[0-9]{10}$/.test(existing.sourceId || '');
+          
+          if (isIsbn && !existingIsIsbn) {
+            // Le nouveau a un ISBN, l'ancien non -> remplacer
+            seenTitles.set(normalizedTitle, item);
+            categoryLog.debug(`Dédupliqué: "${item.name?.substring(0, 40)}" - gardé ISBN ${asin} au lieu de ${existing.sourceId}`);
+          }
+        }
+      }
+      filteredResults = Array.from(seenTitles.values());
+      
+      categoryLog.debug(`Filtrage books: ${normalizedResults.length} → ${filteredResults.length} résultats`);
+    }
+    
     // Traduire les descriptions si autoTrad est activé (après le cache)
-    const translatedResults = await translateSearchDescriptions(normalizedResults, autoTrad, lang);
+    const translatedResults = await translateSearchDescriptions(filteredResults, autoTrad, lang);
     
     addCacheHeaders(res, AMAZON_CACHE_TTL, getCacheInfo());
     res.json(formatSearchResponse({
