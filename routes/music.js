@@ -119,8 +119,8 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
         name_original: item.title || item.name,
         description: null,
         year: item.releaseDate ? parseInt(item.releaseDate.substring(0, 4), 10) : (item.year || item.date?.split('-')[0] ? parseInt(item.date?.split('-')[0], 10) : null),
-        image: item.cover || item.artworkUrl100 || item.thumb,
-        src_url: item.link || item.collectionViewUrl || item.uri || null,
+        image: item.coverUrl || item.coverUrlLarge || item.cover || item.cover_medium || item.cover_xl || item.artworkUrl100 || item.thumb || item.picture || item.picture_medium,
+        src_url: item.link || item.deezerUrl || item.collectionViewUrl || item.uri || null,
         artist: item.artist || item.artistName,
         detailUrl: generateDetailUrl(provider, item.id || item.mbid, type)
       }));
