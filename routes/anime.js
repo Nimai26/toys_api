@@ -69,7 +69,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
       
       const items = (rawResult.results || rawResult.data || []).map(item => ({
         type: mediaType,
-        source: 'jikan',
+        source: isManga ? 'jikan_manga' : 'jikan_anime',
         sourceId: item.mal_id || item.id,
         name: item.title || item.name,
         name_original: item.title_japanese || item.title,
@@ -99,7 +99,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   addCacheHeaders(res, 300, getCacheInfo());
   res.json(formatSearchResponse({
     items: translatedResults,
-    provider: 'jikan',
+    provider: isManga ? 'jikan_manga' : 'jikan_anime',
     query: q,
     total: result.total,
     pagination: result.pagination || { page, hasNextPage: false },
@@ -142,9 +142,10 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
     return res.status(404).json({ error: `${type || 'anime'} ${cleanId} non trouvé` });
   }
   
+  const providerName = type === 'manga' ? 'jikan_manga' : 'jikan_anime';
   metrics.requests.total++;
   addCacheHeaders(res, 3600, getCacheInfo());
-  res.json(formatDetailResponse({ data: result, provider: 'jikan', id: cleanId, meta: { lang, locale, autoTrad, type } }));
+  res.json(formatDetailResponse({ data: result, provider: providerName, id: cleanId, meta: { lang, locale, autoTrad, type } }));
 }));
 
 // ============================================================================
@@ -257,9 +258,9 @@ animeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =
 
   const rawResult = await searchJikanAnime(q, { max, type, status, rating, orderBy, sort });
   
-  const items = (rawResult.results || rawResult.data || []).map(item => ({
+  let items = (rawResult.results || rawResult.data || []).map(item => ({
     type: 'anime',
-    source: 'jikan',
+    source: 'jikan_anime',
     sourceId: item.mal_id || item.id,
     name: item.title || item.name,
     name_original: item.title_japanese || item.title,
@@ -273,11 +274,14 @@ animeRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =
     detailUrl: generateDetailUrl('jikan', item.mal_id || item.id, 'anime')
   }));
   
+  // Traduire les descriptions si autoTrad activé
+  const translatedItems = await translateSearchDescriptions(items, autoTrad, lang);
+  
   metrics.requests.total++;
   addCacheHeaders(res, 300);
   res.json(formatSearchResponse({
-    items,
-    provider: 'jikan',
+    items: translatedItems,
+    provider: 'jikan_anime',
     query: q,
     meta: { lang, locale, autoTrad, mediaType: 'anime' }
   }));
@@ -297,7 +301,7 @@ animeRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res)
   
   metrics.requests.total++;
   addCacheHeaders(res, 3600);
-  res.json(formatDetailResponse({ data: result, provider: 'jikan', id: cleanId, meta: { lang, locale, autoTrad, type: 'anime' } }));
+  res.json(formatDetailResponse({ data: result, provider: 'jikan_anime', id: cleanId, meta: { lang, locale, autoTrad, type: 'anime' } }));
 }));
 
 // Legacy: /jikan_anime/:id
@@ -335,7 +339,7 @@ mangaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =
   
   const items = (rawResult.results || rawResult.data || []).map(item => ({
     type: 'manga',
-    source: 'jikan',
+    source: 'jikan_manga',
     sourceId: item.mal_id || item.id,
     name: item.title || item.name,
     name_original: item.title_japanese || item.title,
@@ -350,11 +354,14 @@ mangaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) =
     detailUrl: generateDetailUrl('jikan', item.mal_id || item.id, 'manga')
   }));
   
+  // Traduire les descriptions si autoTrad activé
+  const translatedItems = await translateSearchDescriptions(items, autoTrad, lang);
+  
   metrics.requests.total++;
   addCacheHeaders(res, 300);
   res.json(formatSearchResponse({
-    items,
-    provider: 'jikan',
+    items: translatedItems,
+    provider: 'jikan_manga',
     query: q,
     meta: { lang, locale, autoTrad, mediaType: 'manga' }
   }));
@@ -374,7 +381,7 @@ mangaRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res)
   
   metrics.requests.total++;
   addCacheHeaders(res, 3600);
-  res.json(formatDetailResponse({ data: result, provider: 'jikan', id: cleanId, meta: { lang, locale, autoTrad, type: 'manga' } }));
+  res.json(formatDetailResponse({ data: result, provider: 'jikan_manga', id: cleanId, meta: { lang, locale, autoTrad, type: 'manga' } }));
 }));
 
 // Legacy: /jikan_manga/:id
