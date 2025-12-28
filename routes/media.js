@@ -156,22 +156,22 @@ tmdbRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (re
       const rawResult = await searchTmdb(q, req.apiKey, { max, type, lang: locale, page, year, includeAdult });
       
       const items = (rawResult.results || []).map(item => ({
-        type: item.media_type === 'movie' ? 'movie' : 'series',
+        type: item.mediaType === 'movie' ? 'movie' : (item.mediaType === 'tv' ? 'series' : 'person'),
         source: 'tmdb',
         sourceId: item.id,
-        name: item.title || item.name,
-        name_original: item.original_title || item.original_name,
+        name: item.title,
+        name_original: item.originalTitle,
         description: item.overview || null,
-        year: item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : (item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : null),
-        image: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
-        src_url: `https://www.themoviedb.org/${item.media_type === 'movie' ? 'movie' : 'tv'}/${item.id}`,
-        detailUrl: generateDetailUrl('tmdb', item.id, item.media_type === 'movie' ? 'movie' : 'tv')
+        year: item.year || null,
+        image: item.poster || item.profilePath || null,
+        src_url: item.url,
+        detailUrl: generateDetailUrl('tmdb', item.id, item.mediaType === 'movie' ? 'movie' : 'tv')
       }));
       
       return { 
         results: items, 
-        total: rawResult.total_results,
-        totalPages: rawResult.total_pages
+        total: rawResult.totalResults,
+        totalPages: rawResult.totalPages
       };
     },
     { params: { max, type, locale, page, year, includeAdult }, forceRefresh: refresh }
@@ -364,4 +364,442 @@ imdbRouter.get("/browse", asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-export { tvdbRouter, tmdbRouter, imdbRouter };
+// ============================================================================
+// TMDB MOVIES Router - Recherche dédiée aux films
+// ============================================================================
+const tmdbMoviesCache = createProviderCache('tmdb_movies', 'movie');
+const tmdbMoviesRouter = Router();
+
+tmdbMoviesRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, page, autoTrad } = req.standardParams;
+  const year = req.query.year ? parseInt(req.query.year, 10) : null;
+  const includeAdult = req.query.adult === 'true';
+  const refresh = req.query.refresh === 'true';
+
+  const result = await tmdbMoviesCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchTmdb(q, req.apiKey, { max, type: 'movie', lang: locale, page, year, includeAdult });
+      
+      const items = (rawResult.results || []).map(item => ({
+        type: 'movie',
+        source: 'tmdb_movies',
+        sourceId: item.id,
+        name: item.title,
+        name_original: item.originalTitle,
+        description: item.overview || null,
+        year: item.year || null,
+        image: item.poster || null,
+        src_url: item.url,
+        detailUrl: generateDetailUrl('tmdb_movies', item.id, 'movie')
+      }));
+      
+      return { 
+        results: items, 
+        total: rawResult.totalResults,
+        totalPages: rawResult.totalPages
+      };
+    },
+    { params: { max, locale, page, year, includeAdult }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'tmdb_movies',
+    query: q,
+    pagination: { page, totalResults: result.total, totalPages: result.totalPages },
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+tmdbMoviesRouter.get("/details", validateDetailsParams, tmdbAuth, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
+  
+  const result = await tmdbMoviesCache.getWithCache(
+    id,
+    () => getTmdbMovieByIdNormalized(id, req.apiKey, { lang: locale, autoTrad }),
+    { type: 'movie', forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Film TMDB ${id} non trouvé` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
+  res.json(formatDetailResponse({ data: result, provider: 'tmdb_movies', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// TMDB SERIES Router - Recherche dédiée aux séries
+// ============================================================================
+const tmdbSeriesCache = createProviderCache('tmdb_series', 'series');
+const tmdbSeriesRouter = Router();
+
+tmdbSeriesRouter.get("/search", validateSearchParams, tmdbAuth, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, page, autoTrad } = req.standardParams;
+  const year = req.query.year ? parseInt(req.query.year, 10) : null;
+  const refresh = req.query.refresh === 'true';
+
+  const result = await tmdbSeriesCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchTmdb(q, req.apiKey, { max, type: 'tv', lang: locale, page, year });
+      
+      const items = (rawResult.results || []).map(item => ({
+        type: 'series',
+        source: 'tmdb_series',
+        sourceId: item.id,
+        name: item.title,
+        name_original: item.originalTitle,
+        description: item.overview || null,
+        year: item.year || null,
+        image: item.poster || null,
+        src_url: item.url,
+        detailUrl: generateDetailUrl('tmdb_series', item.id, 'tv')
+      }));
+      
+      return { 
+        results: items, 
+        total: rawResult.totalResults,
+        totalPages: rawResult.totalPages
+      };
+    },
+    { params: { max, locale, page, year }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'tmdb_series',
+    query: q,
+    pagination: { page, totalResults: result.total, totalPages: result.totalPages },
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+tmdbSeriesRouter.get("/details", validateDetailsParams, tmdbAuth, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
+  
+  const result = await tmdbSeriesCache.getWithCache(
+    id,
+    () => getTmdbTvByIdNormalized(id, req.apiKey, { lang: locale, autoTrad }),
+    { type: 'series', forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Série TMDB ${id} non trouvée` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
+  res.json(formatDetailResponse({ data: result, provider: 'tmdb_series', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// TVDB MOVIES Router - Recherche dédiée aux films
+// ============================================================================
+const tvdbMoviesCache = createProviderCache('tvdb_movies', 'movie');
+const tvdbMoviesRouter = Router();
+
+tvdbMoviesRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const year = req.query.year ? parseInt(req.query.year, 10) : null;
+  const refresh = req.query.refresh === 'true';
+
+  const result = await tvdbMoviesCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchTvdb(q, req.apiKey, { max, type: 'movie', lang, year });
+      
+      const items = (rawResult.results || rawResult.data || []).map(item => ({
+        type: 'movie',
+        source: 'tvdb_movies',
+        sourceId: item.tvdb_id || item.id,
+        name: item.name || item.title,
+        name_original: item.name_original || item.name,
+        description: item.overview || item.description || null,
+        year: item.year || (item.first_aired ? parseInt(item.first_aired.substring(0, 4), 10) : null),
+        image: item.image || item.thumbnail,
+        src_url: `https://thetvdb.com/movies/${item.slug || item.tvdb_id || item.id}`,
+        detailUrl: generateDetailUrl('tvdb_movies', item.tvdb_id || item.id, 'movie')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max, lang, year }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'tvdb_movies',
+    query: q,
+    total: result.total,
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+tvdbMoviesRouter.get("/details", validateDetailsParams, tvdbAuth, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
+  
+  const result = await tvdbMoviesCache.getWithCache(
+    id,
+    () => getTvdbMovieByIdNormalized(id, req.apiKey, { lang, autoTrad }),
+    { type: 'movie', forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Film TVDB ${id} non trouvé` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
+  res.json(formatDetailResponse({ data: result, provider: 'tvdb_movies', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// TVDB SERIES Router - Recherche dédiée aux séries
+// ============================================================================
+const tvdbSeriesCache = createProviderCache('tvdb_series', 'series');
+const tvdbSeriesRouter = Router();
+
+tvdbSeriesRouter.get("/search", validateSearchParams, tvdbAuth, asyncHandler(async (req, res) => {
+  const { q, lang, locale, max, autoTrad } = req.standardParams;
+  const year = req.query.year ? parseInt(req.query.year, 10) : null;
+  const refresh = req.query.refresh === 'true';
+
+  const result = await tvdbSeriesCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchTvdb(q, req.apiKey, { max, type: 'series', lang, year });
+      
+      const items = (rawResult.results || rawResult.data || []).map(item => ({
+        type: 'series',
+        source: 'tvdb_series',
+        sourceId: item.tvdb_id || item.id,
+        name: item.name || item.title,
+        name_original: item.name_original || item.name,
+        description: item.overview || item.description || null,
+        year: item.year || (item.first_aired ? parseInt(item.first_aired.substring(0, 4), 10) : null),
+        image: item.image || item.thumbnail,
+        src_url: `https://thetvdb.com/series/${item.slug || item.tvdb_id || item.id}`,
+        detailUrl: generateDetailUrl('tvdb_series', item.tvdb_id || item.id, 'series')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { max, lang, year }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'tvdb_series',
+    query: q,
+    total: result.total,
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+tvdbSeriesRouter.get("/details", validateDetailsParams, tvdbAuth, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
+  
+  const result = await tvdbSeriesCache.getWithCache(
+    id,
+    () => getTvdbSeriesByIdNormalized(id, req.apiKey, { lang, autoTrad }),
+    { type: 'series', forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Série TVDB ${id} non trouvée` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
+  res.json(formatDetailResponse({ data: result, provider: 'tvdb_series', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// IMDB MOVIES Router - Recherche dédiée aux films
+// ============================================================================
+const imdbMoviesCache = createProviderCache('imdb_movies', 'movie');
+const imdbMoviesRouter = Router();
+
+imdbMoviesRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, max, lang, locale, autoTrad } = req.standardParams;
+  const refresh = req.query.refresh === 'true';
+
+  const result = await imdbMoviesCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchImdb(q, { max: max * 2 }); // On récupère plus pour filtrer
+      
+      // Filtrer uniquement les films
+      const movies = (rawResult.results || []).filter(item => 
+        item.type !== 'TV Series' && item.type !== 'TV Mini Series' && item.type !== 'TV Episode'
+      );
+      
+      const items = movies.slice(0, max).map(item => ({
+        type: 'movie',
+        source: 'imdb_movies',
+        sourceId: item.id,
+        name: item.title,
+        name_original: item.originalTitle || item.title,
+        description: item.description || item.plot || null,
+        year: item.year || null,
+        image: item.image || item.poster || null,
+        src_url: `https://www.imdb.com/title/${item.id}/`,
+        detailUrl: generateDetailUrl('imdb_movies', item.id, 'movie')
+      }));
+      
+      return { results: items, total: items.length };
+    },
+    { params: { max }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'imdb_movies',
+    query: q,
+    total: result.total,
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+imdbMoviesRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
+  
+  if (!/^tt\d{7,}$/.test(id)) {
+    return res.status(400).json({ error: "Format d'ID IMDB invalide", hint: "Format: tt suivi d'au moins 7 chiffres" });
+  }
+  
+  const result = await imdbMoviesCache.getWithCache(
+    id,
+    () => getImdbMovieByIdNormalized(id, { lang, autoTrad }),
+    { type: 'movie', forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Film IMDB ${id} non trouvé` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
+  res.json(formatDetailResponse({ data: result, provider: 'imdb_movies', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// IMDB SERIES Router - Recherche dédiée aux séries
+// ============================================================================
+const imdbSeriesCache = createProviderCache('imdb_series', 'series');
+const imdbSeriesRouter = Router();
+
+imdbSeriesRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
+  const { q, max, lang, locale, autoTrad } = req.standardParams;
+  const refresh = req.query.refresh === 'true';
+
+  const result = await imdbSeriesCache.searchWithCache(
+    q,
+    async () => {
+      const rawResult = await searchImdb(q, { max: max * 2 }); // On récupère plus pour filtrer
+      
+      // Filtrer uniquement les séries
+      const series = (rawResult.results || []).filter(item => 
+        item.type === 'TV Series' || item.type === 'TV Mini Series'
+      );
+      
+      const items = series.slice(0, max).map(item => ({
+        type: 'series',
+        source: 'imdb_series',
+        sourceId: item.id,
+        name: item.title,
+        name_original: item.originalTitle || item.title,
+        description: item.description || item.plot || null,
+        year: item.year || null,
+        image: item.image || item.poster || null,
+        src_url: `https://www.imdb.com/title/${item.id}/`,
+        detailUrl: generateDetailUrl('imdb_series', item.id, 'series')
+      }));
+      
+      return { results: items, total: items.length };
+    },
+    { params: { max }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'imdb_series',
+    query: q,
+    total: result.total,
+    meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+imdbSeriesRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
+  
+  if (!/^tt\d{7,}$/.test(id)) {
+    return res.status(400).json({ error: "Format d'ID IMDB invalide", hint: "Format: tt suivi d'au moins 7 chiffres" });
+  }
+  
+  const result = await imdbSeriesCache.getWithCache(
+    id,
+    () => getImdbSeriesByIdNormalized(id, { lang, autoTrad }),
+    { type: 'series', forceRefresh }
+  );
+  
+  if (!result) {
+    return res.status(404).json({ error: `Série IMDB ${id} non trouvée` });
+  }
+  
+  addCacheHeaders(res, 3600, getCacheInfo());
+  res.json(formatDetailResponse({ data: result, provider: 'imdb_series', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+export { 
+  tvdbRouter, tmdbRouter, imdbRouter,
+  tmdbMoviesRouter, tmdbSeriesRouter,
+  tvdbMoviesRouter, tvdbSeriesRouter,
+  imdbMoviesRouter, imdbSeriesRouter
+};

@@ -28,8 +28,15 @@ export { googleBooksRouter, openLibraryRouter } from './books.js';
 // Video Games - RAWG, IGDB, JeuxVideo.com
 export { rawgRouter, igdbRouter, jeuxvideoRouter } from './videogames.js';
 
-// Media - TVDB, TMDB, IMDB
+// Media - TVDB, TMDB, IMDB (recherche globale)
 export { tvdbRouter, tmdbRouter, imdbRouter } from './media.js';
+
+// Media - Routes dédiées films et séries
+export { 
+  tmdbMoviesRouter, tmdbSeriesRouter,
+  tvdbMoviesRouter, tvdbSeriesRouter,
+  imdbMoviesRouter, imdbSeriesRouter
+} from './media.js';
 
 // Anime - Jikan (MyAnimeList)
 export { default as jikanRouter, jikanAnimeRouter, jikanMangaRouter } from './anime.js';

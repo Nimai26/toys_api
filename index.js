@@ -72,6 +72,12 @@ import {
   tvdbRouter,
   tmdbRouter,
   imdbRouter,
+  tmdbMoviesRouter,
+  tmdbSeriesRouter,
+  tvdbMoviesRouter,
+  tvdbSeriesRouter,
+  imdbMoviesRouter,
+  imdbSeriesRouter,
   jikanRouter,
   jikanAnimeRouter,
   jikanMangaRouter,
@@ -220,10 +226,18 @@ app.use('/rawg', rawgRouter);
 app.use('/igdb', igdbRouter);
 app.use('/jeuxvideo', jeuxvideoRouter);  // Renommé depuis /jvc
 
-// Films & Séries
+// Films & Séries (recherche globale)
 app.use('/tvdb', tvdbRouter);
 app.use('/tmdb', tmdbRouter);
 app.use('/imdb', imdbRouter);
+
+// Films & Séries (routes dédiées)
+app.use('/tmdb_movies', tmdbMoviesRouter);
+app.use('/tmdb_series', tmdbSeriesRouter);
+app.use('/tvdb_movies', tvdbMoviesRouter);
+app.use('/tvdb_series', tvdbSeriesRouter);
+app.use('/imdb_movies', imdbMoviesRouter);
+app.use('/imdb_series', imdbSeriesRouter);
 
 // Anime & Manga
 app.use('/jikan', jikanRouter);           // Legacy unifié
