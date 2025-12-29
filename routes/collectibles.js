@@ -519,18 +519,27 @@ transformerlandRouter.get("/search", validateSearchParams, asyncHandler(async (r
     async () => {
       const rawResult = await searchTransformerlandLib(q, max);
       
-      const items = (rawResult.results || rawResult.items || []).map(item => ({
-        type: 'collectible',
-        source: 'transformerland',
-        sourceId: item.id,
-        name: item.name || item.title,
-        name_original: item.name || item.title,
-        description: item.description || null,
-        year: item.year || null,
-        image: item.image,
-        src_url: item.url || null,
-        detailUrl: generateDetailUrl('transformerland', item.id, 'item')
-      }));
+      const items = (rawResult.results || rawResult.items || []).map(item => {
+        // Pour show_parent_g12.php, l'ID est le toyid numérique
+        // L'URL de détail sera: /show_parent_g12.php?action=show_parent&toyid=XXX
+        const toyId = item.id;
+        
+        return {
+          type: 'collectible',
+          source: 'transformerland',
+          sourceId: toyId,
+          name: item.name || item.title,
+          name_original: item.name || item.title,
+          description: item.series ? `${item.series}${item.subgroup ? ' - ' + item.subgroup : ''}` : null,
+          series: item.series || null,
+          subgroup: item.subgroup || null,
+          allegiance: item.allegiance || null,
+          year: item.year || null,
+          image: item.image,
+          src_url: item.url || null,
+          detailUrl: generateDetailUrl('transformerland', toyId, 'item')
+        };
+      });
       
       return { results: items, total: rawResult.total || items.length };
     },
@@ -557,10 +566,13 @@ transformerlandRouter.get("/details", validateDetailsParams, asyncHandler(async 
   const { id } = req.parsedDetailUrl;
   const forceRefresh = req.query.refresh === 'true';
   
+  // Décoder l'ID qui peut être un chemin encodé (ex: %2Fstore%2Fitem%2Fslug%2F123%2F)
+  const decodedId = decodeURIComponent(id);
+  
   metrics.sources.transformerland.requests++;
   const result = await transformerlandCache.getWithCache(
-    id,
-    async () => getTransformerlandItemDetailsNormalized(id, undefined, { lang, autoTrad }),
+    decodedId,
+    async () => getTransformerlandItemDetailsNormalized(decodedId, { lang, autoTrad }),
     { forceRefresh }
   );
   
@@ -579,7 +591,7 @@ transformerlandRouter.get("/item/:id", asyncHandler(async (req, res) => {
   const lang = req.query.lang || 'en';
   
   metrics.sources.transformerland.requests++;
-  const result = await getTransformerlandItemDetails(id, undefined, { lang, autoTrad });
+  const result = await getTransformerlandItemDetailsNormalized(id, { lang, autoTrad });
   addCacheHeaders(res, 300);
   res.json(result);
 }));
