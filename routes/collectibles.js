@@ -22,7 +22,7 @@ import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper
 
 import {
   searchColeka as searchColekaLib,
-  getColekaItemDetails
+  getColekaItemDetailsNormalized
 } from '../lib/providers/coleka.js';
 import {
   searchLuluBerlu as searchLuluBerluLib,
@@ -79,7 +79,9 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
         url: item.url,
         category: item.category,
         collection: item.collection,
-        detailUrl: generateDetailUrl('coleka', item.id, 'item')
+        // Utiliser le path complet pour avoir toutes les catégories dans l'URL
+        detailUrl: item.path ? generateDetailUrl('coleka', encodeURIComponent(item.path), 'item') 
+                            : generateDetailUrl('coleka', encodeURIComponent(item.url || item.id), 'item')
       }));
       
       return { results: items, total: rawResult.total || items.length };
@@ -101,8 +103,24 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
   }));
 }));
 
-// NOTE: Les endpoints /coleka/details sont désactivés car la fonction getColekaItemDetails
-// n'a jamais été implémentée. Seule la recherche /coleka/search est disponible.
+// Normalisé: /coleka/details (avec cache PostgreSQL)
+colekaRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
+  const { lang, locale, autoTrad } = req.standardParams;
+  const { id } = req.parsedDetailUrl;
+  const forceRefresh = req.query.refresh === 'true';
+
+  metrics.sources.coleka.requests++;
+  const result = await colekaCache.getWithCache(
+    id,
+    async () => getColekaItemDetailsNormalized(decodeURIComponent(id), lang),
+    { forceRefresh }
+  );
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatDetailResponse({ data: result, provider: 'coleka', id, meta: { lang, locale, autoTrad },
+    cacheMatch: result._cacheMatch
+  }));
+}));
 
 // ============================================================================
 // LULU-BERLU ROUTER
