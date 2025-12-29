@@ -127,7 +127,7 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
         name_original: item.name || item.title,
         description: item.description || null,
         year: item.year || null,
-        images: item.image ? [{ url: item.image }] : [],
+        image: item.image,
         src_url: item.url || null,
         price: item.price,
         url: item.url,
