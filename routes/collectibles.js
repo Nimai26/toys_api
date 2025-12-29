@@ -131,7 +131,8 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
         src_url: item.url || null,
         price: item.price,
         url: item.url,
-        detailUrl: generateDetailUrl('luluberlu', item.id || encodeURIComponent(item.url), 'item')
+        // Lulu-Berlu nécessite l'URL complète pour le scraping, pas juste l'ID numérique
+        detailUrl: item.url ? generateDetailUrl('luluberlu', encodeURIComponent(item.url), 'item') : null
       }));
       
       return { results: items, total: rawResult.total || items.length };
