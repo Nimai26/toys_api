@@ -90,10 +90,11 @@ function isUrlAllowed(url) {
  * @query {number} max - Nombre max de résultats (défaut: 20)
  * @query {string} lang - Langue cible pour les traductions (défaut: fr)
  * @query {string} autoTrad - Active la traduction auto du nom et description (1 pour activer)
+ * @query {string} refresh - Force le rechargement sans cache (true pour activer)
  */
 router.get('/search', async (req, res) => {
   try {
-    const { q, query, max, lang, autoTrad } = req.query;
+    const { q, query, max, lang, autoTrad, refresh } = req.query;
     const searchQuery = q || query;
     
     if (!searchQuery) {
@@ -106,11 +107,13 @@ router.get('/search', async (req, res) => {
     const maxResults = Math.min(parseInt(max) || SCRAPER_DEFAULT_MAX, 50);
     const targetLang = lang || 'fr';
     const enableAutoTrad = autoTrad === '1' || autoTrad === 'true';
+    const forceRefresh = refresh === '1' || refresh === 'true';
     
     const result = await scrapeBGGSearch(searchQuery, { 
       max: maxResults,
       lang: targetLang,
-      autoTrad: enableAutoTrad
+      autoTrad: enableAutoTrad,
+      refresh: forceRefresh
     });
     
     res.json(result);
@@ -134,12 +137,14 @@ router.get('/search', async (req, res) => {
  * @query {string} lang - Langue pour la traduction et les manuels (défaut: fr)
  * @query {string} autoTrad - Active la traduction auto (1 pour activer)
  * @query {string} includeManuals - Inclure les manuels (1 par défaut, 0 pour désactiver)
+ * @query {string} refresh - Force le rechargement sans cache (true pour activer)
  */
 router.get('/details/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { lang = 'fr', includeManuals = '1' } = req.query;
+    const { lang = 'fr', includeManuals = '1', refresh } = req.query;
     const autoTrad = isAutoTradEnabled(req.query);
+    const forceRefresh = refresh === '1' || refresh === 'true';
     
     if (!id) {
       return res.status(400).json({
@@ -150,7 +155,8 @@ router.get('/details/:id', async (req, res) => {
     const result = await scrapeBGGDetails(id, {
       lang,
       autoTrad,
-      includeManuals: includeManuals !== '0'
+      includeManuals: includeManuals !== '0',
+      refresh: forceRefresh
     });
     
     if (!result || !result.name) {
@@ -178,11 +184,13 @@ router.get('/details/:id', async (req, res) => {
  * 
  * @param {string} id - ID BGG du jeu
  * @query {string} lang - Langue préférée (défaut: fr)
+ * @query {string} refresh - Force le rechargement sans cache (true pour activer)
  */
 router.get('/manuals/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { lang = 'fr' } = req.query;
+    const { lang = 'fr', refresh } = req.query;
+    const forceRefresh = refresh === '1' || refresh === 'true';
     
     if (!id) {
       return res.status(400).json({
@@ -190,7 +198,7 @@ router.get('/manuals/:id', async (req, res) => {
       });
     }
     
-    const result = await scrapeBGGManuals(id, lang);
+    const result = await scrapeBGGManuals(id, lang, { refresh: forceRefresh });
     
     res.json(result);
     
