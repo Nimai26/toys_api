@@ -55,8 +55,8 @@ router.get('/search', validateSearchParams, async (req, res) => {
           name: product.name,
           name_original: product.name,
           description: product.description || null,
-          year: product.year || product.releaseYear || null,
-          image: product.image || product.primaryImage,
+          year: product.released || product.year || product.releaseYear || null,
+          image: product.thumb || product.image || product.primaryImage || null,
           src_url: product.url || `https://www.klickypedia.com/product/${product.productId || product.id}`,
           detailUrl: generateDetailUrl('klickypedia', product.productId || product.id, 'product')
         }));
