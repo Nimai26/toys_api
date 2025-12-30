@@ -40,6 +40,7 @@ import {
 } from '../lib/providers/transformerland.js';
 import {
   searchPaninimania as searchPaninimanaLib,
+  getPaninimanialbumDetails,
   getPaninimanialbumDetailsNormalized
 } from '../lib/providers/paninimania.js';
 
