@@ -25,6 +25,7 @@ import {
   scrapeBGGDetails,
   scrapeBGGManuals
 } from '../lib/providers/bgg-scraper.js';
+import { normalizeBGGDetail, normalizeBGGSearchItem } from '../lib/normalizers/boardgame.js';
 
 const router = express.Router();
 const log = createLogger('BGG-Scrape-Routes');
@@ -85,6 +86,7 @@ function isUrlAllowed(url) {
 /**
  * GET /bgg_scrape/search
  * Recherche de jeux de société par scraping web
+ * Retourne un format normalisé compatible avec les autres providers
  * 
  * @query {string} q - Terme de recherche (requis)
  * @query {number} max - Nombre max de résultats (défaut: 20)
@@ -99,6 +101,7 @@ router.get('/search', async (req, res) => {
     
     if (!searchQuery) {
       return res.status(400).json({
+        success: false,
         error: 'Paramètre de recherche manquant',
         hint: 'Utilisez ?q=nom_du_jeu'
       });
@@ -109,18 +112,37 @@ router.get('/search', async (req, res) => {
     const enableAutoTrad = autoTrad === '1' || autoTrad === 'true';
     const forceRefresh = refresh === '1' || refresh === 'true';
     
-    const result = await scrapeBGGSearch(searchQuery, { 
+    const rawResult = await scrapeBGGSearch(searchQuery, { 
       max: maxResults,
       lang: targetLang,
       autoTrad: enableAutoTrad,
       refresh: forceRefresh
     });
     
-    res.json(result);
+    // Normaliser chaque résultat
+    const normalizedResults = (rawResult.results || []).map(item => 
+      normalizeBGGSearchItem(item, { lang: targetLang, autoTrad: enableAutoTrad })
+    );
+    
+    // Retourner au format standardisé
+    res.json({
+      success: true,
+      provider: 'bgg',
+      query: searchQuery,
+      total: normalizedResults.length,
+      results: normalizedResults,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang: targetLang,
+        autoTrad: enableAutoTrad,
+        method: rawResult.method || 'web-scraping'
+      }
+    });
     
   } catch (error) {
     log.error(`Erreur search: ${error.message}`);
     res.status(500).json({
+      success: false,
       error: 'Erreur lors de la recherche par scraping',
       message: error.message,
       hint: 'Vérifiez que FlareSolverr est accessible via le VPN'
@@ -132,6 +154,7 @@ router.get('/search', async (req, res) => {
  * GET /bgg_scrape/details/:id
  * Détails d'un jeu par scraping web
  * Inclut automatiquement les manuels disponibles
+ * Retourne un format normalisé compatible avec les autres providers
  * 
  * @param {string} id - ID BGG du jeu
  * @query {string} lang - Langue pour la traduction et les manuels (défaut: fr)
@@ -152,25 +175,41 @@ router.get('/details/:id', async (req, res) => {
       });
     }
     
-    const result = await scrapeBGGDetails(id, {
+    const rawResult = await scrapeBGGDetails(id, {
       lang,
       autoTrad,
       includeManuals: includeManuals !== '0',
       refresh: forceRefresh
     });
     
-    if (!result || !result.name) {
+    if (!rawResult || !rawResult.name) {
       return res.status(404).json({
         error: 'Jeu non trouvé',
         bggId: id
       });
     }
     
-    res.json(result);
+    // Normaliser les données au format standardisé
+    const normalizedData = normalizeBGGDetail(rawResult, { lang, autoTrad });
+    
+    // Retourner au format standardisé comme les autres providers
+    res.json({
+      success: true,
+      provider: 'bgg',
+      id: id,
+      data: normalizedData,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad,
+        method: rawResult.method || 'web-scraping'
+      }
+    });
     
   } catch (error) {
     log.error(`Erreur details: ${error.message}`);
     res.status(500).json({
+      success: false,
       error: 'Erreur lors de la récupération des détails par scraping',
       message: error.message,
       hint: 'Vérifiez que FlareSolverr est accessible via le VPN'
