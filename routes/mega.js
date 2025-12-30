@@ -18,9 +18,9 @@ import {
   validateDetailsParams,
   generateDetailUrl,
   formatSearchResponse,
-  formatDetailResponse,
-  translateSearchDescriptions
+  formatDetailResponse
 } from '../lib/utils/index.js';
+import { translateText, extractLangCode } from '../lib/utils/translator.js';
 import { MEGA_DEFAULT_MAX, MEGA_DEFAULT_LANG } from '../lib/config.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
 
@@ -33,6 +33,45 @@ import {
 
 const router = Router();
 const log = createLogger('Route:Mega');
+
+/**
+ * Traduit uniquement les descriptions des résultats MEGA
+ * Les noms sont déjà localisés via les pages EU, on ne les re-traduit pas
+ */
+async function translateMegaDescriptions(items, autoTrad, lang) {
+  const destLang = extractLangCode(lang);
+  if (!autoTrad || !destLang || destLang === 'en') {
+    return items;
+  }
+  
+  // Limiter aux 10 premiers pour éviter les timeouts
+  const MAX_TRANSLATIONS = 10;
+  const toTranslate = items.slice(0, MAX_TRANSLATIONS);
+  const remaining = items.slice(MAX_TRANSLATIONS);
+  
+  const translatedBatch = await Promise.all(
+    toTranslate.map(async (item) => {
+      const result = { ...item };
+      
+      // Traduire uniquement la description (pas le nom qui est déjà localisé FR)
+      if (item.description) {
+        try {
+          const descResult = await translateText(item.description, destLang, { enabled: true, sourceLang: 'en' });
+          if (descResult.translated) {
+            result.description = descResult.text;
+            result.description_translated = true;
+          }
+        } catch (err) {
+          log.debug(`Erreur traduction description: ${err.message}`);
+        }
+      }
+      
+      return result;
+    })
+  );
+  
+  return [...translatedBatch, ...remaining];
+}
 
 // Cache PostgreSQL pour Mega Construx
 const megaCache = createProviderCache('mega', 'construct_toy');
@@ -54,26 +93,28 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     async () => {
       const rawResult = await searchMegaLib(q, { max, page, lang: locale });
       
-      const items = (rawResult.products || []).map(product => ({
+      // Le provider renvoie 'results', pas 'products'
+      const items = (rawResult.results || rawResult.products || []).map(product => ({
         type: 'construct_toy',
         source: 'mega',
         sourceId: product.id || product.sku,
         name: product.title || product.name,
-        name_original: product.title || product.name,
+        name_original: product.title_original || product.title || product.name,
         description: product.description || product.shortDescription || null,
         year: product.year || null,
-        image: product.image || product.primaryImage,
-        src_url: product.url || product.handle ? `https://megaconstrux.com/products/${product.handle}` : null,
+        image: product.thumbnail || product.image || product.primaryImage || (product.images?.[0]),
+        src_url: product.url || (product.handle ? `https://megaconstrux.com/products/${product.handle}` : null),
         detailUrl: generateDetailUrl('mega', product.id || product.sku, 'product')
       }));
       
-      return { results: items, total: rawResult.total || items.length };
+      return { results: items, total: rawResult.totalResults || rawResult.total || items.length };
     },
     { params: { locale, max, page }, forceRefresh: refresh }
   );
   
   // Traduire les descriptions si autoTrad est activé (après le cache)
-  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  // Les noms sont déjà localisés FR via les pages EU, on traduit uniquement les descriptions
+  const translatedResults = await translateMegaDescriptions(result.results || [], autoTrad, lang);
   
   addCacheHeaders(res, 1800, getCacheInfo());
   res.json(formatSearchResponse({
@@ -229,7 +270,8 @@ router.get("/instructions/:sku", asyncHandler(async (req, res) => {
 
 router.get("/instructions", asyncHandler(async (req, res) => {
   const category = req.query.category || '';
-  const result = await listMegaInstructions(category);
+  const site = req.query.site || 'eu'; // EU par défaut car plus complet
+  const result = await listMegaInstructions(category, site);
   addCacheHeaders(res, 21600);
   res.json(result);
 }));

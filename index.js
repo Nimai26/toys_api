@@ -84,6 +84,8 @@ import {
   comicvineRouter,
   mangadexRouter,
   bedethequeRouter,
+  bggRouter,
+  bggScrapeRouter,
   localRouter
 } from './routes/index.js';
 
@@ -257,6 +259,10 @@ app.use('/consolevariations_consoles', consolevariationsConsolesRouter);
 app.use('/consolevariations_accessories', consolevariationsAccessoriesRouter);
 app.use('/transformerland', transformerlandRouter);
 app.use('/paninimania', paninimanaRouter);
+
+// Board Games (jeux de société)
+app.use('/bgg', bggRouter);
+app.use('/bgg_scrape', bggScrapeRouter);
 
 // Local database cache (v4.0.0)
 app.use('/local', localRouter);

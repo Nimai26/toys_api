@@ -55,5 +55,9 @@ export {
   paninimanaRouter
 } from './collectibles.js';
 
+// BoardGameGeek (jeux de société)
+export { default as bggRouter } from './bgg.js';
+export { default as bggScrapeRouter } from './bgg_scrape.js';
+
 // Local database cache (v4.0.0)
 export { localRouter } from './local.js';

@@ -48,18 +48,49 @@ router.get('/search', validateSearchParams, async (req, res) => {
         const rawResult = await searchKlickypedia(q, locale, 3, max);
         
         // Transformer au format normalisé
-        const items = (rawResult.products || []).map(product => ({
-          type: 'construct_toy',
-          source: 'klickypedia',
-          sourceId: product.productId || product.id,
-          name: product.name,
-          name_original: product.name,
-          description: product.description || null,
-          year: product.released || product.year || product.releaseYear || null,
-          image: product.thumb || product.image || product.primaryImage || null,
-          src_url: product.url || `https://www.klickypedia.com/product/${product.productId || product.id}`,
-          detailUrl: generateDetailUrl('klickypedia', product.productId || product.id, 'product')
-        }));
+        const items = (rawResult.products || []).map(product => {
+          // Parser la description structurée si disponible
+          // Format: "Thème: X\nFormat: Y\nFigurines: N\nSortie: YYYY\nTags: a, b, c"
+          let theme = product.theme || null;
+          let format = product.format || null;
+          let figureCount = product.figureCount || null;
+          let year = product.released || product.year || product.releaseYear || null;
+          let tags = product.tags || [];
+          
+          if (product.description && typeof product.description === 'string') {
+            const themeMatch = product.description.match(/Thème:\s*([^\n]+)/i);
+            if (themeMatch) theme = themeMatch[1].trim();
+            
+            const formatMatch = product.description.match(/Format:\s*([^\n]+)/i);
+            if (formatMatch) format = formatMatch[1].trim();
+            
+            const figuresMatch = product.description.match(/Figurines:\s*(\d+)/i);
+            if (figuresMatch) figureCount = parseInt(figuresMatch[1]);
+            
+            const yearMatch = product.description.match(/Sortie:\s*(\d{4})/i);
+            if (yearMatch && !year) year = parseInt(yearMatch[1]);
+            
+            const tagsMatch = product.description.match(/Tags:\s*([^\n]+)/i);
+            if (tagsMatch && tags.length === 0) tags = tagsMatch[1].split(',').map(t => t.trim());
+          }
+          
+          return {
+            type: 'construct_toy',
+            source: 'klickypedia',
+            sourceId: product.productId || product.id,
+            name: product.name,
+            name_original: product.name,
+            description: null, // On n'envoie plus la description texte
+            year: year,
+            theme: theme,
+            format: format,
+            figureCount: figureCount,
+            tags: tags.length > 0 ? tags : null,
+            image: product.thumb || product.image || product.primaryImage || null,
+            src_url: product.url || `https://www.klickypedia.com/product/${product.productId || product.id}`,
+            detailUrl: generateDetailUrl('klickypedia', product.productId || product.id, 'product')
+          };
+        });
         
         return {
           results: items,

@@ -45,7 +45,8 @@ router.get('/status', asyncHandler(async (req, res) => {
       googlebooks: !!process.env.TEST_GOOGLEBOOKS_KEY,
       comicvine: !!process.env.TEST_COMICVINE_KEY,
       igdb: !!(process.env.TEST_IGDB_CLIENT_ID && process.env.TEST_IGDB_CLIENT_SECRET),
-      discogs: !!process.env.TEST_DISCOGS_KEY
+      discogs: !!process.env.TEST_DISCOGS_KEY,
+      bgg: !!process.env.TEST_BGG_TOKEN
     }
   };
   
