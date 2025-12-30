@@ -200,7 +200,7 @@ router.get("/product/:id", asyncHandler(async (req, res) => {
   
   if (!productId) return res.status(400).json({ error: "ID ou SKU manquant" });
   
-  const result = await getMegaProductByIdLib(productId, { lang: params.locale, autoTrad });
+  const result = await getMegaProductByIdNormalized(productId, { lang: params.locale, autoTrad });
   if (!result || !result.title) {
     return res.status(404).json({ error: `Produit ${productId} non trouvé` });
   }
