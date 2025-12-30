@@ -127,7 +127,7 @@ router.get('/search', async (req, res) => {
     // Retourner au format standardisé
     res.json({
       success: true,
-      provider: 'bgg',
+      provider: 'bgg_scrape',
       query: searchQuery,
       total: normalizedResults.length,
       results: normalizedResults,
@@ -195,7 +195,7 @@ router.get('/details/:id', async (req, res) => {
     // Retourner au format standardisé comme les autres providers
     res.json({
       success: true,
-      provider: 'bgg',
+      provider: 'bgg_scrape',
       id: id,
       data: normalizedData,
       meta: {
