@@ -161,11 +161,12 @@ router.get('/search', async (req, res) => {
  * @query {string} autoTrad - Active la traduction auto (1 pour activer)
  * @query {string} includeManuals - Inclure les manuels (1 par défaut, 0 pour désactiver)
  * @query {string} refresh - Force le rechargement sans cache (true pour activer)
+ * @query {string} name - Nom localisé optionnel (issu de la recherche, pour éviter le nom anglais)
  */
 router.get('/details/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { lang = 'fr', includeManuals = '1', refresh } = req.query;
+    const { lang = 'fr', includeManuals = '1', refresh, name: localizedName } = req.query;
     const autoTrad = isAutoTradEnabled(req.query);
     const forceRefresh = refresh === '1' || refresh === 'true';
     
@@ -187,6 +188,13 @@ router.get('/details/:id', async (req, res) => {
         error: 'Jeu non trouvé',
         bggId: id
       });
+    }
+    
+    // Si un nom localisé est fourni (depuis la recherche), l'utiliser
+    if (localizedName && localizedName !== rawResult.name) {
+      rawResult.nameOriginal = rawResult.name; // Garder le nom anglais
+      rawResult.name = localizedName; // Utiliser le nom localisé
+      rawResult.nameLocalized = true;
     }
     
     // Normaliser les données au format standardisé
