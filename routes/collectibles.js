@@ -671,7 +671,7 @@ paninimanaRouter.get("/album/:id", asyncHandler(async (req, res) => {
   if (!albumId) return res.status(400).json({ error: "paramètre 'id' manquant" });
   
   metrics.sources.paninimania.requests++;
-  const result = await getPaninimanialbumDetails(albumId);
+  const result = await getPaninimanialbumDetailsNormalized(albumId);
   addCacheHeaders(res, 300);
   res.json(result);
 }));
@@ -682,7 +682,7 @@ paninimanaRouter.get("/album", asyncHandler(async (req, res) => {
   if (!albumId) return res.status(400).json({ error: "paramètre 'id' ou 'url' manquant" });
   
   metrics.sources.paninimania.requests++;
-  const result = await getPaninimanialbumDetails(albumId);
+  const result = await getPaninimanialbumDetailsNormalized(albumId);
   addCacheHeaders(res, 300);
   res.json(result);
 }));
