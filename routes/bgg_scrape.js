@@ -23,7 +23,8 @@ import { createLogger } from '../lib/utils/logger.js';
 import {
   scrapeBGGSearch,
   scrapeBGGDetails,
-  scrapeBGGManuals
+  scrapeBGGManuals,
+  fsrGet
 } from '../lib/providers/bgg-scraper.js';
 import { normalizeBGGDetail, normalizeBGGSearchItem } from '../lib/normalizers/boardgame.js';
 
@@ -36,6 +37,9 @@ const SCRAPER_DEFAULT_MAX = 20;
 // Whitelist des domaines autorisés pour le proxy
 const PROXY_ALLOWED_DOMAINS = [
   'cf.geekdo-images.com',
+  'cf.geekdo-files.com',      // Fichiers téléchargés (ancien)
+  'geekdo-files.com',         // Fichiers S3
+  's3.amazonaws.com',         // S3 AWS (fichiers BGG)
   'boardgamegeek.com',
   'www.boardgamegeek.com'
 ];
@@ -265,6 +269,139 @@ router.get('/manuals/:id', async (req, res) => {
 // ============================================================================
 
 /**
+ * Vérifie si une URL BGG est une page de téléchargement (nécessite extraction)
+ * @param {string} url - URL à vérifier
+ * @returns {boolean}
+ */
+function isBGGDownloadPage(url) {
+  // Les pages /filepage/ nécessitent un scraping pour extraire le lien download_redirect
+  // Les pages /file/download/ sont l'ancien format (ne fonctionnent plus)
+  return url.includes('/filepage/') || url.includes('/file/download/');
+}
+
+/**
+ * Vérifie si la page BGG contient un bouton de login (fichier non accessible sans auth)
+ * @param {string} html - Contenu HTML de la page
+ * @returns {boolean}
+ */
+function requiresAuthentication(html) {
+  // BGG affiche "ggloginbutton" avec href="javascript://" dans le contexte du téléchargement
+  // Le pattern exact: <a ggloginbutton="" href="javascript://"> [nom du fichier]
+  // Note: il y a un espace après "//"
+  return html.includes('gg-downloadable-file') && 
+         (html.includes('ggloginbutton') && html.includes('href="javascript://'));
+}
+
+/**
+ * Extrait le lien download_redirect depuis une page filepage BGG
+ * Note: Ce lien n'existe que pour les utilisateurs connectés à BGG
+ * @param {string} url - URL de la page filepage
+ * @returns {Promise<{redirectUrl: string, filename: string, requiresAuth: boolean} | null>}
+ */
+async function extractDownloadRedirectLink(url) {
+  try {
+    log.debug(`📥 Extraction lien download_redirect via FlareSolverr: ${url}`);
+    
+    // Scraper la page filepage avec FlareSolverr (besoin de JS pour le rendu Angular)
+    const html = await fsrGet(url, 60000, { waitInSeconds: 8 });
+    
+    // Vérifier si la page demande une authentification
+    if (requiresAuthentication(html)) {
+      log.info(`🔒 Page BGG nécessite une authentification pour télécharger`);
+      
+      // Extraire le nom du fichier depuis la page quand même
+      const titleMatch = html.match(/gg-downloadable-file[^>]*>[\s\S]*?<a[^>]*>([^<]+)/i);
+      const filename = titleMatch ? titleMatch[1].trim() : null;
+      
+      return { redirectUrl: null, filename, requiresAuth: true };
+    }
+    
+    // Pattern pour extraire le lien download_redirect
+    // Format: href="/file/download_redirect/{token}/{filename}"
+    const pattern = /href="(\/file\/download_redirect\/([^"\/]+)\/([^"]+))"/i;
+    const match = html.match(pattern);
+    
+    if (match) {
+      const redirectPath = match[1];
+      const filename = decodeURIComponent(match[3].replace(/\+/g, ' '));
+      const redirectUrl = `https://boardgamegeek.com${redirectPath}`;
+      
+      log.debug(`✅ Lien download_redirect trouvé: ${redirectUrl}`);
+      return { redirectUrl, filename, requiresAuth: false };
+    }
+    
+    // Fallback: chercher d'autres patterns possibles
+    const altPattern = /download_redirect\/([^"\/\s]+)\/([^">\s]+)/i;
+    const altMatch = html.match(altPattern);
+    
+    if (altMatch) {
+      const token = altMatch[1];
+      const filename = decodeURIComponent(altMatch[2].replace(/\+/g, ' '));
+      const redirectUrl = `https://boardgamegeek.com/file/download_redirect/${token}/${encodeURIComponent(filename)}`;
+      
+      log.debug(`✅ Lien download_redirect (alt) trouvé: ${redirectUrl}`);
+      return { redirectUrl, filename, requiresAuth: false };
+    }
+    
+    log.warn(`⚠️ Aucun lien download_redirect trouvé dans la page`);
+    return null;
+    
+  } catch (error) {
+    log.error(`Erreur extraction download_redirect: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Suit la redirection download_redirect pour obtenir l'URL S3 finale
+ * @param {string} redirectUrl - URL download_redirect
+ * @returns {Promise<string | null>} - URL S3 signée
+ */
+async function followDownloadRedirect(redirectUrl) {
+  try {
+    log.debug(`🔄 Suivi redirection: ${redirectUrl}`);
+    
+    // Faire une requête HEAD pour obtenir l'URL de redirection sans télécharger
+    const response = await fetch(redirectUrl, {
+      method: 'HEAD',
+      headers: PROXY_HEADERS,
+      redirect: 'manual', // Ne pas suivre automatiquement
+      signal: AbortSignal.timeout(15000)
+    });
+    
+    // BGG redirige vers S3 avec un 302
+    if (response.status === 302 || response.status === 301) {
+      const s3Url = response.headers.get('location');
+      if (s3Url) {
+        log.debug(`✅ URL S3 obtenue: ${s3Url.substring(0, 100)}...`);
+        return s3Url;
+      }
+    }
+    
+    // Si pas de redirection, essayer GET et suivre manuellement
+    const getResponse = await fetch(redirectUrl, {
+      method: 'GET',
+      headers: PROXY_HEADERS,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15000)
+    });
+    
+    // L'URL finale après redirection
+    if (getResponse.url && getResponse.url.includes('s3.amazonaws.com')) {
+      log.debug(`✅ URL S3 (via GET): ${getResponse.url.substring(0, 100)}...`);
+      return getResponse.url;
+    }
+    
+    log.warn(`⚠️ Pas de redirection S3 trouvée (status: ${response.status})`);
+    return null;
+    
+  } catch (error) {
+    log.error(`Erreur suivi redirection: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * GET /bgg_scrape/proxy
  * Proxy pour les images et fichiers BGG (contourne l'anti-hotlinking)
  * 
@@ -272,11 +409,16 @@ router.get('/manuals/:id', async (req, res) => {
  * 
  * Domaines autorisés:
  * - cf.geekdo-images.com (images/thumbnails)
- * - boardgamegeek.com (fichiers PDF, manuels)
+ * - boardgamegeek.com (pages filepage → extraction lien S3)
+ * - s3.amazonaws.com (fichiers téléchargés)
+ * - geekdo-files.com (fichiers S3)
+ * 
+ * Note: Les URLs /filepage/ sont automatiquement traitées pour extraire
+ * le lien de téléchargement S3 réel via FlareSolverr.
  */
 router.get('/proxy', async (req, res) => {
   try {
-    const { url } = req.query;
+    let { url } = req.query;
     
     if (!url) {
       return res.status(400).json({
@@ -289,26 +431,80 @@ router.get('/proxy', async (req, res) => {
     if (!isUrlAllowed(url)) {
       return res.status(403).json({
         error: 'Domaine non autorisé',
-        hint: 'Seuls les domaines BGG sont autorisés (cf.geekdo-images.com, boardgamegeek.com)',
+        hint: 'Seuls les domaines BGG sont autorisés',
         allowedDomains: PROXY_ALLOWED_DOMAINS
       });
     }
     
     log.debug(`🔄 Proxy: ${url}`);
     
-    // Faire la requête vers BGG avec les bons headers
+    let filename = null;
+    
+    // Si c'est une page filepage, extraire le lien download_redirect puis l'URL S3
+    if (isBGGDownloadPage(url)) {
+      log.info(`📥 Page de téléchargement BGG détectée, extraction du lien...`);
+      
+      // Étape 1: Extraire le lien download_redirect depuis la page filepage
+      const downloadInfo = await extractDownloadRedirectLink(url);
+      
+      if (!downloadInfo) {
+        return res.status(502).json({
+          error: 'Impossible d\'extraire le lien de téléchargement',
+          hint: 'La page BGG ne contient pas de lien download_redirect valide',
+          originalUrl: url,
+          browserLink: url
+        });
+      }
+      
+      // Cas où BGG demande une authentification
+      if (downloadInfo.requiresAuth) {
+        log.info(`🔒 Téléchargement BGG nécessite une connexion utilisateur`);
+        return res.status(401).json({
+          error: 'Authentification BGG requise',
+          message: 'BoardGameGeek nécessite une connexion pour télécharger ce fichier.',
+          hint: 'Ouvrez le lien ci-dessous dans votre navigateur (connecté à BGG) pour télécharger manuellement.',
+          filename: downloadInfo.filename,
+          browserLink: url,
+          requiresAuth: true
+        });
+      }
+      
+      filename = downloadInfo.filename;
+      
+      // Étape 2: Suivre la redirection pour obtenir l'URL S3 signée
+      const s3Url = await followDownloadRedirect(downloadInfo.redirectUrl);
+      
+      if (!s3Url) {
+        return res.status(502).json({
+          error: 'Impossible d\'obtenir l\'URL de téléchargement S3',
+          hint: 'La redirection BGG n\'a pas retourné d\'URL S3',
+          redirectUrl: downloadInfo.redirectUrl,
+          browserLink: url
+        });
+      }
+      
+      url = s3Url;
+      log.info(`✅ URL S3 obtenue: ${url.substring(0, 80)}...`);
+    }
+    
+    // Télécharger le fichier depuis l'URL (S3 ou image directe)
     const response = await fetch(url, {
       method: 'GET',
-      headers: PROXY_HEADERS,
-      signal: AbortSignal.timeout(30000)
+      headers: {
+        ...PROXY_HEADERS,
+        // S3 n'aime pas certains headers
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate'
+      },
+      signal: AbortSignal.timeout(60000),
+      redirect: 'follow'
     });
     
     if (!response.ok) {
-      log.warn(`Proxy: BGG a retourné ${response.status} pour ${url}`);
+      log.warn(`Proxy: Serveur a retourné ${response.status} pour ${url.substring(0, 80)}`);
       return res.status(response.status).json({
-        error: `Erreur BGG: ${response.status} ${response.statusText}`,
-        url,
-        hint: 'L\'URL peut être expirée ou malformée. Récupérez une URL fraîche depuis /bgg_scrape/search ou /bgg_scrape/details'
+        error: `Erreur serveur: ${response.status} ${response.statusText}`,
+        hint: 'L\'URL peut être expirée. Les URLs S3 BGG expirent après 2 minutes.'
       });
     }
     
@@ -318,19 +514,27 @@ router.get('/proxy', async (req, res) => {
     const cacheControl = response.headers.get('cache-control');
     const lastModified = response.headers.get('last-modified');
     const etag = response.headers.get('etag');
+    const contentDisposition = response.headers.get('content-disposition');
     
     if (contentType) res.setHeader('Content-Type', contentType);
     if (contentLength) res.setHeader('Content-Length', contentLength);
     if (cacheControl) {
       res.setHeader('Cache-Control', cacheControl);
     } else {
-      // Cache par défaut pour les images (1 jour)
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      // Cache court pour les fichiers (les URLs S3 expirent)
+      res.setHeader('Cache-Control', 'public, max-age=3600');
     }
     if (lastModified) res.setHeader('Last-Modified', lastModified);
     if (etag) res.setHeader('ETag', etag);
     
-    // CORS pour permettre l'accès depuis n'importe où
+    // Content-Disposition pour le téléchargement
+    if (contentDisposition) {
+      res.setHeader('Content-Disposition', contentDisposition);
+    } else if (filename) {
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    }
+    
+    // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     
     // Stream le body vers le client
@@ -358,7 +562,7 @@ router.get('/proxy', async (req, res) => {
     if (error.message === 'Timeout' || error.message.includes('timeout')) {
       return res.status(504).json({
         error: 'Timeout lors de la récupération du fichier',
-        message: 'BGG n\'a pas répondu dans les 30 secondes'
+        message: 'Le serveur n\'a pas répondu dans les 60 secondes'
       });
     }
     

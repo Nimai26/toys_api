@@ -80,8 +80,9 @@ colekaRouter.get("/search", validateSearchParams, asyncHandler(async (req, res) 
         category: item.category,
         collection: item.collection,
         // Utiliser le path complet pour avoir toutes les catégories dans l'URL
-        detailUrl: item.path ? generateDetailUrl('coleka', encodeURIComponent(item.path), 'item') 
-                            : generateDetailUrl('coleka', encodeURIComponent(item.url || item.id), 'item')
+        // Note: generateDetailUrl encode déjà, ne pas double-encoder
+        detailUrl: item.path ? generateDetailUrl('coleka', item.path, 'item') 
+                            : generateDetailUrl('coleka', item.url || item.id, 'item')
       }));
       
       return { results: items, total: rawResult.total || items.length };
@@ -150,7 +151,8 @@ luluberluRouter.get("/search", validateSearchParams, asyncHandler(async (req, re
         price: item.price,
         url: item.url,
         // Lulu-Berlu nécessite l'URL complète pour le scraping, pas juste l'ID numérique
-        detailUrl: item.url ? generateDetailUrl('luluberlu', encodeURIComponent(item.url), 'item') : null
+        // Note: generateDetailUrl encode déjà, ne pas double-encoder
+        detailUrl: item.url ? generateDetailUrl('luluberlu', item.url, 'item') : null
       }));
       
       return { results: items, total: rawResult.total || items.length };
