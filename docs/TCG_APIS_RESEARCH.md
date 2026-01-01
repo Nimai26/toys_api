@@ -11,7 +11,7 @@
 2. [Pokémon TCG](#pokémon-tcg)
 3. [Magic: The Gathering (Scryfall)](#magic-the-gathering-scryfall)
 4. [Yu-Gi-Oh! (YGOPRODeck)](#yu-gi-oh-ygoprodeck)
-5. [Disney Lorcana](#disney-lorcana)
+4. [Disney Lorcana](#disney-lorcana) ✅ **IMPLÉMENTÉ**
 6. [Digimon TCG](#digimon-tcg)
 7. [One Piece Card Game](#one-piece-card-game) ✅ **IMPLÉMENTÉ**
 8. [Carddass Japonais (Bandai)](#-carddass-japonais-bandai) ⚠️ [Recherche approfondie](./CARDDASS_RESEARCH.md)
@@ -361,22 +361,62 @@ GET /cardinfo.php?language=de&num=5&offset=0&sort=new        # Allemand
 
 ## Disney Lorcana
 
-### Option 1 : Lorcana-API.com (REST API)
+### ✅ État actuel : **IMPLÉMENTÉ** (1er janvier 2026)
+
+### Source de données
+- **API JSON** : https://lorcanajson.org/files/current/{lang}/allCards.json
+- **GitHub** : https://github.com/LorcanaJSON/LorcanaJSON
+- **Format** : JSON statique téléchargeable
+- **Cartes disponibles** : 2455 cartes (EN), 2394 (FR/DE), 1999 (IT)
+- **Langues** : EN, FR, DE, IT (traductions officielles Disney/Ravensburger)
+
+### Implémentation toys_api
+- **Provider** : `lib/providers/tcg/lorcana.js`
+- **Routes** : `/tcg_lorcana/search`, `/tcg_lorcana/card`, `/tcg_lorcana/details`, `/tcg_lorcana/sets`
+- **Normalizers** : `normalizeLorcanaSearch()`, `normalizeLorcanaCard()`, `normalizeLorcanaSets()`
+- **Cache** : 1h par langue (en mémoire)
+- **Architecture** : Download JSON → cache client-side → filtrage local
+
+### Endpoints disponibles
+```bash
+GET /tcg_lorcana/search?q=Ariel&lang=fr&max=10&color=Amber&type=Character
+GET /tcg_lorcana/card?id=1&lang=fr
+GET /tcg_lorcana/details?id=FAB-015&lang=de
+GET /tcg_lorcana/sets?lang=it
+```
+
+### Fonctionnalités
+- ✅ Recherche multi-langues natives (EN, FR, DE, IT)
+- ✅ Traductions officielles Disney/Ravensburger (pas d'auto-traduction)
+- ✅ Images HD officielles (api.lorcana.ravensburger.com)
+- ✅ Liens externes (TCGPlayer, Cardmarket, CardTrader)
+- ✅ Formats de jeu (Core, Infinity)
+- ✅ 31 champs de données (abilities, externalLinks, allowedInFormats, etc.)
+- ✅ 14 sets disponibles
+- ✅ Cache 1h par langue
+
+### Migration depuis lorcana-api.com
+**Date** : 1er janvier 2026  
+**Raison** : Source supérieure découverte
+
+| Métrique | Avant (lorcana-api.com) | Après (LorcanaJSON) | Gain |
+|----------|------------------------|---------------------|------|
+| Cartes totales | 2041 | 2455 | +20% |
+| Langues | EN uniquement | EN/FR/DE/IT | x4 |
+| Traductions | Auto (API externe) | Natives officielles | 100% |
+| Champs | 23 | 31 | +35% |
+| Liens externes | ❌ | ✅ TCGPlayer + Cardmarket | ✨ |
+
+### Option historique : Lorcana-API.com (REST API) ⚠️ OBSOLÈTE
 
 - **Site** : https://lorcana-api.com/
 - **Documentation** : https://lorcana-api.com/docs/intro
 - **GitHub** : https://github.com/Dogloverblue/Lorcana-API
 - **Type** : API REST (Java)
 - **Format** : JSON
-- **Authentification** : Aucune
+- **Statut** : ⚠️ Remplacé par LorcanaJSON (meilleure source)
 
-#### Caractéristiques
-- ✅ Open source
-- ✅ Gratuit, sans compte
-- ✅ Auto-hébergeable
-- ❌ Documentation limitée
-
-### Option 2 : LorcanaJSON (JSON statique) ⭐ RECOMMANDÉ
+### LorcanaJSON (Source actuelle) ⭐ IMPLÉMENTÉ
 
 - **Site** : https://lorcanajson.org/
 - **GitHub** : https://github.com/LorcanaJSON/LorcanaJSON
@@ -710,8 +750,11 @@ L'API TCGPlayer nécessite un **partenariat commercial**.
    - Endpoints : `/tcg_yugioh/search`, `/tcg_yugioh/card`, `/tcg_yugioh/sets`
    - Support français natif
 
-4. ✅ **Disney Lorcana** - LorcanaJSON (IMPLÉMENTÉ)
-   - JSON statique téléchargeable
+4. ✅ **Disney Lorcana** - LorcanaJSON (IMPLÉMENTÉ - 1er janvier 2026)
+   - Endpoints : `/tcg_lorcana/search`, `/tcg_lorcana/card`, `/tcg_lorcana/sets`
+   - JSON statique multi-langues (EN/FR/DE/IT)
+   - 2455 cartes, traductions officielles Disney/Ravensburger
+   - Cache 1h par langue
    
 5. ✅ **Digimon TCG** - digimoncard.io (IMPLÉMENTÉ)
    - API REST simple
@@ -809,4 +852,4 @@ const normalizedCard = {
 
 ---
 
-*Document généré le 30 décembre 2025 - À mettre à jour lors des implémentations*
+*Document généré le 30 décembre 2025 - Dernière mise à jour : 1er janvier 2026 (Migration Lorcana vers LorcanaJSON)*

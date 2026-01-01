@@ -17,7 +17,7 @@ const router = express.Router();
 
 /**
  * GET /tcg_lorcana/search
- * Rechercher des cartes Disney Lorcana
+ * Rechercher des cartes Disney Lorcana (LorcanaJSON)
  * 
  * Query params:
  * - q: Nom de carte à chercher
@@ -29,8 +29,7 @@ const router = express.Router();
  * - inkable: Filtre par inkable (true/false)
  * - max: Nombre max de résultats (défaut 20)
  * - page: Page (défaut 1)
- * - lang: Langue (défaut 'en')
- * - autoTrad: Traduire automatiquement (défaut false)
+ * - lang: Langue (en, fr, de, it - défaut 'en')
  */
 router.get('/search', async (req, res) => {
   try {
@@ -46,8 +45,7 @@ router.get('/search', async (req, res) => {
       inkable,
       max = 20,
       page = 1,
-      lang = 'en',
-      autoTrad = false
+      lang = 'en'
     } = req.query;
     
     if (!q) {
@@ -57,6 +55,7 @@ router.get('/search', async (req, res) => {
     }
     
     const options = {
+      lang,
       color,
       type,
       rarity,
@@ -68,10 +67,7 @@ router.get('/search', async (req, res) => {
     };
     
     const rawData = await searchLorcanaCards(q, options);
-    const normalized = await normalizeLorcanaSearch(rawData.data, {
-      lang,
-      autoTrad: autoTrad === 'true'
-    });
+    const normalized = await normalizeLorcanaSearch(rawData, { lang });
     
     res.json(normalized);
   } catch (error) {
@@ -83,13 +79,12 @@ router.get('/search', async (req, res) => {
 
 /**
  * GET /tcg_lorcana/card
- * Récupérer une carte Lorcana par nom exact ou ID
+ * Récupérer une carte Lorcana par nom exact ou ID (LorcanaJSON)
  * 
  * Query params:
  * - name: Nom exact de la carte
  * - id: ID unique de la carte
- * - lang: Langue (défaut 'en')
- * - autoTrad: Traduire automatiquement (défaut false)
+ * - lang: Langue (en, fr, de, it - défaut 'en')
  */
 router.get('/card', async (req, res) => {
   try {
@@ -98,8 +93,7 @@ router.get('/card', async (req, res) => {
     const {
       name,
       id,
-      lang = 'en',
-      autoTrad = false
+      lang = 'en'
     } = req.query;
     
     if (!name && !id) {
@@ -110,10 +104,9 @@ router.get('/card', async (req, res) => {
     
     let rawCard;
     if (id) {
-      rawCard = await getLorcanaCardDetails(id);
+      rawCard = await getLorcanaCardDetails(id, { lang });
     } else {
-      const results = await getLorcanaCardByName(name);
-      rawCard = results && results.length > 0 ? results[0] : null;
+      rawCard = await getLorcanaCardByName(name, { lang });
     }
     
     if (!rawCard) {
@@ -122,12 +115,9 @@ router.get('/card', async (req, res) => {
       });
     }
     
-    const normalized = await normalizeLorcanaCard(rawCard, {
-      lang,
-      autoTrad: autoTrad === 'true'
-    });
+    const normalized = await normalizeLorcanaCard(rawCard, { lang });
     
-    res.json(normalized);
+    res.json({ data: normalized });
   } catch (error) {
     metrics.sources.lorcana.errors++;
     logger.error('Erreur lors de la récupération de la carte Lorcana:', error);
@@ -137,12 +127,11 @@ router.get('/card', async (req, res) => {
 
 /**
  * GET /tcg_lorcana/details
- * Alias pour /card avec ID uniquement
+ * Alias pour /card avec ID uniquement (LorcanaJSON)
  * 
  * Query params:
  * - id: ID unique de la carte
- * - lang: Langue (défaut 'en')
- * - autoTrad: Traduire automatiquement (défaut false)
+ * - lang: Langue (en, fr, de, it - défaut 'en')
  */
 router.get('/details', async (req, res) => {
   try {
@@ -150,8 +139,7 @@ router.get('/details', async (req, res) => {
     
     const {
       id,
-      lang = 'en',
-      autoTrad = false
+      lang = 'en'
     } = req.query;
     
     if (!id) {
@@ -160,7 +148,7 @@ router.get('/details', async (req, res) => {
       });
     }
     
-    const rawCard = await getLorcanaCardDetails(id);
+    const rawCard = await getLorcanaCardDetails(id, { lang });
     
     if (!rawCard) {
       return res.status(404).json({
@@ -168,12 +156,9 @@ router.get('/details', async (req, res) => {
       });
     }
     
-    const normalized = await normalizeLorcanaCard(rawCard, {
-      lang,
-      autoTrad: autoTrad === 'true'
-    });
+    const normalized = await normalizeLorcanaCard(rawCard, { lang });
     
-    res.json(normalized);
+    res.json({ data: normalized });
   } catch (error) {
     metrics.sources.lorcana.errors++;
     logger.error('Erreur lors de la récupération des détails Lorcana:', error);
@@ -183,13 +168,18 @@ router.get('/details', async (req, res) => {
 
 /**
  * GET /tcg_lorcana/sets
- * Lister tous les sets Lorcana
+ * Lister tous les sets Lorcana (LorcanaJSON)
+ * 
+ * Query params:
+ * - lang: Langue (en, fr, de, it - défaut 'en')
  */
 router.get('/sets', async (req, res) => {
   try {
     metrics.sources.lorcana.requests++;
     
-    const rawSets = await getLorcanaSets();
+    const { lang = 'en' } = req.query;
+    
+    const rawSets = await getLorcanaSets({ lang });
     const normalized = normalizeLorcanaSets(rawSets);
     
     res.json(normalized);
