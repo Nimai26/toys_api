@@ -66,6 +66,7 @@ export { default as tcgYugiohRouter } from './tcg_yugioh.js';
 export { default as tcgLorcanaRouter } from './tcg_lorcana.js';
 export { default as tcgDigimonRouter } from './tcg_digimon.js';
 export { default as tcgOnePieceRouter } from './tcg_onepiece.js';
+export { default as tcgCarddassRouter } from './tcg_carddass.js';
 
 // Local database cache (v4.0.0)
 export { localRouter } from './local.js';

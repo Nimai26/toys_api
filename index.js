@@ -92,7 +92,8 @@ import {
   tcgYugiohRouter,
   tcgLorcanaRouter,
   tcgDigimonRouter,
-  tcgOnePieceRouter
+  tcgOnePieceRouter,
+  tcgCarddassRouter
 } from './routes/index.js';
 
 // Import du monitoring
@@ -236,6 +237,7 @@ app.use('/tcg_yugioh', tcgYugiohRouter);
 app.use('/tcg_lorcana', tcgLorcanaRouter);
 app.use('/tcg_digimon', tcgDigimonRouter);
 app.use('/tcg_onepiece', tcgOnePieceRouter);
+app.use('/tcg_carddass', tcgCarddassRouter);
 
 // Jeux vidéo
 app.use('/rawg', rawgRouter);

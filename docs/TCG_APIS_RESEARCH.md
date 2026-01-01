@@ -13,8 +13,8 @@
 4. [Yu-Gi-Oh! (YGOPRODeck)](#yu-gi-oh-ygoprodeck)
 5. [Disney Lorcana](#disney-lorcana)
 6. [Digimon TCG](#digimon-tcg)
-7. [One Piece Card Game](#one-piece-card-game)
-8. [Carddass Japonais (Bandai)](#-carddass-japonais-bandai)
+7. [One Piece Card Game](#one-piece-card-game) ✅ **IMPLÉMENTÉ**
+8. [Carddass Japonais (Bandai)](#-carddass-japonais-bandai) ⚠️ [Recherche approfondie](./CARDDASS_RESEARCH.md)
 9. [Autres TCG Bandai](#autres-tcg-bandai)
 10. [TCGPlayer (Marketplace multi-TCG)](#tcgplayer-marketplace-multi-tcg)
 11. [Plan d'implémentation](#-plan-dimplémentation)
@@ -31,6 +31,7 @@
 | **Disney Lorcana** | lorcana-api.com | Non | Non spécifié | EN | ⭐⭐⭐⭐ |
 | **Disney Lorcana** | lorcanajson.org | Non (JSON statique) | N/A | EN, FR, DE, IT | ⭐⭐⭐⭐⭐ |
 | **Digimon** | digimoncard.io | Non | 20 req/s | EN | ⭐⭐⭐⭐ |
+| **One Piece** ✅ | onepiece-cardgame.dev | Non (JSON statique) | N/A | EN | ⭐⭐⭐⭐⭐ |
 
 ---
 
@@ -505,25 +506,49 @@ sortdirection - Direction (asc, desc)
 
 ## One Piece Card Game
 
-### État actuel
-**❌ Pas d'API officielle connue**
+### ✅ État actuel : **IMPLÉMENTÉ** (1er janvier 2026)
 
-### Ressources communautaires
-- **Site communautaire** : https://www.onepiece-cardgame.dev/
-- **Discord** : https://discord.gg/pgzSYPZEHD
+### Source de données
+- **API JSON** : https://onepiece-cardgame.dev/cards.json
+- **Format** : JSON statique téléchargeable
+- **Cartes disponibles** : 1719 cartes
+- **Metadata** : types, colors, rarities, sets, attributes
 
-### Options d'intégration
-1. **Scraping** du site onepiece-cardgame.dev (non recommandé, ToS)
-2. **Attendre** une API officielle Bandai
-3. **Cardmarket API** pour les prix (si disponible)
+### Implémentation toys_api
+- **Provider** : `lib/providers/tcg/onepiece.js`
+- **Routes** : `/tcg_onepiece/search`, `/tcg_onepiece/card`, `/tcg_onepiece/details`, `/tcg_onepiece/health`
+- **Normalizers** : `normalizeOnePieceSearch()`, `normalizeOnePieceCard()`
+- **Infrastructure** : Gluetun VPN (IP française) + circuit breaker
+- **Cache** : 30 min (cardlist), 1h (détails)
 
-### Données Bandai officielles
-- **Site officiel** : https://www.onepiece-cardgame.com/
-- **Pas d'API publique exposée**
+### Endpoints disponibles
+```bash
+GET /tcg_onepiece/search?q=Luffy&max=10&type=leader&color=Red
+GET /tcg_onepiece/card?id=OP01-047
+GET /tcg_onepiece/details?id=ST01-001
+GET /tcg_onepiece/health
+```
+
+### Fonctionnalités
+- ✅ Recherche avec filtres (type, color, rarity, set, cost, power, trait, attribute)
+- ✅ Images HD (onepiece-cardgame.dev CDN)
+- ✅ Metadata enrichies (types, colors, attributes mapping)
+- ✅ Circuit breaker (3 échecs → 15 min cooldown)
+- ✅ Support traduction via `autoTrad=true`
+- ✅ VPN check (Gluetun API)
+
+### Ressources
+- **Site officiel** : https://www.onepiece-cardgame.com/ (pas d'API)
+- **Discord communautaire** : https://discord.gg/pgzSYPZEHD
 
 ---
 
 ## 🎴 Carddass Japonais (Bandai)
+
+> ✅ **Source découverte** : http://www.animecollection.fr/ (30 178 cartes référencées)  
+> 📋 **Stratégie complète** : [CARDDASS_IMPLEMENTATION_STRATEGY.md](./CARDDASS_IMPLEMENTATION_STRATEGY.md)  
+> ⚠️ **Recherche initiale** : [CARDDASS_RESEARCH.md](./CARDDASS_RESEARCH.md)  
+> **Conclusion** : Implémentation VIABLE via scraping HTML (4-8h estimées)
 
 ### Qu'est-ce que les Carddass ?
 Les **Carddass** (カードダス) sont des cartes à collectionner produites par Bandai depuis 1988, distribuées via des distributeurs automatiques au Japon.
@@ -671,43 +696,42 @@ L'API TCGPlayer nécessite un **partenariat commercial**.
 
 ## 📈 Plan d'implémentation
 
-### Phase 1 : APIs stables (Priorité haute)
-1. **Pokémon TCG** - pokemontcg.io
-   - Endpoints : `/pokemon-tcg/search`, `/pokemon-tcg/card`, `/pokemon-tcg/sets`
+### Phase 1 : APIs stables (Priorité haute) ✅ COMPLÈTE
+
+1. ✅ **Pokémon TCG** - pokemontcg.io (IMPLÉMENTÉ)
+   - Endpoints : `/tcg_pokemon/search`, `/tcg_pokemon/card`, `/tcg_pokemon/sets`
    - Clé API optionnelle
-   - Estimation : 2-3 heures
 
-2. **Magic: The Gathering** - Scryfall
-   - Endpoints : `/mtg/search`, `/mtg/card`, `/mtg/sets`
+2. ✅ **Magic: The Gathering** - Scryfall (IMPLÉMENTÉ)
+   - Endpoints : `/tcg_mtg/search`, `/tcg_mtg/card`, `/tcg_mtg/sets`
    - Pas de clé API
-   - Estimation : 2-3 heures
 
-3. **Yu-Gi-Oh!** - YGOPRODeck
-   - Endpoints : `/yugioh/search`, `/yugioh/card`, `/yugioh/sets`
-   - Pas de clé API
+3. ✅ **Yu-Gi-Oh!** - YGOPRODeck (IMPLÉMENTÉ)
+   - Endpoints : `/tcg_yugioh/search`, `/tcg_yugioh/card`, `/tcg_yugioh/sets`
    - Support français natif
-   - Estimation : 2-3 heures
 
-### Phase 2 : APIs secondaires (Priorité moyenne)
-4. **Disney Lorcana** - LorcanaJSON
-   - Télécharger JSON et servir localement
-   - Ou proxy vers lorcanajson.org
-   - Estimation : 1-2 heures
+4. ✅ **Disney Lorcana** - LorcanaJSON (IMPLÉMENTÉ)
+   - JSON statique téléchargeable
+   
+5. ✅ **Digimon TCG** - digimoncard.io (IMPLÉMENTÉ)
+   - API REST simple
+   
+6. ✅ **One Piece TCG** - onepiece-cardgame.dev (IMPLÉMENTÉ - 1er janvier 2026)
+   - JSON statique (1719 cartes)
+   - Infrastructure VPN + circuit breaker
 
-5. **Digimon TCG** - digimoncard.io
-   - API limitée, enrichir via scraping si besoin
-   - Estimation : 2-3 heures
+### Phase 2 : Carddass et TCG Bandai vintage (Prêt à implémenter)
+1. **Carddass japonais vintage (DBZ, Sailor Moon, etc.)** ✅
+   - ✅ [Source découverte](http://www.animecollection.fr/) : 30 178 cartes référencées
+   - 📋 [Stratégie d'implémentation complète](./CARDDASS_IMPLEMENTATION_STRATEGY.md)
+   - **Approche** : Scraping HTML avec cheerio + circuit breaker + VPN
+   - **Estimation** : 4-8 heures (vs 50-100h sans source de données)
+   - **Source** : animecollection.fr (base française complète et maintenue)
+   - **Note** : Contact webmaster recommandé avant implémentation
 
-### Phase 3 : Carddass et TCG Bandai (Priorité basse - R&D)
-6. **Carddass japonais**
-   - Recherche approfondie de sources
-   - Scraping si nécessaire
-   - Création base de données manuelle possible
-   - Estimation : 5-10 heures (R&D)
-
-7. **One Piece / Union Arena / etc.**
+2. **Union Arena / Dragon Ball Super Card Game (Fusion World)**
    - Dépend des APIs futures Bandai
-   - Scraping comme fallback
+   - Surveillance des communautés pour émergence d'APIs type onepiece-cardgame.dev
 
 ---
 

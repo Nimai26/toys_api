@@ -5,7 +5,7 @@
 import express from 'express';
 import { asyncHandler } from '../lib/utils/index.js';
 import { createLogger } from '../lib/utils/logger.js';
-import { updateMetrics } from '../lib/utils/metrics.js';
+import { metrics } from '../lib/utils/state.js';
 import {
   getAllOnePieceCards,
   searchOnePieceCards,
@@ -109,8 +109,8 @@ router.get('/search', asyncHandler(async (req, res) => {
 
     // Métriques
     const duration = Date.now() - startTime;
-    updateMetrics('sources.onepiece.requests', 1);
-    updateMetrics('sources.onepiece.latency', duration);
+    metrics.sources.onepiece.requests++;
+    metrics.sources.onepiece.latency = duration;
 
     log.info(`✅ ${normalized.count} résultats trouvés sur ${results.length} (${duration}ms)`);
 
@@ -123,7 +123,7 @@ router.get('/search', asyncHandler(async (req, res) => {
 
   } catch (error) {
     log.error(`❌ Erreur recherche: ${error.message}`);
-    updateMetrics('sources.onepiece.errors', 1);
+    metrics.sources.onepiece.errors++;
     
     res.status(error.message.includes('VPN') ? 503 : 500).json({
       error: error.message.includes('VPN') ? 'Service Unavailable' : 'Internal Server Error',
@@ -190,8 +190,8 @@ router.get('/card', asyncHandler(async (req, res) => {
 
     // Métriques
     const duration = Date.now() - startTime;
-    updateMetrics('sources.onepiece.requests', 1);
-    updateMetrics('sources.onepiece.latency', duration);
+    metrics.sources.onepiece.requests++;
+    metrics.sources.onepiece.latency = duration;
 
     log.info(`✅ Carte trouvée: ${card.n} (${duration}ms)`);
 
@@ -202,7 +202,7 @@ router.get('/card', asyncHandler(async (req, res) => {
 
   } catch (error) {
     log.error(`❌ Erreur carte: ${error.message}`);
-    updateMetrics('sources.onepiece.errors', 1);
+    metrics.sources.onepiece.errors++;
     
     res.status(error.message.includes('VPN') ? 503 : 500).json({
       error: error.message.includes('VPN') ? 'Service Unavailable' : 'Internal Server Error',
@@ -251,8 +251,8 @@ router.get('/details', asyncHandler(async (req, res) => {
 
     // Métriques
     const duration = Date.now() - startTime;
-    updateMetrics('sources.onepiece.requests', 1);
-    updateMetrics('sources.onepiece.latency', duration);
+    metrics.sources.onepiece.requests++;
+    metrics.sources.onepiece.latency = duration;
 
     log.info(`✅ Détails récupérés: ${card.n} (${duration}ms)`);
 
@@ -263,7 +263,7 @@ router.get('/details', asyncHandler(async (req, res) => {
 
   } catch (error) {
     log.error(`❌ Erreur détails: ${error.message}`);
-    updateMetrics('sources.onepiece.errors', 1);
+    metrics.sources.onepiece.errors++;
     
     res.status(error.message.includes('VPN') ? 503 : 500).json({
       error: error.message.includes('VPN') ? 'Service Unavailable' : 'Internal Server Error',
