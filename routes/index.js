@@ -59,5 +59,13 @@ export {
 export { default as bggRouter } from './bgg.js';
 export { default as bggScrapeRouter } from './bgg_scrape.js';
 
+// Trading Card Games (TCG)
+export { default as tcgPokemonRouter } from './tcg_pokemon.js';
+export { default as tcgMtgRouter } from './tcg_mtg.js';
+export { default as tcgYugiohRouter } from './tcg_yugioh.js';
+export { default as tcgLorcanaRouter } from './tcg_lorcana.js';
+export { default as tcgDigimonRouter } from './tcg_digimon.js';
+export { default as tcgOnePieceRouter } from './tcg_onepiece.js';
+
 // Local database cache (v4.0.0)
 export { localRouter } from './local.js';

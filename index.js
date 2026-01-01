@@ -86,7 +86,13 @@ import {
   bedethequeRouter,
   bggRouter,
   bggScrapeRouter,
-  localRouter
+  localRouter,
+  tcgPokemonRouter,
+  tcgMtgRouter,
+  tcgYugiohRouter,
+  tcgLorcanaRouter,
+  tcgDigimonRouter,
+  tcgOnePieceRouter
 } from './routes/index.js';
 
 // Import du monitoring
@@ -222,6 +228,14 @@ app.use('/music', musicRouter);
 // Livres
 app.use('/googlebooks', googleBooksRouter);
 app.use('/openlibrary', openLibraryRouter);
+
+// Trading Card Games (TCG)
+app.use('/tcg_pokemon', tcgPokemonRouter);
+app.use('/tcg_mtg', tcgMtgRouter);
+app.use('/tcg_yugioh', tcgYugiohRouter);
+app.use('/tcg_lorcana', tcgLorcanaRouter);
+app.use('/tcg_digimon', tcgDigimonRouter);
+app.use('/tcg_onepiece', tcgOnePieceRouter);
 
 // Jeux vidéo
 app.use('/rawg', rawgRouter);
