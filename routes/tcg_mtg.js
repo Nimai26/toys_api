@@ -88,7 +88,9 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
     refresh = false
   } = req.query;
   
-  logger.info(`[MTG Route] Search request: q=${q}, lang=${lang}, max=${max}`);
+  const forceRefresh = refresh === 'true' || refresh === true;
+  
+  logger.info(`[MTG Route] Search request: q=${q}, lang=${lang}, max=${max}, refresh=${forceRefresh}`);
   
   try {
     // Options de recherche
@@ -97,7 +99,9 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
       max: parseInt(max),
       order,
       unique,
-      dir
+      dir,
+      getCached: forceRefresh ? null : req.getCached,
+      setCache: forceRefresh ? null : req.setCache
     };
     
     // Recherche
@@ -149,10 +153,16 @@ router.get('/card', asyncHandler(async (req, res) => {
     });
   }
   
-  logger.info(`[MTG Route] Card request: id=${id}, lang=${lang}`);
+  const forceRefresh = refresh === 'true' || refresh === true;
+  
+  logger.info(`[MTG Route] Card request: id=${id}, lang=${lang}, refresh=${forceRefresh}`);
   
   try {
-    const rawCard = await getMTGCardDetails(id, { lang });
+    const rawCard = await getMTGCardDetails(id, { 
+      lang,
+      getCached: forceRefresh ? null : req.getCached,
+      setCache: forceRefresh ? null : req.setCache
+    });
     const normalized = await normalizeMTGCard(rawCard, { lang, autoTrad: false });
     
     res.json({
@@ -194,11 +204,16 @@ router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
   }
   
   const cardId = idMatch[1];
+  const forceRefresh = refresh === 'true' || refresh === true;
   
-  logger.info(`[MTG Route] Details request: id=${cardId}, lang=${lang}`);
+  logger.info(`[MTG Route] Details request: id=${cardId}, lang=${lang}, refresh=${forceRefresh}`);
   
   try {
-    const rawCard = await getMTGCardDetails(cardId, { lang });
+    const rawCard = await getMTGCardDetails(cardId, { 
+      lang,
+      getCached: forceRefresh ? null : req.getCached,
+      setCache: forceRefresh ? null : req.setCache
+    });
     const normalized = await normalizeMTGCard(rawCard, {
       lang,
       autoTrad: autoTrad === 'true'

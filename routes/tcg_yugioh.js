@@ -94,10 +94,13 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
     max = 20,
     sort = 'name',
     lang = 'en',
-    autoTrad = false
+    autoTrad = false,
+    refresh = false
   } = req.query;
   
-  logger.info(`[Yu-Gi-Oh! Route] Search request: q=${q}, max=${max}, lang=${lang}`);
+  const forceRefresh = refresh === 'true' || refresh === true;
+  
+  logger.info(`[Yu-Gi-Oh! Route] Search request: q=${q}, max=${max}, lang=${lang}, refresh=${forceRefresh}`);
   
   try {
     // Options de recherche
@@ -110,8 +113,8 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
       max: parseInt(max),
       sort,
       lang,
-      getCached: req.getCached,
-      setCache: req.setCache
+      getCached: forceRefresh ? null : req.getCached,
+      setCache: forceRefresh ? null : req.setCache
     };
     
     // Recherche
@@ -146,7 +149,7 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
  * Détails d'une carte par ID
  */
 router.get('/card', asyncHandler(async (req, res) => {
-  const { id, lang = 'en' } = req.query;
+  const { id, lang = 'en', refresh = false } = req.query;
   
   if (!id) {
     return res.status(400).json({
@@ -156,18 +159,21 @@ router.get('/card', asyncHandler(async (req, res) => {
       provider: 'tcg_yugioh',
       params: [
         "id (requis) - ID de la carte",
-        "lang (optionnel) - Langue (en, fr, de, it, pt)"
+        "lang (optionnel) - Langue (en, fr, de, it, pt)",
+        "refresh (optionnel) - Bypass le cache (true/false)"
       ]
     });
   }
   
-  logger.info(`[Yu-Gi-Oh! Route] Card request: id=${id}, lang=${lang}`);
+  const forceRefresh = refresh === 'true' || refresh === true;
+  
+  logger.info(`[Yu-Gi-Oh! Route] Card request: id=${id}, lang=${lang}, refresh=${forceRefresh}`);
   
   try {
     const rawCard = await getYuGiOhCardDetails(id, {
       lang,
-      getCached: req.getCached,
-      setCache: req.setCache
+      getCached: forceRefresh ? null : req.getCached,
+      setCache: forceRefresh ? null : req.setCache
     });
     const normalized = await normalizeYuGiOhCard(rawCard);
     
@@ -196,7 +202,7 @@ router.get('/card', asyncHandler(async (req, res) => {
  * Détails normalisés d'une carte via detailUrl
  */
 router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
-  const { detailUrl, autoTrad = false } = req.query;
+  const { detailUrl, autoTrad = false, refresh = false } = req.query;
   
   // Extraire l'ID et le lang depuis le detailUrl
   const idMatch = detailUrl.match(/id=([^&]+)/);
@@ -213,14 +219,15 @@ router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
   
   const cardId = idMatch[1].trim();
   const lang = langMatch ? langMatch[1].trim() : 'en';
+  const forceRefresh = refresh === 'true' || refresh === true;
   
-  logger.info(`[Yu-Gi-Oh! Route] Details request: id=${cardId}, lang=${lang}`);
+  logger.info(`[Yu-Gi-Oh! Route] Details request: id=${cardId}, lang=${lang}, refresh=${forceRefresh}`);
   
   try {
     const rawCard = await getYuGiOhCardDetails(cardId, {
       lang,
-      getCached: req.getCached,
-      setCache: req.setCache
+      getCached: forceRefresh ? null : req.getCached,
+      setCache: forceRefresh ? null : req.setCache
     });
     const normalized = await normalizeYuGiOhCard(rawCard, {
       lang,

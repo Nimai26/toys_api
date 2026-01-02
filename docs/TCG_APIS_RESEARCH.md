@@ -744,14 +744,18 @@ L'API TCGPlayer nécessite un **partenariat commercial**.
 1. ✅ **Pokémon TCG** - pokemontcg.io (IMPLÉMENTÉ)
    - Endpoints : `/tcg_pokemon/search`, `/tcg_pokemon/card`, `/tcg_pokemon/sets`
    - Clé API optionnelle
+   - Support multilingue : ❌ EN uniquement
 
-2. ✅ **Magic: The Gathering** - Scryfall (IMPLÉMENTÉ)
+2. ✅ **Magic: The Gathering** - Scryfall (IMPLÉMENTÉ - 2 janvier 2026)
    - Endpoints : `/tcg_mtg/search`, `/tcg_mtg/card`, `/tcg_mtg/sets`
    - Pas de clé API
+   - Support multilingue : ✅ **11 langues** (EN, FR, ES, DE, IT, PT, JA, KO, RU, ZH-Hans, ZH-Hant)
+   - Fonctionnalités : Noms de personnages (Universes Beyond), traductions officielles
 
-3. ✅ **Yu-Gi-Oh!** - YGOPRODeck (IMPLÉMENTÉ)
-   - Endpoints : `/tcg_yugioh/search`, `/tcg_yugioh/card`, `/tcg_yugioh/sets`
-   - Support français natif
+3. ✅ **Yu-Gi-Oh!** - YGOPRODeck (IMPLÉMENTÉ - 2 janvier 2026)
+   - Endpoints : `/tcg_yugioh/search`, `/tcg_yugioh/card`, `/tcg_yugioh/sets`, `/tcg_yugioh/details`
+   - Support multilingue : ✅ **5 langues** (EN, FR, DE, IT, PT)
+   - Fonctionnalités : Traductions natives YGOPRODeck, detailUrl multilingue
 
 4. ✅ **Disney Lorcana** - LorcanaJSON (IMPLÉMENTÉ - 1er janvier 2026)
    - Endpoints : `/tcg_lorcana/search`, `/tcg_lorcana/card`, `/tcg_lorcana/sets`
