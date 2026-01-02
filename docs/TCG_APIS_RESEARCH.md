@@ -483,7 +483,7 @@ deckdata.{deckCode}.json # Decks pré-construits
 ```
 
 #### Fonctionnalités
-- ✅ Données officielles (source : app Disney Lorcana)
+- ✅ Données officielles (source : tcg_lorcana)
 - ✅ Multi-langues (EN, FR, DE, IT)
 - ✅ Liens externes (TCGPlayer, Cardmarket)
 - ✅ Masques foil pour rendu visuel
