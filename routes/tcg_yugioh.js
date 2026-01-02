@@ -93,10 +93,13 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
     archetype,
     max = 20,
     sort = 'name',
-    lang = 'en',
+    lang: rawLang = 'en',
     autoTrad = false,
     refresh = false
   } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
   
   const forceRefresh = refresh === 'true' || refresh === true;
   
@@ -149,7 +152,10 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
  * Détails d'une carte par ID
  */
 router.get('/card', asyncHandler(async (req, res) => {
-  const { id, lang = 'en', refresh = false } = req.query;
+  const { id, lang: rawLang = 'en', refresh = false } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
   
   if (!id) {
     return res.status(400).json({
@@ -218,7 +224,8 @@ router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
   }
   
   const cardId = idMatch[1].trim();
-  const lang = langMatch ? langMatch[1].trim() : 'en';
+  const rawLang = langMatch ? langMatch[1].trim() : 'en';
+  const lang = rawLang.split('-')[0].toLowerCase();
   const forceRefresh = refresh === 'true' || refresh === true;
   
   logger.info(`[Yu-Gi-Oh! Route] Details request: id=${cardId}, lang=${lang}, refresh=${forceRefresh}`);
