@@ -115,10 +115,17 @@ router.get('/search', asyncHandler(async (req, res) => {
     log.info(`✅ ${normalized.count} résultats trouvés sur ${results.length} (${duration}ms)`);
 
     res.json({
-      ...normalized,
+      success: true,
+      provider: 'tcg_onepiece',
       query: q,
-      filters: { type, color, rarity, set, cost, power, trait, attribute },
-      duration: `${duration}ms`
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true',
+        filters: { type, color, rarity, set, cost, power, trait, attribute },
+        duration: `${duration}ms`
+      }
     });
 
   } catch (error) {
@@ -196,8 +203,16 @@ router.get('/card', asyncHandler(async (req, res) => {
     log.info(`✅ Carte trouvée: ${card.n} (${duration}ms)`);
 
     res.json({
-      ...normalized,
-      duration: `${duration}ms`
+      success: true,
+      provider: 'tcg_onepiece',
+      id: id || card.cid,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true',
+        duration: `${duration}ms`
+      }
     });
 
   } catch (error) {
@@ -257,8 +272,16 @@ router.get('/details', asyncHandler(async (req, res) => {
     log.info(`✅ Détails récupérés: ${card.n} (${duration}ms)`);
 
     res.json({
-      ...normalized,
-      duration: `${duration}ms`
+      success: true,
+      provider: 'tcg_onepiece',
+      id,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true',
+        duration: `${duration}ms`
+      }
     });
 
   } catch (error) {

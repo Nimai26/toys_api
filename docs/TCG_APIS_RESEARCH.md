@@ -241,12 +241,15 @@ const headers = {
 
 ## Yu-Gi-Oh! (YGOPRODeck)
 
+### ✅ État actuel : **IMPLÉMENTÉ avec support multilingue**
+
 ### Informations générales
 - **Site** : https://ygoprodeck.com/
 - **Documentation** : https://ygoprodeck.com/api-guide/
 - **Type** : API REST
 - **Format** : JSON
 - **Authentification** : Aucune requise
+- **Langues supportées** : 🇬🇧 EN, 🇫🇷 FR, 🇩🇪 DE, 🇮🇹 IT, 🇵🇹 PT
 
 ### Endpoints principaux
 ```

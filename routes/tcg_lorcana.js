@@ -62,7 +62,8 @@ router.get('/search', async (req, res) => {
       inkable,
       max = 20,
       page = 1,
-      lang = 'en'
+      lang = 'en',
+      autoTrad
     } = req.query;
     
     // Normaliser le code de langue (fr-FR -> fr, en-US -> en)
@@ -89,7 +90,18 @@ router.get('/search', async (req, res) => {
     const rawData = await searchLorcanaCards(q, options);
     const normalized = await normalizeLorcanaSearch(rawData, { lang: normalizedLang });
     
-    res.json(normalized);
+    res.json({
+      success: true,
+      provider: 'tcg_lorcana',
+      query: q,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang: normalizedLang,
+        locale: lang,
+        autoTrad: autoTrad === 'true'
+      }
+    });
   } catch (error) {
     metrics.sources.lorcana.errors++;
     logger.error('Erreur lors de la recherche Lorcana:', error);
@@ -223,7 +235,15 @@ router.get('/sets', async (req, res) => {
     const rawSets = await getLorcanaSets({ lang: normalizedLang });
     const normalized = normalizeLorcanaSets(rawSets);
     
-    res.json(normalized);
+    res.json({
+      success: true,
+      provider: 'tcg_lorcana',
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang: normalizedLang
+      }
+    });
   } catch (error) {
     metrics.sources.lorcana.errors++;
     logger.error('Erreur lors de la récupération des sets Lorcana:', error);

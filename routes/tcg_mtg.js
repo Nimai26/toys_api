@@ -31,7 +31,7 @@ function validateSearchParams(req, res, next) {
       success: false,
       error: "Paramètre 'q' requis pour la recherche",
       code: 400,
-      provider: 'scryfall',
+      provider: 'tcg_mtg',
       hint: "Utilisez 'q' pour le nom de la carte ou une syntaxe Scryfall (ex: t:creature c:red)",
       params: [
         "q (requis) - Nom de la carte ou syntaxe Scryfall",
@@ -59,7 +59,7 @@ function validateDetailsParams(req, res, next) {
       success: false,
       error: "Paramètre 'detailUrl' requis",
       code: 400,
-      provider: 'scryfall',
+      provider: 'tcg_mtg',
       hint: "Utilisez l'URL fournie par /search dans le champ detailUrl de chaque résultat",
       params: [
         "detailUrl (requis) - URL de détails depuis /search",
@@ -111,7 +111,7 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
     
     res.json({
       success: true,
-      provider: 'scryfall',
+      provider: 'tcg_mtg',
       query: q,
       total: normalized.total,
       count: normalized.data.length,
@@ -140,7 +140,7 @@ router.get('/card', asyncHandler(async (req, res) => {
       success: false,
       error: "Paramètre 'id' requis",
       code: 400,
-      provider: 'scryfall',
+      provider: 'tcg_mtg',
       params: [
         "id (requis) - ID Scryfall de la carte ou set/collector_number",
         "lang (optionnel) - Code langue",
@@ -153,11 +153,17 @@ router.get('/card', asyncHandler(async (req, res) => {
   
   try {
     const rawCard = await getMTGCardDetails(id, { lang });
+    const normalized = await normalizeMTGCard(rawCard, { lang, autoTrad: false });
     
     res.json({
       success: true,
-      provider: 'scryfall',
-      data: rawCard
+      provider: 'tcg_mtg',
+      id,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang
+      }
     });
     
   } catch (error) {
@@ -183,7 +189,7 @@ router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
       success: false,
       error: "Format detailUrl invalide",
       code: 400,
-      provider: 'scryfall'
+      provider: 'tcg_mtg'
     });
   }
   
@@ -200,8 +206,14 @@ router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
     
     res.json({
       success: true,
-      provider: 'scryfall',
-      data: normalized
+      provider: 'tcg_mtg',
+      id: cardId,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true'
+      }
     });
     
   } catch (error) {
@@ -228,7 +240,7 @@ router.get('/sets', asyncHandler(async (req, res) => {
     
     res.json({
       success: true,
-      provider: 'scryfall',
+      provider: 'tcg_mtg',
       total: normalized.total,
       data: normalized
     });

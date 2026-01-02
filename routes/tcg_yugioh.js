@@ -37,7 +37,7 @@ function validateSearchParams(req, res, next) {
       success: false,
       error: "Paramètre 'q' requis pour la recherche",
       code: 400,
-      provider: 'ygoprodeck',
+      provider: 'tcg_yugioh',
       hint: "Utilisez 'q' pour le nom de la carte",
       params: [
         "q (requis) - Nom de la carte",
@@ -67,7 +67,7 @@ function validateDetailsParams(req, res, next) {
       success: false,
       error: "Paramètre 'detailUrl' requis",
       code: 400,
-      provider: 'ygoprodeck',
+      provider: 'tcg_yugioh',
       hint: "Utilisez l'URL fournie par /search dans le champ detailUrl de chaque résultat",
       params: [
         "detailUrl (requis) - URL de détails depuis /search",
@@ -93,10 +93,11 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
     archetype,
     max = 20,
     sort = 'name',
+    lang = 'en',
     autoTrad = false
   } = req.query;
   
-  logger.info(`[Yu-Gi-Oh! Route] Search request: q=${q}, max=${max}`);
+  logger.info(`[Yu-Gi-Oh! Route] Search request: q=${q}, max=${max}, lang=${lang}`);
   
   try {
     // Options de recherche
@@ -107,7 +108,10 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
       level: level ? parseInt(level) : undefined,
       archetype,
       max: parseInt(max),
-      sort
+      sort,
+      lang,
+      getCached: req.getCached,
+      setCache: req.setCache
     };
     
     // Recherche
@@ -115,12 +119,13 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
     
     // Normalisation
     const normalized = await normalizeYuGiOhSearch(rawResults, {
+      lang,
       autoTrad: autoTrad === 'true'
     });
     
     res.json({
       success: true,
-      provider: 'ygoprodeck',
+      provider: 'tcg_yugioh',
       query: q,
       total: normalized.total,
       count: normalized.data.length,
@@ -141,29 +146,40 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
  * Détails d'une carte par ID
  */
 router.get('/card', asyncHandler(async (req, res) => {
-  const { id } = req.query;
+  const { id, lang = 'en' } = req.query;
   
   if (!id) {
     return res.status(400).json({
       success: false,
       error: "Paramètre 'id' requis",
       code: 400,
-      provider: 'ygoprodeck',
+      provider: 'tcg_yugioh',
       params: [
-        "id (requis) - ID de la carte"
+        "id (requis) - ID de la carte",
+        "lang (optionnel) - Langue (en, fr, de, it, pt)"
       ]
     });
   }
   
-  logger.info(`[Yu-Gi-Oh! Route] Card request: id=${id}`);
+  logger.info(`[Yu-Gi-Oh! Route] Card request: id=${id}, lang=${lang}`);
   
   try {
-    const rawCard = await getYuGiOhCardDetails(id);
+    const rawCard = await getYuGiOhCardDetails(id, {
+      lang,
+      getCached: req.getCached,
+      setCache: req.setCache
+    });
+    const normalized = await normalizeYuGiOhCard(rawCard);
     
     res.json({
       success: true,
-      provider: 'ygoprodeck',
-      data: rawCard
+      provider: 'tcg_yugioh',
+      id,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang
+      }
     });
     
   } catch (error) {
@@ -182,31 +198,45 @@ router.get('/card', asyncHandler(async (req, res) => {
 router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
   const { detailUrl, autoTrad = false } = req.query;
   
-  // Extraire l'ID depuis le detailUrl
+  // Extraire l'ID et le lang depuis le detailUrl
   const idMatch = detailUrl.match(/id=([^&]+)/);
+  const langMatch = detailUrl.match(/lang=([^&]+)/);
+  
   if (!idMatch) {
     return res.status(400).json({
       success: false,
       error: "Format detailUrl invalide",
       code: 400,
-      provider: 'ygoprodeck'
+      provider: 'tcg_yugioh'
     });
   }
   
-  const cardId = idMatch[1];
+  const cardId = idMatch[1].trim();
+  const lang = langMatch ? langMatch[1].trim() : 'en';
   
-  logger.info(`[Yu-Gi-Oh! Route] Details request: id=${cardId}`);
+  logger.info(`[Yu-Gi-Oh! Route] Details request: id=${cardId}, lang=${lang}`);
   
   try {
-    const rawCard = await getYuGiOhCardDetails(cardId);
+    const rawCard = await getYuGiOhCardDetails(cardId, {
+      lang,
+      getCached: req.getCached,
+      setCache: req.setCache
+    });
     const normalized = await normalizeYuGiOhCard(rawCard, {
+      lang,
       autoTrad: autoTrad === 'true'
     });
     
     res.json({
       success: true,
-      provider: 'ygoprodeck',
-      data: normalized
+      provider: 'tcg_yugioh',
+      id: cardId,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true'
+      }
     });
     
   } catch (error) {
@@ -231,7 +261,7 @@ router.get('/sets', asyncHandler(async (req, res) => {
     
     res.json({
       success: true,
-      provider: 'ygoprodeck',
+      provider: 'tcg_yugioh',
       total: normalized.total,
       data: normalized
     });
@@ -257,7 +287,7 @@ router.get('/archetype', asyncHandler(async (req, res) => {
       success: false,
       error: "Paramètre 'name' requis",
       code: 400,
-      provider: 'ygoprodeck',
+      provider: 'tcg_yugioh',
       hint: "Utilisez 'name' pour le nom de l'archétype",
       params: [
         "name (requis) - Nom de l'archétype (ex: Blue-Eyes, Dark Magician)",
@@ -273,7 +303,7 @@ router.get('/archetype', asyncHandler(async (req, res) => {
     
     res.json({
       success: true,
-      provider: 'ygoprodeck',
+      provider: 'tcg_yugioh',
       archetype: results.archetype,
       total: results.total_cards,
       count: results.data.length,

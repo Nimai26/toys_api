@@ -71,7 +71,17 @@ router.get('/search', async (req, res) => {
       autoTrad: autoTrad === 'true'
     });
     
-    res.json(normalized);
+    res.json({
+      success: true,
+      provider: 'tcg_digimon',
+      query: q,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true'
+      }
+    });
   } catch (error) {
     metrics.sources.digimon.errors++;
     logger.error('Erreur lors de la recherche Digimon:', error);
@@ -127,7 +137,17 @@ router.get('/card', async (req, res) => {
       autoTrad: autoTrad === 'true'
     });
     
-    res.json(normalized);
+    res.json({
+      success: true,
+      provider: 'tcg_digimon',
+      id: id || name,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true'
+      }
+    });
   } catch (error) {
     metrics.sources.digimon.errors++;
     logger.error('Erreur lors de la récupération de la carte Digimon:', error);
@@ -173,7 +193,17 @@ router.get('/details', async (req, res) => {
       autoTrad: autoTrad === 'true'
     });
     
-    res.json(normalized);
+    res.json({
+      success: true,
+      provider: 'tcg_digimon',
+      id,
+      data: normalized,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        lang,
+        autoTrad: autoTrad === 'true'
+      }
+    });
   } catch (error) {
     metrics.sources.digimon.errors++;
     logger.error('Erreur lors de la récupération des détails Digimon:', error);

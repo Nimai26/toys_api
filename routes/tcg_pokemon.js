@@ -76,7 +76,7 @@ router.get("/search", validateSearchParams, pokemonAuth, asyncHandler(async (req
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'pokemon-tcg',
+    provider: 'tcg_pokemon',
     query: q,
     data: result,
     meta: {
@@ -121,7 +121,7 @@ router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, re
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'pokemon-tcg',
+    provider: 'tcg_pokemon',
     id,
     data: result,
     meta: {
@@ -157,7 +157,7 @@ router.get("/details", validateDetailsParams, pokemonAuth, asyncHandler(async (r
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'pokemon-tcg',
+    provider: 'tcg_pokemon',
     id,
     data: result,
     meta: {
@@ -195,7 +195,7 @@ router.get("/sets", pokemonAuth, asyncHandler(async (req, res) => {
   addCacheHeaders(res, 3600, getCacheInfo()); // Cache 1h pour les sets
   res.json({
     success: true,
-    provider: 'pokemon-tcg',
+    provider: 'tcg_pokemon',
     data: normalized,
     meta: {
       fetchedAt: new Date().toISOString(),
