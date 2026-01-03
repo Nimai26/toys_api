@@ -79,6 +79,9 @@ router.get('/search', asyncHandler(async (req, res) => {
   // Normaliser lang (gérer tableaux et variantes comme fr-FR)
   const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
+
   if (!q) {
     return res.status(400).json({
       error: 'Bad Request',
@@ -156,7 +159,10 @@ router.get('/search', asyncHandler(async (req, res) => {
  */
 router.get('/card', asyncHandler(async (req, res) => {
   const startTime = Date.now();
-  const { name, id, lang = 'fr', autoTrad = 'false' } = req.query;
+  const { name, id, lang: rawLang = 'fr', autoTrad = 'false' } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
   if (!name && !id) {
     return res.status(400).json({
