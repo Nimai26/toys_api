@@ -72,9 +72,12 @@ router.get('/search', asyncHandler(async (req, res) => {
     trait,
     attribute,
     max = 20,
-    lang = 'fr',
+    lang: rawLang = 'fr',
     autoTrad = 'false'
   } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
   if (!q) {
     return res.status(400).json({
@@ -237,7 +240,10 @@ router.get('/card', asyncHandler(async (req, res) => {
  */
 router.get('/details', asyncHandler(async (req, res) => {
   const startTime = Date.now();
-  const { id, lang = 'fr', autoTrad = 'false' } = req.query;
+  const { id, lang: rawLang = 'fr', autoTrad = 'false' } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
   if (!id) {
     return res.status(400).json({
