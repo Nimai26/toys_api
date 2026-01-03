@@ -79,9 +79,6 @@ router.get('/search', asyncHandler(async (req, res) => {
   // Normaliser lang (gérer tableaux et variantes comme fr-FR)
   const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
-  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
-  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
-
   if (!q) {
     return res.status(400).json({
       error: 'Bad Request',
