@@ -75,7 +75,9 @@ router.get('/search', async (req, res) => {
       success: true,
       provider: 'tcg_digimon',
       query: q,
-      data: normalized,
+      total: normalized.total || normalized.count || 0,
+      count: (normalized.results || normalized.data || []).length,
+      data: normalized.results || normalized.data || [],
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
@@ -141,7 +143,9 @@ router.get('/card', async (req, res) => {
       success: true,
       provider: 'tcg_digimon',
       id: id || name,
-      data: normalized,
+      total: normalized.total || normalized.count || 0,
+      count: (normalized.results || normalized.data || []).length,
+      data: normalized.results || normalized.data || [],
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
@@ -197,7 +201,9 @@ router.get('/details', async (req, res) => {
       success: true,
       provider: 'tcg_digimon',
       id,
-      data: normalized,
+      total: normalized.total || normalized.count || 0,
+      count: (normalized.results || normalized.data || []).length,
+      data: normalized.results || normalized.data || [],
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,

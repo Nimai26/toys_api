@@ -94,7 +94,9 @@ router.get('/search', async (req, res) => {
       success: true,
       provider: 'tcg_lorcana',
       query: q,
-      data: normalized,
+      total: normalized.total,
+      count: normalized.data.length,
+      data: normalized.data,
       meta: {
         fetchedAt: new Date().toISOString(),
         lang: normalizedLang,
@@ -154,7 +156,9 @@ router.get('/card', async (req, res) => {
     const normalized = await normalizeLorcanaCard(rawCard, { lang: normalizedLang });
     
     res.json(formatDetailResponse({
-      data: normalized,
+      total: normalized.total,
+      count: normalized.data.length,
+      data: normalized.data,
       provider: 'tcg_lorcana',
       id: id || rawCard.id || rawCard.fullIdentifier,
       meta: { lang: normalizedLang, locale: lang, autoTrad: autoTrad === 'true' || autoTrad === '1' }
@@ -204,7 +208,9 @@ router.get('/details', async (req, res) => {
     const normalized = await normalizeLorcanaCard(rawCard, { lang: normalizedLang });
     
     res.json(formatDetailResponse({
-      data: normalized,
+      total: normalized.total,
+      count: normalized.data.length,
+      data: normalized.data,
       provider: 'tcg_lorcana',
       id: rawCard.id || rawCard.fullIdentifier,
       meta: { lang: normalizedLang, locale: lang, autoTrad: autoTrad === 'true' || autoTrad === '1' }
@@ -238,7 +244,9 @@ router.get('/sets', async (req, res) => {
     res.json({
       success: true,
       provider: 'tcg_lorcana',
-      data: normalized,
+      total: normalized.total,
+      count: normalized.data.length,
+      data: normalized.data,
       meta: {
         fetchedAt: new Date().toISOString(),
         lang: normalizedLang

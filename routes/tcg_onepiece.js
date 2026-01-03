@@ -72,9 +72,12 @@ router.get('/search', asyncHandler(async (req, res) => {
     trait,
     attribute,
     max = 20,
-    lang = 'fr',
+    lang: rawLang = 'fr',
     autoTrad = 'false'
   } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
   if (!q) {
     return res.status(400).json({
@@ -118,7 +121,9 @@ router.get('/search', asyncHandler(async (req, res) => {
       success: true,
       provider: 'tcg_onepiece',
       query: q,
-      data: normalized,
+      total: normalized.total,
+      count: normalized.count,
+      data: normalized.results,
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
@@ -153,7 +158,10 @@ router.get('/search', asyncHandler(async (req, res) => {
  */
 router.get('/card', asyncHandler(async (req, res) => {
   const startTime = Date.now();
-  const { name, id, lang = 'fr', autoTrad = 'false' } = req.query;
+  const { name, id, lang: rawLang = 'fr', autoTrad = 'false' } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
   if (!name && !id) {
     return res.status(400).json({
@@ -237,7 +245,10 @@ router.get('/card', asyncHandler(async (req, res) => {
  */
 router.get('/details', asyncHandler(async (req, res) => {
   const startTime = Date.now();
-  const { id, lang = 'fr', autoTrad = 'false' } = req.query;
+  const { id, lang: rawLang = 'fr', autoTrad = 'false' } = req.query;
+
+  // Normaliser lang (gérer tableaux et variantes comme fr-FR)
+  const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
 
   if (!id) {
     return res.status(400).json({

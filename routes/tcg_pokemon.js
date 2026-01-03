@@ -78,7 +78,9 @@ router.get("/search", validateSearchParams, pokemonAuth, asyncHandler(async (req
     success: true,
     provider: 'tcg_pokemon',
     query: q,
-    data: result,
+    total: result.total || 0,
+    count: result.count || (result.results || []).length,
+    data: result.results || result.data || [],
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
@@ -123,7 +125,9 @@ router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, re
     success: true,
     provider: 'tcg_pokemon',
     id,
-    data: result,
+    total: result.total || 0,
+    count: result.count || (result.results || []).length,
+    data: result.results || result.data || [],
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
@@ -159,7 +163,9 @@ router.get("/details", validateDetailsParams, pokemonAuth, asyncHandler(async (r
     success: true,
     provider: 'tcg_pokemon',
     id,
-    data: result,
+    total: result.total || 0,
+    count: result.count || (result.results || []).length,
+    data: result.results || result.data || [],
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
