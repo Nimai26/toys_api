@@ -121,7 +121,9 @@ router.get('/search', asyncHandler(async (req, res) => {
       success: true,
       provider: 'tcg_onepiece',
       query: q,
-      data: normalized,
+      total: normalized.total,
+      count: normalized.count,
+      data: normalized.results,
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
