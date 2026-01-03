@@ -68,9 +68,10 @@ router.get('/search', async (req, res) => {
     };
     
     const rawData = await searchDigimonCards(q, options);
+    const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
     const normalized = await normalizeDigimonSearch(rawData.data, {
       lang,
-      autoTrad: autoTrad === 'true',
+      autoTrad: isAutoTrad,
       max: parseInt(max, 10)  // Appliquer le vrai max après déduplication
     });
     
@@ -84,7 +85,7 @@ router.get('/search', async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true',
+        autoTrad: isAutoTrad,
         refresh: refresh === 'true'
       }
     });
@@ -139,9 +140,10 @@ router.get('/card', async (req, res) => {
       });
     }
     
+    const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
     const normalized = await normalizeDigimonCard(rawCard, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: isAutoTrad
     });
     
     res.json({
@@ -152,7 +154,7 @@ router.get('/card', async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true',
+        autoTrad: isAutoTrad,
         refresh: refresh === 'true'
       }
     });
@@ -197,9 +199,10 @@ router.get('/details', async (req, res) => {
       });
     }
     
+    const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
     const normalized = await normalizeDigimonCard(rawCard, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: isAutoTrad
     });
     
     res.json({
@@ -210,7 +213,7 @@ router.get('/details', async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true',
+        autoTrad: isAutoTrad,
         refresh: refresh === 'true'
       }
     });
