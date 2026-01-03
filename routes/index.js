@@ -59,6 +59,9 @@ export {
 export { default as bggRouter } from './bgg.js';
 export { default as bggScrapeRouter } from './bgg_scrape.js';
 
+// Proxy (images TCG, anti-CORS)
+export { default as proxyRouter } from './proxy.js';
+
 // Trading Card Games (TCG)
 export { default as tcgPokemonRouter } from './tcg_pokemon.js';
 export { default as tcgMtgRouter } from './tcg_mtg.js';

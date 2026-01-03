@@ -78,6 +78,9 @@ router.get('/search', asyncHandler(async (req, res) => {
 
   // Normaliser lang (gérer tableaux et variantes comme fr-FR)
   const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
+  
+  // Convertir autoTrad en booléen (accepte "true", "1", true)
+  const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
 
   if (!q) {
     return res.status(400).json({
@@ -107,7 +110,7 @@ router.get('/search', asyncHandler(async (req, res) => {
     // Normaliser
     const normalized = await normalizeOnePieceSearch(limited, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: isAutoTrad
     });
 
     // Métriques
@@ -127,7 +130,7 @@ router.get('/search', asyncHandler(async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true',
+        autoTrad: isAutoTrad,
         filters: { type, color, rarity, set, cost, power, trait, attribute },
         duration: `${duration}ms`
       }
@@ -158,10 +161,13 @@ router.get('/search', asyncHandler(async (req, res) => {
  */
 router.get('/card', asyncHandler(async (req, res) => {
   const startTime = Date.now();
-  const { name, id, lang: rawLang = 'fr', autoTrad = 'false' } = req.query;
+  const { name, id, lang: rawLang = 'fr', autoTrad = 'false', refresh = 'false' } = req.query;
 
   // Normaliser lang (gérer tableaux et variantes comme fr-FR)
   const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
+  
+  // Convertir autoTrad en booléen (accepte "true", "1", true)
+  const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
 
   if (!name && !id) {
     return res.status(400).json({
@@ -184,10 +190,10 @@ router.get('/card', asyncHandler(async (req, res) => {
 
     if (id) {
       // Recherche par ID
-      card = await getOnePieceCardById(id);
+      card = await getOnePieceCardById(id, { bypassCache: refresh === 'true' });
     } else {
       // Recherche par nom
-      card = await getOnePieceCardByName(name);
+      card = await getOnePieceCardByName(name, { bypassCache: refresh === 'true' });
     }
 
     if (!card) {
@@ -200,7 +206,7 @@ router.get('/card', asyncHandler(async (req, res) => {
     // Normaliser
     const normalized = await normalizeOnePieceCard(card, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: isAutoTrad
     });
 
     // Métriques
@@ -218,7 +224,8 @@ router.get('/card', asyncHandler(async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true',
+        autoTrad: isAutoTrad,
+        refresh: refresh === 'true',
         duration: `${duration}ms`
       }
     });
@@ -245,10 +252,13 @@ router.get('/card', asyncHandler(async (req, res) => {
  */
 router.get('/details', asyncHandler(async (req, res) => {
   const startTime = Date.now();
-  const { id, lang: rawLang = 'fr', autoTrad = 'false' } = req.query;
+  const { id, lang: rawLang = 'fr', autoTrad = 'false', refresh = 'false' } = req.query;
 
   // Normaliser lang (gérer tableaux et variantes comme fr-FR)
   const lang = (Array.isArray(rawLang) ? rawLang[0] : rawLang).split('-')[0].toLowerCase();
+  
+  // Convertir autoTrad en booléen (accepte "true", "1", true)
+  const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
 
   if (!id) {
     return res.status(400).json({
@@ -260,7 +270,7 @@ router.get('/details', asyncHandler(async (req, res) => {
   log.info(`🔍 Détails: id="${id}"`);
 
   try {
-    const card = await getOnePieceCardById(id);
+    const card = await getOnePieceCardById(id, { bypassCache: refresh === 'true' });
 
     if (!card) {
       return res.status(404).json({
@@ -272,7 +282,7 @@ router.get('/details', asyncHandler(async (req, res) => {
     // Normaliser avec tous les détails
     const normalized = await normalizeOnePieceCard(card, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: isAutoTrad
     });
 
     // Métriques
@@ -290,7 +300,8 @@ router.get('/details', asyncHandler(async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true',
+        autoTrad: isAutoTrad,
+        refresh: refresh === 'true',
         duration: `${duration}ms`
       }
     });

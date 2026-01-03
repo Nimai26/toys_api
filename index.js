@@ -86,6 +86,7 @@ import {
   bedethequeRouter,
   bggRouter,
   bggScrapeRouter,
+  proxyRouter,
   localRouter,
   tcgPokemonRouter,
   tcgMtgRouter,
@@ -279,6 +280,9 @@ app.use('/paninimania', paninimanaRouter);
 // Board Games (jeux de société)
 app.use('/bgg', bggRouter);
 app.use('/bgg_scrape', bggScrapeRouter);
+
+// Proxy (images TCG, anti-CORS)
+app.use('/proxy', proxyRouter);
 
 // Local database cache (v4.0.0)
 app.use('/local', localRouter);
