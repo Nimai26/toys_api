@@ -45,7 +45,8 @@ router.get('/search', async (req, res) => {
       stage,
       max = 20,
       lang = 'en',
-      autoTrad = false
+      autoTrad = false,
+      refresh = false
     } = req.query;
     
     if (!q) {
@@ -62,7 +63,8 @@ router.get('/search', async (req, res) => {
       attribute,
       rarity,
       stage,
-      max: parseInt(max, 10) * 3  // Multiplier par 3 pour compenser les doublons avant déduplication
+      max: parseInt(max, 10) * 3,  // Multiplier par 3 pour compenser les doublons avant déduplication
+      bypassCache: refresh === 'true'
     };
     
     const rawData = await searchDigimonCards(q, options);
@@ -82,7 +84,8 @@ router.get('/search', async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true'
+        autoTrad: autoTrad === 'true',
+        refresh: refresh === 'true'
       }
     });
   } catch (error) {
@@ -112,7 +115,8 @@ router.get('/card', async (req, res) => {
       id,
       series,
       lang = 'en',
-      autoTrad = false
+      autoTrad = false,
+      refresh = false
     } = req.query;
     
     if (!name && !id) {
@@ -123,9 +127,9 @@ router.get('/card', async (req, res) => {
     
     let rawCard;
     if (id) {
-      rawCard = await getDigimonCardDetails(id);
+      rawCard = await getDigimonCardDetails(id, { bypassCache: refresh === 'true' });
     } else {
-      const results = await getDigimonCardByName(name, { series });
+      const results = await getDigimonCardByName(name, { series, bypassCache: refresh === 'true' });
       rawCard = results && results.length > 0 ? results[0] : null;
     }
     
@@ -148,7 +152,8 @@ router.get('/card', async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true'
+        autoTrad: autoTrad === 'true',
+        refresh: refresh === 'true'
       }
     });
   } catch (error) {
@@ -174,7 +179,8 @@ router.get('/details', async (req, res) => {
     const {
       id,
       lang = 'en',
-      autoTrad = false
+      autoTrad = false,
+      refresh = false
     } = req.query;
     
     if (!id) {
@@ -183,7 +189,7 @@ router.get('/details', async (req, res) => {
       });
     }
     
-    const rawCard = await getDigimonCardDetails(id);
+    const rawCard = await getDigimonCardDetails(id, { bypassCache: refresh === 'true' });
     
     if (!rawCard) {
       return res.status(404).json({
@@ -204,7 +210,8 @@ router.get('/details', async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true'
+        autoTrad: autoTrad === 'true',
+        refresh: refresh === 'true'
       }
     });
   } catch (error) {
