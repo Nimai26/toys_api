@@ -62,13 +62,14 @@ router.get('/search', async (req, res) => {
       attribute,
       rarity,
       stage,
-      max: parseInt(max, 10)
+      max: parseInt(max, 10) * 3  // Multiplier par 3 pour compenser les doublons avant déduplication
     };
     
     const rawData = await searchDigimonCards(q, options);
     const normalized = await normalizeDigimonSearch(rawData.data, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: autoTrad === 'true',
+      max: parseInt(max, 10)  // Appliquer le vrai max après déduplication
     });
     
     res.json({
