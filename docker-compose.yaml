@@ -200,6 +200,8 @@ services:
       - PUPPETEER_USE_VPN=${TOY_API_PUPPETEER_USE_VPN}
       # Control Gluetun pour rotation IP
       - GLUETUN_CONTROL_URL=http://gluetun-toys:8000
+      # URL de base pour les URLs proxy absolues
+      - API_BASE_URL=${TOY_API_BASE_URL:-http://10.110.1.1:3000}
       # Paramètres API
       - PORT=${TOYS_API_PORT}
       - MAX_RETRIES=${TOY_API_MAX_RETRIES}
