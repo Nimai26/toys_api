@@ -10,7 +10,6 @@ import express from 'express';
 import { 
   asyncHandler, 
   requireParam, 
-  requireApiKey, 
   addCacheHeaders,
   extractStandardParams,
   validateSearchParams,
@@ -19,64 +18,58 @@ import {
 import { metrics } from '../lib/utils/state.js';
 import { createProviderCache, getCacheInfo } from '../lib/database/index.js';
 import { 
-  searchPokemonCards, 
-  getPokemonCardDetails,
-  getPokemonSets
-} from '../lib/providers/tcg/pokemon.js';
+  searchPokemonCardsOfficial, 
+  getPokemonCardDetailsOfficial
+} from '../lib/providers/tcg/pokemon_official.js';
 import { 
-  normalizePokemonSearch, 
-  normalizePokemonCard,
-  normalizePokemonSets
+  normalizePokemonSearchOfficial, 
+  normalizePokemonCardOfficial
 } from '../lib/normalizers/tcg.js';
 
 const router = express.Router();
 
-// Cache provider pour Pokémon TCG
-const pokemonCache = createProviderCache('pokemon-tcg', 'card');
-
-// Middleware d'authentification (clé API optionnelle mais recommandée)
-const pokemonAuth = requireApiKey(
-  'Pokemon TCG', 
-  'https://dev.pokemontcg.io/', 
-  true // optionnel
-);
+// Cache provider pour Pokémon TCG Official
+const pokemonCache = createProviderCache('pokemon-official', 'card');
 
 // ============================================================================
 // POKÉMON TCG
 // ============================================================================
 
 /**
- * Recherche de cartes Pokémon TCG
+ * Recherche de cartes Pokémon TCG (via Pokemon.com officiel)
  * GET /tcg_pokemon/search?q=pikachu&lang=fr&max=20&autoTrad=true
  */
-router.get("/search", validateSearchParams, pokemonAuth, asyncHandler(async (req, res) => {
+router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   const { q, lang, locale, max, autoTrad, refresh } = req.standardParams;
-  const { set, type, rarity } = req.query;
+  const { type, rarity, hitPointsMin, hitPointsMax } = req.query;
 
-  metrics.sources.pokemon_tcg.requests++;
+  metrics.sources.pokemon_official = metrics.sources.pokemon_official || { requests: 0, errors: 0 };
+  metrics.sources.pokemon_official.requests++;
 
   // Utilise le cache PostgreSQL
   const result = await pokemonCache.searchWithCache(
     q,
     async () => {
-      const rawData = await searchPokemonCards(q, {
+      const rawData = await searchPokemonCardsOfficial(q, {
         lang,
         max,
-        set: set || null,
-        type: type || null,
-        rarity: rarity || null,
-        apiKey: req.apiKey // Utilise la clé API si fournie
+        filters: {
+          type: type || null,
+          rarity: rarity || null,
+          hitPointsMin: hitPointsMin || null,
+          hitPointsMax: hitPointsMax || null
+        }
       });
 
-      return await normalizePokemonSearch(rawData, { lang, autoTrad });
+      return await normalizePokemonSearchOfficial(rawData, { lang, autoTrad });
     },
-    { params: { lang, max, set: set || null, type: type || null, rarity: rarity || null }, forceRefresh: refresh }
+    { params: { lang, max, type: type || null, rarity: rarity || null }, forceRefresh: refresh }
   );
 
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'tcg_pokemon',
+    provider: 'tcg_pokemon_official',
     query: q,
     data: result,
     meta: {
@@ -90,10 +83,11 @@ router.get("/search", validateSearchParams, pokemonAuth, asyncHandler(async (req
 }));
 
 /**
- * Détails d'une carte Pokémon TCG
- * GET /tcg_pokemon/card?id=base1-4&lang=fr&autoTrad=true
+ * Détails d'une carte Pokémon TCG (via Pokemon.com officiel)
+ * GET /tcg_pokemon/card?id=svp-27&lang=fr&autoTrad=true
+ * Format ID: {set}-{number} (ex: svp-27, base1-4)
  */
-router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, res) => {
+router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
   const { 
     id, 
     lang = 'fr',
@@ -103,15 +97,25 @@ router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, re
   
   const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
 
-  metrics.sources.pokemon_tcg.requests++;
+  metrics.sources.pokemon_official = metrics.sources.pokemon_official || { requests: 0, errors: 0 };
+  metrics.sources.pokemon_official.requests++;
+
+  // Parser l'ID (format: set-number)
+  const [set, number] = id.split('-');
+  if (!set || !number) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid card ID format. Expected: {set}-{number} (ex: svp-27)'
+    });
+  }
 
   // Utilise le cache PostgreSQL
   const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
   const result = await pokemonCache.getWithCache(
     id,
     async () => {
-      const rawCard = await getPokemonCardDetails(id, { apiKey: req.apiKey });
-      return await normalizePokemonCard(rawCard, { 
+      const rawCard = await getPokemonCardDetailsOfficial(set, number, { lang });
+      return await normalizePokemonCardOfficial(rawCard, { 
         lang, 
         autoTrad: isAutoTrad 
       });
@@ -122,7 +126,7 @@ router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, re
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'tcg_pokemon',
+    provider: 'tcg_pokemon_official',
     id,
     data: result,
     meta: {
@@ -137,20 +141,30 @@ router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, re
 
 /**
  * Détails via /details (format normalisé)
- * GET /tcg_pokemon/details?url=pokemon-tcg:base1-4&lang=fr
+ * GET /tcg_pokemon/details?url=pokemon-tcg:svp-27&lang=fr
  */
-router.get("/details", validateDetailsParams, pokemonAuth, asyncHandler(async (req, res) => {
+router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   const { lang, locale, autoTrad } = req.standardParams;
   const { id } = req.parsedDetailUrl;
   const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
 
-  metrics.sources.pokemon_tcg.requests++;
+  metrics.sources.pokemon_official = metrics.sources.pokemon_official || { requests: 0, errors: 0 };
+  metrics.sources.pokemon_official.requests++;
+
+  // Parser l'ID (format: set-number)
+  const [set, number] = id.split('-');
+  if (!set || !number) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid card ID format. Expected: {set}-{number} (ex: svp-27)'
+    });
+  }
 
   const result = await pokemonCache.getWithCache(
     id,
     async () => {
-      const rawCard = await getPokemonCardDetails(id, { apiKey: req.apiKey });
-      return await normalizePokemonCard(rawCard, { lang, autoTrad });
+      const rawCard = await getPokemonCardDetailsOfficial(set, number, { lang });
+      return await normalizePokemonCardOfficial(rawCard, { lang, autoTrad });
     },
     { forceRefresh }
   );
@@ -158,7 +172,7 @@ router.get("/details", validateDetailsParams, pokemonAuth, asyncHandler(async (r
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'tcg_pokemon',
+    provider: 'tcg_pokemon_official',
     id,
     data: result,
     meta: {
@@ -173,37 +187,14 @@ router.get("/details", validateDetailsParams, pokemonAuth, asyncHandler(async (r
 
 /**
  * Liste des sets Pokémon TCG
- * GET /tcg_pokemon/sets?lang=fr&series=Base&year=1999
+ * GET /tcg_pokemon/sets?lang=fr
+ * Note: Endpoint désactivé car non supporté par Pokemon.com scraping
  */
-router.get("/sets", pokemonAuth, asyncHandler(async (req, res) => {
-  const { 
-    lang = 'fr',
-    locale = 'fr-FR',
-    series,
-    year
-  } = req.query;
-
-  metrics.sources.pokemon_tcg.requests++;
-
-  const rawData = await getPokemonSets({
-    series,
-    year: year ? parseInt(year) : null,
-    apiKey: req.apiKey
-  });
-
-  const normalized = normalizePokemonSets(rawData, { lang });
-
-  addCacheHeaders(res, 3600, getCacheInfo()); // Cache 1h pour les sets
-  res.json({
-    success: true,
-    provider: 'tcg_pokemon',
-    data: normalized,
-    meta: {
-      fetchedAt: new Date().toISOString(),
-      lang,
-      locale,
-      autoTrad: false
-    }
+router.get("/sets", asyncHandler(async (req, res) => {
+  res.status(501).json({
+    success: false,
+    error: 'Sets listing not available with Pokemon.com provider',
+    message: 'This endpoint has been deprecated. Use /search instead to find cards.'
   });
 }));
 
