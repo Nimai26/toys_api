@@ -99,7 +99,7 @@ router.get('/search', async (req, res) => {
         fetchedAt: new Date().toISOString(),
         lang: normalizedLang,
         locale: lang,
-        autoTrad: autoTrad === 'true'
+        autoTrad: autoTrad === 'true' || autoTrad === '1' || autoTrad === true
       }
     });
   } catch (error) {

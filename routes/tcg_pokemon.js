@@ -106,13 +106,14 @@ router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, re
   metrics.sources.pokemon_tcg.requests++;
 
   // Utilise le cache PostgreSQL
+  const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
   const result = await pokemonCache.getWithCache(
     id,
     async () => {
       const rawCard = await getPokemonCardDetails(id, { apiKey: req.apiKey });
       return await normalizePokemonCard(rawCard, { 
         lang, 
-        autoTrad: autoTrad === 'true' 
+        autoTrad: isAutoTrad 
       });
     },
     { forceRefresh }
@@ -128,7 +129,7 @@ router.get("/card", requireParam('id'), pokemonAuth, asyncHandler(async (req, re
       fetchedAt: new Date().toISOString(),
       lang,
       locale,
-      autoTrad: autoTrad === 'true',
+      autoTrad: isAutoTrad,
       cacheMatch: result._cacheMatch
     }
   });

@@ -108,9 +108,10 @@ router.get('/search', validateSearchParams, asyncHandler(async (req, res) => {
     const rawResults = await searchMTGCards(q, searchOptions);
     
     // Normalisation
+    const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
     const normalized = await normalizeMTGSearch(rawResults, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: isAutoTrad
     });
     
     res.json({
@@ -214,9 +215,10 @@ router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
       getCached: forceRefresh ? null : req.getCached,
       setCache: forceRefresh ? null : req.setCache
     });
+    const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
     const normalized = await normalizeMTGCard(rawCard, {
       lang,
-      autoTrad: autoTrad === 'true'
+      autoTrad: isAutoTrad
     });
     
     res.json({
@@ -227,7 +229,7 @@ router.get('/details', validateDetailsParams, asyncHandler(async (req, res) => {
       meta: {
         fetchedAt: new Date().toISOString(),
         lang,
-        autoTrad: autoTrad === 'true'
+        autoTrad: isAutoTrad
       }
     });
     
