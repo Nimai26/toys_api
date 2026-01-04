@@ -28,6 +28,8 @@ const ALLOWED_DOMAINS = [
   
   // Pokemon
   'images.pokemontcg.io',
+  'assets.pokemon.com',
+  'www.pokemon.com',
   
   // Digimon
   'digimoncard.io',
