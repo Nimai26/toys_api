@@ -58,7 +58,8 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
           rarity: rarity || null,
           hitPointsMin: hitPointsMin || null,
           hitPointsMax: hitPointsMax || null
-        }
+        },
+        forceRefresh: refresh
       });
 
       return await normalizePokemonSearchOfficial(rawData, { lang, autoTrad });
@@ -69,7 +70,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'tcg_pokemon_official',
+    provider: 'tcg_pokemon',
     query: q,
     total: result.total || 0,
     count: result.count || (result.results || []).length,
@@ -116,7 +117,10 @@ router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
   const result = await pokemonCache.getWithCache(
     id,
     async () => {
-      const rawCard = await getPokemonCardDetailsOfficial(set, number, { lang });
+      const rawCard = await getPokemonCardDetailsOfficial(set, number, { 
+        lang,
+        forceRefresh 
+      });
       return await normalizePokemonCardOfficial(rawCard, { 
         lang, 
         autoTrad: isAutoTrad 
@@ -128,7 +132,7 @@ router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'tcg_pokemon_official',
+    provider: 'tcg_pokemon',
     id,
     total: result.total || 0,
     count: result.count || (result.results || []).length,
@@ -176,7 +180,7 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
-    provider: 'tcg_pokemon_official',
+    provider: 'tcg_pokemon',
     id,
     total: result.total || 0,
     count: result.count || (result.results || []).length,
