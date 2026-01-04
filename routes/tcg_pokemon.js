@@ -134,17 +134,15 @@ router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
     { forceRefresh }
   );
 
-  // normalizePokemonCardOfficial retourne un objet, pas un array
-  const dataArray = card ? [card] : [];
+  // normalizePokemonCardOfficial retourne un objet avec structure complète
+  const cardData = card || null;
 
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
     provider: 'tcg_pokemon',
     id,
-    total: dataArray.length,
-    count: dataArray.length,
-    data: dataArray,
+    data: cardData,
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
