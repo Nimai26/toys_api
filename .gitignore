@@ -28,6 +28,7 @@ Thumbs.db
 
 # Temporary files
 tmp/
+perso/
 temp/
 *.tmp
 
