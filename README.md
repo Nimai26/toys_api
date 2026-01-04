@@ -1,6 +1,6 @@
 # Toys API 🧸
 
-> **Version 4.0.0** - Architecture modulaire + 100% VPN Coverage
+> **Version 4.1.0** - Cache Unification + Performance Optimization
 
 A Docker-based REST API to search and retrieve product information from **37+ sources** across multiple categories.
 
@@ -356,6 +356,22 @@ Gzip enabled by default: **70-85%** reduction for JSON responses
 ## 📄 License
 
 MIT License
+
+---
+
+## 📝 Changelog
+
+### v4.1.0 (2026-01-04)
+- **🚀 Cache Architecture Unification**: Removed redundant in-memory cache from all 26+ providers
+- **✅ Fixed `refresh=true` parameter**: Now properly bypasses PostgreSQL cache for forced re-fetch
+- **⚡ Pokemon TCG Performance**: Optimized from 40s to 20s (50% faster)
+- **🔧 Fast Mode**: Added to Puppeteer stealth module (-5.2s per scraping page)
+- **🐛 Pagination Fix**: Pokemon TCG now correctly returns 12 cards/page instead of 6
+- **🔢 Alphanumeric Card IDs**: Fixed regex to support BWP-BW54, SMP-SM109, SWSH020 formats
+- **♻️ Single Cache Layer**: PostgreSQL-only caching (7-90 days TTL based on data stability)
+
+### v4.0.0 (Previous)
+- Architecture modulaire + 100% VPN Coverage
 
 ---
 
