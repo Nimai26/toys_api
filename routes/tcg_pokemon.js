@@ -71,7 +71,9 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
     success: true,
     provider: 'tcg_pokemon_official',
     query: q,
-    data: result,
+    total: result.total || 0,
+    count: result.count || (result.results || []).length,
+    data: result.results || result.data || [],
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
@@ -128,7 +130,9 @@ router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
     success: true,
     provider: 'tcg_pokemon_official',
     id,
-    data: result,
+    total: result.total || 0,
+    count: result.count || (result.results || []).length,
+    data: result.results || result.data || [],
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
@@ -174,7 +178,9 @@ router.get("/details", validateDetailsParams, asyncHandler(async (req, res) => {
     success: true,
     provider: 'tcg_pokemon_official',
     id,
-    data: result,
+    total: result.total || 0,
+    count: result.count || (result.results || []).length,
+    data: result.results || result.data || [],
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
