@@ -92,11 +92,16 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
  */
 router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
   const { 
-    id, 
-    lang = 'fr',
+    id,
     locale = 'fr-FR',
     autoTrad = false 
   } = req.query;
+  
+  // Normaliser le paramètre lang (peut être un array si dupliqué dans l'URL)
+  let lang = req.query.lang || 'fr';
+  if (Array.isArray(lang)) {
+    lang = lang[0]; // Prendre le premier si array
+  }
   
   const forceRefresh = req.query.refresh === 'true' || req.query.noCache === 'true';
 
@@ -114,7 +119,7 @@ router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
 
   // Utilise le cache PostgreSQL
   const isAutoTrad = autoTrad === 'true' || autoTrad === '1' || autoTrad === true;
-  const result = await pokemonCache.getWithCache(
+  const card = await pokemonCache.getWithCache(
     id,
     async () => {
       const rawCard = await getPokemonCardDetailsOfficial(set, number, { 
@@ -129,20 +134,23 @@ router.get("/card", requireParam('id'), asyncHandler(async (req, res) => {
     { forceRefresh }
   );
 
+  // normalizePokemonCardOfficial retourne un objet, pas un array
+  const dataArray = card ? [card] : [];
+
   addCacheHeaders(res, 300, getCacheInfo());
   res.json({
     success: true,
     provider: 'tcg_pokemon',
     id,
-    total: result.total || 0,
-    count: result.count || (result.results || []).length,
-    data: result.results || result.data || [],
+    total: dataArray.length,
+    count: dataArray.length,
+    data: dataArray,
     meta: {
       fetchedAt: new Date().toISOString(),
       lang,
       locale,
       autoTrad: isAutoTrad,
-      cacheMatch: result._cacheMatch
+      cacheMatch: card?._cacheMatch
     }
   });
 }));
