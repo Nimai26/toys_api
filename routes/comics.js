@@ -215,7 +215,7 @@ mangadexRouter.get("/search", validateSearchParams, asyncHandler(async (req, res
         name_original: item.attributes?.title?.ja || item.title_original,
         description: item.attributes?.description?.en || item.description || null,
         year: item.attributes?.year || null,
-        image: item.cover || item.coverUrl,
+        image: (Array.isArray(item.image) ? item.image[0] : item.image) || item.cover || item.coverUrl,
         src_url: `https://mangadex.org/title/${item.id}`,
         status: item.attributes?.status,
         detailUrl: generateDetailUrl('mangadex', item.id, 'manga')
