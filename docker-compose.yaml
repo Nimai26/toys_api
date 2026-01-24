@@ -1,0 +1,293 @@
+services:
+  # ============================================
+  # VPN Gluetun (Private Internet Access)
+  # Protection: Kill switch + Proxy HTTP + FlareSolverr
+  # ============================================
+  gluetun-toys:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun-toys
+    hostname: gluetun-toys
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # Provider VPN
+      - VPN_SERVICE_PROVIDER=private internet access
+      - OPENVPN_USER=${PIA_USER}
+      - OPENVPN_PASSWORD=${PIA_PASSWORD}
+      # Région VPN
+      - SERVER_REGIONS=${TOY_API_VPN_REGION:-France}
+      # Paramètres de connexion
+      - VPN_TYPE=openvpn
+      - OPENVPN_PROTOCOL=udp
+      # ========== KILL SWITCH ==========
+      - FIREWALL=on
+      - FIREWALL_VPN_INPUT_PORTS=${TOY_API_GLUETUN_CONTROL_PORT:-8193}
+      - FIREWALL_OUTBOUND_SUBNETS=10.10.0.0/24,172.18.0.0/16
+      # ========== PROXY HTTP pour Puppeteer ==========
+      - HTTPPROXY=on
+      - HTTPPROXY_LOG=off
+      # Health check
+      - HEALTH_VPN_DURATION_INITIAL=30s
+      - TZ=${TZ}
+    ports:
+      # Control server gluetun (pour rotation IP)
+      - "${TOY_API_GLUETUN_CONTROL_PORT:-8193}:8000"
+    volumes:
+      - ${DOCKER_ROOT}/toys_api/gluetun:/gluetun
+    networks:
+      media-network:
+        ipv4_address: ${DOCKER_IP_GLUETUN_TOYS}
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ============================================
+  # FlareSolverr via VPN (pour TOUS les providers)
+  # Utilise le réseau gluetun = kill switch automatique
+  # ============================================
+  flaresolverr-toys:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr-toys
+    # IMPORTANT: Utilise le réseau du container gluetun
+    # = Tout le trafic passe par le VPN + Kill switch si VPN down
+    network_mode: "service:gluetun-toys"
+    environment:
+      - LOG_LEVEL=${TOY_API_FSR_LOG_LEVEL:-info}
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=${TZ}
+      - BROWSER_TIMEOUT=${TOY_API_BROWSER_TIMEOUT:-60000}
+    depends_on:
+      gluetun-toys:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8191/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ============================================
+  # VPN Health Monitor + Rotation IP automatique
+  # - Vérifie le VPN toutes les X secondes
+  # - Relance si problème détecté (3 échecs consécutifs)
+  # - Rotation IP automatique
+  # ============================================
+  vpn-monitor-toys:
+    image: alpine:latest
+    container_name: vpn-monitor-toys
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache curl
+        echo "🛡️ VPN Monitor démarré"
+        echo "   - Health check: toutes les $${HEALTH_CHECK_INTERVAL:-60}s"
+        echo "   - Rotation IP: toutes les $${ROTATION_INTERVAL:-1800}s"
+        
+        last_rotation=$$(date +%s)
+        consecutive_failures=0
+        
+        while true; do
+          sleep $${HEALTH_CHECK_INTERVAL:-60}
+          now=$$(date +%s)
+          
+          # === HEALTH CHECK ===
+          VPN_STATUS=$$(curl -sf http://gluetun-toys:8000/v1/openvpn/status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+          VPN_IP=$$(curl -sf http://gluetun-toys:8000/v1/publicip/ip 2>/dev/null | grep -o '"public_ip":"[^"]*"' | cut -d'"' -f4)
+          
+          if [ "$$VPN_STATUS" != "running" ] || [ -z "$$VPN_IP" ]; then
+            consecutive_failures=$$((consecutive_failures + 1))
+            echo "[$$(date)] ⚠️ VPN problème détecté ($$consecutive_failures/$${MAX_FAILURES:-3}) - Status: $$VPN_STATUS, IP: $$VPN_IP"
+            
+            if [ $$consecutive_failures -ge $${MAX_FAILURES:-3} ]; then
+              echo "[$$(date)] 🔄 Redémarrage VPN..."
+              curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"stopped"}' > /dev/null 2>&1
+              sleep 5
+              curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"running"}' > /dev/null 2>&1
+              sleep 20
+              consecutive_failures=0
+              
+              # Vérifier si ça a marché
+              NEW_STATUS=$$(curl -sf http://gluetun-toys:8000/v1/openvpn/status 2>/dev/null | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+              NEW_IP=$$(curl -sf http://gluetun-toys:8000/v1/publicip/ip 2>/dev/null | grep -o '"public_ip":"[^"]*"' | cut -d'"' -f4)
+              if [ "$$NEW_STATUS" = "running" ] && [ -n "$$NEW_IP" ]; then
+                echo "[$$(date)] ✅ VPN relancé avec succès - IP: $$NEW_IP"
+              else
+                echo "[$$(date)] ❌ Échec relance VPN - Status: $$NEW_STATUS"
+              fi
+            fi
+          else
+            if [ $$consecutive_failures -gt 0 ]; then
+              echo "[$$(date)] ✅ VPN rétabli - IP: $$VPN_IP"
+            fi
+            consecutive_failures=0
+          fi
+          
+          # === ROTATION IP AUTOMATIQUE ===
+          elapsed=$$((now - last_rotation))
+          if [ $$elapsed -ge $${ROTATION_INTERVAL:-1800} ]; then
+            echo "[$$(date)] 🔄 Rotation IP programmée..."
+            OLD_IP=$$VPN_IP
+            curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"stopped"}' > /dev/null 2>&1
+            sleep 5
+            curl -sf -X PUT http://gluetun-toys:8000/v1/openvpn/status -d '{"status":"running"}' > /dev/null 2>&1
+            sleep 15
+            NEW_IP=$$(curl -sf http://gluetun-toys:8000/v1/publicip/ip 2>/dev/null | grep -o '"public_ip":"[^"]*"' | cut -d'"' -f4)
+            echo "[$$(date)] ✅ IP changée: $$OLD_IP -> $$NEW_IP"
+            last_rotation=$$now
+          fi
+        done
+    environment:
+      - ROTATION_INTERVAL=${TOY_API_ROTATION_INTERVAL:-1800}
+      - HEALTH_CHECK_INTERVAL=${TOY_API_HEALTH_CHECK_VPN_INTERVAL:-60}
+      - MAX_FAILURES=${TOY_API_MAX_FAILURES:-3}
+    networks:
+      - media-network
+    depends_on:
+      gluetun-toys:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://gluetun-toys:8000/v1/openvpn/status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ============================================
+  # Toys API - Scraping via Puppeteer + VPN
+  # Les clés API sont fournies via header X-Encrypted-Key
+  # ============================================
+  toys_api:
+    image: nimai24/toys_api:latest
+    container_name: toys_api
+    hostname: toys_api
+    restart: unless-stopped
+    networks:
+      media-network:
+        ipv4_address: ${DOCKER_IP_TOYS_API}
+    ports:
+      - "${TOYS_API_PORT}:3000"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      # ========== TOUT PASSE PAR LE VPN ==========
+      # FlareSolverr via VPN (port 8191 accessible via gluetun-toys)
+      - FSR_URL=http://gluetun-toys:8191/v1
+      # Proxy VPN pour Puppeteer
+      - VPN_PROXY_URL=http://gluetun-toys:8888
+      - PUPPETEER_USE_VPN=${TOY_API_PUPPETEER_USE_VPN:-true}
+      # Control Gluetun pour rotation IP
+      - GLUETUN_CONTROL_URL=http://gluetun-toys:8000
+      # URL de base pour les URLs proxy absolues
+      - TOY_API_BASE_URL=${TOY_API_BASE_URL:-http://${DOCKER_IP_TOYS_API}:3000}
+      - API_BASE_URL=${TOY_API_BASE_URL:-http://${DOCKER_IP_TOYS_API}:3000}
+      # Paramètres API
+      - PORT=3000
+      - MAX_RETRIES=${TOY_API_MAX_RETRIES:-3}
+      - DEFAULT_LOCALE=${TOY_API_DEFAULT_LOCALE:-fr-FR}
+      # Cache en mémoire
+      - CACHE_TTL=${TOY_API_CACHE_TTL:-300000}
+      - CACHE_MAX_SIZE=${TOY_API_CACHE_MAX_SIZE:-100}
+      - LOG_LEVEL=${TOY_API_LOG_LEVEL:-info}
+      # Sécurité
+      - API_ENCRYPTION_KEY=${TOY_API_API_ENCRYPTION_KEY}
+      # PostgreSQL Cache
+      - TOY_API_DB_ENABLED=${TOY_API_DB_ENABLED:-true}
+      - TOY_API_DB_HOST=toys_api_postgres
+      - TOY_API_DB_PORT=5432
+      - TOY_API_DB_NAME=${TOY_API_DB_NAME}
+      - TOY_API_DB_USER=${TOY_API_DB_USER}
+      - TOY_API_DB_PASSWORD=${TOY_API_DB_PASSWORD}
+      - TOY_API_DB_POOL_MIN=${TOY_API_DB_POOL_MIN:-2}
+      - TOY_API_DB_POOL_MAX=${TOY_API_DB_POOL_MAX:-10}
+      - TOY_API_CACHE_MODE=${TOY_API_CACHE_MODE:-hybrid}
+      - TOY_API_CACHE_DEFAULT_TTL=${TOY_API_CACHE_DEFAULT_TTL:-2592000}
+      # Auto-traduction
+      - AUTO_TRAD_URL=${TOY_API_AUTO_TRAD_URL:-}
+      # Monitoring
+      - ENABLE_MONITORING=${TOY_API_ENABLE_MONITORING:-false}
+      - HEALTHCHECK_INTERVAL_HOURS=${TOY_API_HEALTHCHECK_PROVIDERS_INTERVAL_HOURS:-10}
+      - SEND_SUCCESS_REPORT=${TOY_API_SEND_SUCCESS_REPORT:-false}
+      # SMTP pour alertes
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${TOY_API_SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${TOY_API_SMTP_PASSWORD:-}
+      - SMTP_FROM=${TOY_API_SMTP_FROM:-}
+      - SMTP_FROM_NAME=${TOY_API_SMTP_FROM_NAME:-}
+      - EMAIL_DEST=${TOY_API_EMAIL_DEST:-}
+      # Clés API de test pour le monitoring
+      - TEST_REBRICKABLE_KEY=${TOY_API_TEST_REBRICKABLE_KEY:-}
+      - TEST_TMDB_KEY=${TOY_API_TEST_TMDB_KEY:-}
+      - TEST_RAWG_KEY=${TOY_API_TEST_RAWG_KEY:-}
+      - TEST_TVDB_KEY=${TOY_API_TEST_TVDB_KEY:-}
+      - TEST_GOOGLEBOOKS_KEY=${TOY_API_TEST_GOOGLEBOOKS_KEY:-}
+      - TEST_COMICVINE_KEY=${TOY_API_TEST_COMICVINE_KEY:-}
+      - TEST_IGDB_CLIENT_ID=${TOY_API_TEST_IGDB_CLIENT_ID:-}
+      - TEST_IGDB_CLIENT_SECRET=${TOY_API_TEST_IGDB_CLIENT_SECRET:-}
+      - TEST_DISCOGS_KEY=${TOY_API_TEST_DISCOG_KEY:-}
+      - TEST_BGG_TOKEN=${TOY_API_TEST_BGG_TOKEN:-}
+      - TEST_TCG_POKEMON_KEY=${TOY_API_TEST_TCG_POKEMON_KEY:-}
+    volumes:
+      - ${DOCKER_ROOT}/toys_api/data:/app/data
+    depends_on:
+      gluetun-toys:
+        condition: service_healthy
+      toys_api_postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ============================================
+  # PostgreSQL - Base de données cache toys_api
+  # ============================================
+  toys_api_postgres:
+    image: postgres:16-alpine
+    container_name: toys_api_postgres
+    hostname: toys_api_postgres
+    restart: unless-stopped
+    networks:
+      media-network:
+        ipv4_address: ${DOCKER_IP_TOYS_API_POSTGRES}
+    environment:
+      - POSTGRES_USER=${TOY_API_DB_USER}
+      - POSTGRES_PASSWORD=${TOY_API_DB_PASSWORD}
+      - POSTGRES_DB=${TOY_API_DB_NAME}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKER_ROOT}/toys_api/postgres:/var/lib/postgresql/data
+      - ${DOCKER_ROOT}/toys_api/backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TOY_API_DB_USER} -d ${TOY_API_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  media-network:
+    external: true

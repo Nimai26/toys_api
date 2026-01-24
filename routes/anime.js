@@ -211,7 +211,7 @@ router.get("/manga", asyncHandler(async (req, res) => {
 router.get("/anime/:id", asyncHandler(async (req, res) => {
   let animeId = req.params.id;
   const lang = req.query.lang || null;
-  const autoTrad = isAutoTradEnabled(req);
+  const autoTrad = isAutoTradEnabled(req.query);
   if (!animeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
   animeId = cleanSourceId(animeId, 'jikan');
@@ -229,7 +229,7 @@ router.get("/anime/:id", asyncHandler(async (req, res) => {
 router.get("/manga/:id", asyncHandler(async (req, res) => {
   let mangaId = req.params.id;
   const lang = req.query.lang || null;
-  const autoTrad = isAutoTradEnabled(req);
+  const autoTrad = isAutoTradEnabled(req.query);
   if (!mangaId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
   mangaId = cleanSourceId(mangaId, 'jikan');
@@ -308,7 +308,7 @@ animeRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res)
 animeRouter.get("/:id", asyncHandler(async (req, res) => {
   let animeId = req.params.id;
   const lang = req.query.lang || null;
-  const autoTrad = isAutoTradEnabled(req);
+  const autoTrad = isAutoTradEnabled(req.query);
   
   if (!animeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
@@ -388,7 +388,7 @@ mangaRouter.get("/details", validateDetailsParams, asyncHandler(async (req, res)
 mangaRouter.get("/:id", asyncHandler(async (req, res) => {
   let mangaId = req.params.id;
   const lang = req.query.lang || null;
-  const autoTrad = isAutoTradEnabled(req);
+  const autoTrad = isAutoTradEnabled(req.query);
   
   if (!mangaId) return res.status(400).json({ error: "paramètre 'id' manquant" });
 
