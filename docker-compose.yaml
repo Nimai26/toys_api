@@ -34,6 +34,9 @@ services:
     ports:
       # Control server gluetun (pour rotation IP)
       - "${TOY_API_GLUETUN_CONTROL_PORT:-8193}:8000"
+      # FlareSolverr (partage le réseau de gluetun via network_mode)
+      # Exposé sur 8192 car 8191 est utilisé par l'autre FlareSolverr
+      - "8192:8191"
     volumes:
       - ${DOCKER_ROOT}/toys_api/gluetun:/gluetun
     networks:
