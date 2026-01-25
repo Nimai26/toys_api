@@ -80,6 +80,7 @@ router.get("/search", validateSearchParams, asyncHandler(async (req, res) => {
         score: item.score,
         episodes: item.episodes,
         chapters: item.chapters,
+        volumes: item.volumes,
         detailUrl: generateDetailUrl('jikan', item.mal_id || item.id, mediaType)
       }));
       
