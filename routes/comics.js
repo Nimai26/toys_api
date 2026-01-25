@@ -3,12 +3,17 @@ import { Router } from 'express';
 import { createLogger } from '../lib/utils/logger.js';
 import {
   searchComicVine,
+  getComicVineVolume,
+  getComicVineIssue,
   getComicVineVolumeNormalized,
-  getComicVineIssueNormalized
+  getComicVineIssueNormalized,
+  getComicVineIssues
 } from '../lib/providers/comicvine.js';
 import {
   searchMangaDex,
-  getMangaDexByIdNormalized
+  getMangaDexById,
+  getMangaDexByIdNormalized,
+  getMangaDexAggregate
 } from '../lib/providers/mangadex.js';
 import {
   searchBedetheque,
@@ -189,6 +194,21 @@ comicvineRouter.get("/issue/:id", comicvineAuth, asyncHandler(async (req, res) =
   res.json(result);
 }));
 
+// Nouveau: Récupérer tous les issues d'un volume
+comicvineRouter.get("/volume/:id/issues", comicvineAuth, asyncHandler(async (req, res) => {
+  let volumeId = cleanSourceId(req.params.id, 'comicvine');
+  if (!volumeId) return res.status(400).json({ error: "paramètre 'id' manquant" });
+  if (!/^\d+$/.test(volumeId)) return res.status(400).json({ error: "Format d'ID invalide" });
+
+  const max = req.query.max ? Math.min(Math.max(1, parseInt(req.query.max, 10)), 500) : 100;
+
+  const result = await getComicVineIssues(parseInt(volumeId, 10), req.apiKey, { max });
+  if (!result) return res.status(404).json({ error: `Volume ${volumeId} non trouvé` });
+
+  addCacheHeaders(res, 3600);
+  res.json(result);
+}));
+
 // ============================================================================
 // MangaDex Router (avec cache PostgreSQL)
 // ============================================================================
@@ -267,6 +287,22 @@ mangadexRouter.get("/details", validateDetailsParams, asyncHandler(async (req, r
   res.json(formatDetailResponse({ data: result, provider: 'mangadex', id: cleanId, meta: { lang, locale, autoTrad },
     cacheMatch: result._cacheMatch
   }));
+}));
+
+// Nouveau: Récupérer tous les volumes et chapitres (aggregate) - AVANT /manga/:id pour éviter le conflit de route
+mangadexRouter.get("/manga/:id/volumes", asyncHandler(async (req, res) => {
+  let mangaId = cleanSourceId(req.params.id, 'mangadex');
+  if (!mangaId) return res.status(400).json({ error: "paramètre 'id' manquant" });
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mangaId)) {
+    return res.status(400).json({ error: "Format d'ID invalide", hint: "L'ID doit être un UUID" });
+  }
+
+  const result = await getMangaDexAggregate(mangaId);
+  if (!result) return res.status(404).json({ error: `Manga ${mangaId} non trouvé ou aucun volume disponible` });
+
+  addCacheHeaders(res, 3600);
+  res.json(result);
 }));
 
 // Legacy
