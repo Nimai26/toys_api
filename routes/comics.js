@@ -18,6 +18,7 @@ import {
 import {
   searchBedetheque,
   searchBedethequeAlbums,
+  getBedethequeSerieById,
   getBedethequeSerieByIdNormalized,
   getBedethequeAlbumByIdNormalized,
   getBedethequeAlbumById
