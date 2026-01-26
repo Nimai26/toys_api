@@ -1237,6 +1237,96 @@ GET /openlibrary/isbn/9780441172719
 
 Returns the book data directly from ISBN lookup.
 
+#### 👤 Search by Author (Multi-Provider) 🆕
+
+> ✨ **New** - Search all books by an author with complete details
+
+##### Available Endpoints
+
+| Provider | Endpoint | API Key | Status |
+|----------|----------|---------|--------|
+| **Google Books** | `/authors/googlebooks/:author` | 🔑 Required | ✅ Operational |
+| **OpenLibrary** | `/authors/openlibrary/:author` | ✅ Free | ✅ Tested |
+| **Bedetheque** | `/authors/bedetheque/:author` | ✅ Free | ⚠️ Beta |
+| **MangaDex** | `/authors/mangadex/:author` | ✅ Free | ⚠️ Beta |
+
+##### Search by Author - OpenLibrary
+```bash
+GET /authors/openlibrary/Stephen%20King?max=10&lang=en
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `:author` | required | Author name (URL encoded) |
+| `max` | `20` | Maximum number of books (1-100) |
+| `lang` | - | Language code (fr, en, etc.) |
+| `autoTrad` | `false` | Auto-translate synopsis |
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "provider": "openlibrary",
+  "query": "author:Stephen King",
+  "count": 10,
+  "total": 847,
+  "items": [
+    {
+      "name": "Carrie",
+      "name_original": "Carrie",
+      "year": 1974,
+      "authors": ["Stephen King"],
+      "synopsis": "A reimagining of the classic horror novel...",
+      "cover": "https://covers.openlibrary.org/b/id/9256043-L.jpg",
+      "image": [
+        "https://covers.openlibrary.org/b/id/9256043-L.jpg",
+        "https://covers.openlibrary.org/b/id/9256043-M.jpg",
+        "https://covers.openlibrary.org/b/id/9256043-S.jpg"
+      ],
+      "genres": ["Horror", "Fiction", "Psychological thriller"],
+      "editors": ["Doubleday"],
+      "publisher": "Doubleday",
+      "isbn": "9780385086950",
+      "pages": 199,
+      "language": "eng",
+      "releaseDate": "1974",
+      "src_url": "https://openlibrary.org/works/OL81618W",
+      "source": "openlibrary",
+      "type": "book"
+    }
+  ],
+  "meta": {
+    "lang": "en",
+    "autoTrad": false,
+    "author": "Stephen King"
+  }
+}
+```
+
+##### Search by Author - Google Books
+```bash
+GET /authors/googlebooks/J.K.%20Rowling?max=5&lang=en
+X-Api-Key: your-google-key
+```
+
+Returns all books by J.K. Rowling with synopsis, cover, publisher, etc.
+
+##### Search by Author - Bedetheque
+```bash
+GET /authors/bedetheque/Goscinny?max=10
+```
+
+Returns all albums by the author with series, covers, and details.
+
+##### Search by Author - MangaDex
+```bash
+GET /authors/mangadex/Hajime%20Isayama?max=5
+```
+
+Returns all manga by the author (e.g., Attack on Titan).
+
+> 📚 **Complete Information**: Each book returns 20+ fields including name, year, authors, synopsis, cover, editors, genres, isbn, pages, language, etc.
+
 #### 🎮 RAWG Endpoints (API Key Required)
 
 RAWG is the largest video game database with 500,000+ games. Get your free API key at [rawg.io/apidocs](https://rawg.io/apidocs).

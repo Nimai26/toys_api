@@ -41,7 +41,8 @@ This API uses FlareSolverr to bypass Cloudflare/anti-bot protection and provides
 - 🏷️ **Barcode identification** - Auto-detect UPC, EAN, ISBN with product lookup 🆕
 - 🎵 **Music album search** via MusicBrainz, Deezer, iTunes, Discogs 🆕
 - 🆓 **IMDB, Jikan, MangaDex without API key** - Free access
-- 🔗 **LEGO ↔ Rebrickable cross-enrichment** (parts, minifigs, instructions)
+- � **Search by Author** - Find all books by an author (Google Books, OpenLibrary, Bedetheque, MangaDex) 🆕
+- �🔗 **LEGO ↔ Rebrickable cross-enrichment** (parts, minifigs, instructions)
 - 📦 Detailed product information (price, availability, images, etc.)
 - 🔐 **Encrypted API key support** (AES-256-GCM) for secure API key transmission
 - 🚀 **In-memory caching** with configurable TTL (default: 5 minutes)
@@ -74,6 +75,7 @@ This API uses FlareSolverr to bypass Cloudflare/anti-bot protection and provides
 - 🏷️ **Identification de codes-barres** - Auto-détection UPC, EAN, ISBN avec recherche produit 🆕
 - 🎵 **Recherche d'albums musicaux** via MusicBrainz, Deezer, iTunes, Discogs 🆕
 - 🆓 **IMDB, Jikan, MangaDex sans clé API** - Accès gratuit
+- 👤 **Recherche par auteur** - Trouvez tous les livres d'un auteur (Google Books, OpenLibrary, Bedetheque, MangaDex) 🆕
 - 🎯 Rechercher dans la base de données Coleka (collectibles)
 - 🎮 Rechercher dans la boutique Lulu-Berlu (jouets vintage)
 - 🤖 Rechercher dans la boutique Transformerland (Transformers vintage)
@@ -839,6 +841,96 @@ GET /openlibrary/book/OL893415W
 ```
 
 > 📖 **Format Harmonisé :** Les endpoints `/openlibrary/search`, `/openlibrary/book/:olId` et `/openlibrary/isbn/:isbn` utilisent le [Format Harmonisé Livres](#-format-harmonisé-livres).
+
+#### 👤 Recherche par Auteur (Multi-Providers) 🆕
+
+> ✨ **Nouveau** - Recherchez tous les livres d'un auteur avec détails complets
+
+##### Endpoints Disponibles
+
+| Provider | Endpoint | Clé API | Statut |
+|----------|----------|---------|--------|
+| **Google Books** | `/authors/googlebooks/:author` | 🔑 Requise | ✅ Opérationnel |
+| **OpenLibrary** | `/authors/openlibrary/:author` | ✅ Gratuit | ✅ Testé |
+| **Bedetheque** | `/authors/bedetheque/:author` | ✅ Gratuit | ⚠️ Beta |
+| **MangaDex** | `/authors/mangadex/:author` | ✅ Gratuit | ⚠️ Beta |
+
+##### Rechercher par Auteur - OpenLibrary
+```bash
+GET /authors/openlibrary/Stephen%20King?max=10&lang=en
+```
+
+| Paramètre | Défaut | Description |
+|-----------|--------|-------------|
+| `:author` | requis | Nom de l'auteur (encodé URL) |
+| `max` | `20` | Nombre maximum de livres (1-100) |
+| `lang` | - | Code langue (fr, en, etc.) |
+| `autoTrad` | `false` | Traduction automatique des synopsis |
+
+**Exemple de réponse :**
+```json
+{
+  "success": true,
+  "provider": "openlibrary",
+  "query": "author:Stephen King",
+  "count": 10,
+  "total": 847,
+  "items": [
+    {
+      "name": "Carrie",
+      "name_original": "Carrie",
+      "year": 1974,
+      "authors": ["Stephen King"],
+      "synopsis": "A reimagining of the classic horror novel...",
+      "cover": "https://covers.openlibrary.org/b/id/9256043-L.jpg",
+      "image": [
+        "https://covers.openlibrary.org/b/id/9256043-L.jpg",
+        "https://covers.openlibrary.org/b/id/9256043-M.jpg",
+        "https://covers.openlibrary.org/b/id/9256043-S.jpg"
+      ],
+      "genres": ["Horror", "Fiction", "Psychological thriller"],
+      "editors": ["Doubleday"],
+      "publisher": "Doubleday",
+      "isbn": "9780385086950",
+      "pages": 199,
+      "language": "eng",
+      "releaseDate": "1974",
+      "src_url": "https://openlibrary.org/works/OL81618W",
+      "source": "openlibrary",
+      "type": "book"
+    }
+  ],
+  "meta": {
+    "lang": "en",
+    "autoTrad": false,
+    "author": "Stephen King"
+  }
+}
+```
+
+##### Rechercher par Auteur - Google Books
+```bash
+GET /authors/googlebooks/J.K.%20Rowling?max=5&lang=fr
+X-Api-Key: votre-clé-google
+```
+
+Retourne tous les livres de J.K. Rowling avec synopsis, couverture, éditeur, etc.
+
+##### Rechercher par Auteur - Bedetheque
+```bash
+GET /authors/bedetheque/Goscinny?max=10
+```
+
+Retourne tous les albums de l'auteur avec séries, couvertures et détails.
+
+##### Rechercher par Auteur - MangaDex
+```bash
+GET /authors/mangadex/Hajime%20Isayama?max=5
+```
+
+Retourne tous les mangas de l'auteur (ex: Attack on Titan).
+
+> 📚 **Informations complètes** : Chaque livre retourne 20+ champs incluant name, year, authors, synopsis, cover, editors, genres, isbn, pages, language, etc.
 
 #### 🎮 Endpoints RAWG (Jeux Vidéo)
 
