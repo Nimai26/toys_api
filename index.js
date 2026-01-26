@@ -66,6 +66,7 @@ import {
   musicRouter,
   googleBooksRouter,
   openLibraryRouter,
+  authorsRouter,
   rawgRouter,
   igdbRouter,
   jeuxvideoRouter,
@@ -230,6 +231,9 @@ app.use('/music', musicRouter);
 // Livres
 app.use('/googlebooks', googleBooksRouter);
 app.use('/openlibrary', openLibraryRouter);
+
+// Authors (recherche par auteur multi-providers)
+app.use('/authors', authorsRouter);
 
 // Trading Card Games (TCG)
 app.use('/tcg_pokemon', tcgPokemonRouter);

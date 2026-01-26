@@ -25,6 +25,9 @@ export { default as musicRouter } from './music.js';
 // Books - Google Books et OpenLibrary
 export { googleBooksRouter, openLibraryRouter } from './books.js';
 
+// Authors - Search by author for multiple providers
+export { default as authorsRouter } from './authors.js';
+
 // Video Games - RAWG, IGDB, JeuxVideo.com
 export { rawgRouter, igdbRouter, jeuxvideoRouter } from './videogames.js';
 

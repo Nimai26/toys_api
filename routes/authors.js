@@ -1,0 +1,260 @@
+// routes/authors.js - Endpoints de recherche par auteur (toys_api v4.1.0)
+import { Router } from 'express';
+import { createLogger } from '../lib/utils/logger.js';
+import {
+  searchGoogleBooksByAuthor
+} from '../lib/providers/googlebooks.js';
+import {
+  searchOpenLibraryByAuthor
+} from '../lib/providers/openlibrary.js';
+import {
+  searchBedethequeByAuthor
+} from '../lib/providers/bedetheque.js';
+import {
+  searchMangaDexByAuthor
+} from '../lib/providers/mangadex.js';
+import { 
+  addCacheHeaders, 
+  asyncHandler, 
+  requireApiKey,
+  isAutoTradEnabled,
+  extractStandardParams,
+  validateSearchParams,
+  generateDetailUrl,
+  formatSearchResponse,
+  translateSearchDescriptions
+} from '../lib/utils/index.js';
+import { createProviderCache, getCacheInfo } from '../lib/database/cache-wrapper.js';
+import { GOOGLE_BOOKS_DEFAULT_MAX, OPENLIBRARY_DEFAULT_MAX, BEDETHEQUE_DEFAULT_MAX, MANGADEX_DEFAULT_MAX } from '../lib/config.js';
+
+const log = createLogger('Route:Authors');
+const router = Router();
+
+// Cache providers
+const googleBooksCache = createProviderCache('googlebooks', 'book');
+const openLibraryCache = createProviderCache('openlibrary', 'book');
+const bedethequeCache = createProviderCache('bedetheque', 'album');
+const mangadexCache = createProviderCache('mangadex', 'manga');
+
+const googleAuth = requireApiKey('Google Books', 'https://console.cloud.google.com/apis/credentials');
+
+// ============================================================================
+// GOOGLE BOOKS - Recherche par auteur
+// ============================================================================
+router.get("/googlebooks/:author", validateSearchParams, googleAuth, asyncHandler(async (req, res) => {
+  const { author } = req.params;
+  const { lang, locale, max, autoTrad, refresh } = req.standardParams;
+  
+  if (!author || author.trim().length < 2) {
+    return res.status(400).json({ 
+      error: 'Author name must be at least 2 characters' 
+    });
+  }
+  
+  log.info(`Google Books author search: ${author}`);
+  
+  const result = await googleBooksCache.searchWithCache(
+    `author:${author}`,
+    async () => {
+      const rawResult = await searchGoogleBooksByAuthor(author, req.apiKey, { lang, maxResults: max });
+      
+      const items = (rawResult.books || []).map(book => ({
+        type: 'book',
+        source: 'googlebooks',
+        sourceId: book.id,
+        name: book.title,
+        name_original: book.title,
+        description: book.synopsis || book.description || null,
+        year: book.releaseDate ? parseInt(book.releaseDate.substring(0, 4), 10) : null,
+        image: book.image?.[0] || book.thumbnail,
+        src_url: book.previewLink || `https://books.google.com/books?id=${book.id}`,
+        authors: book.authors,
+        publisher: book.editors?.[0] || book.publisher,
+        publishedDate: book.releaseDate,
+        isbn: book.isbn,
+        detailUrl: generateDetailUrl('googlebooks', book.id, 'book')
+      }));
+      
+      return { results: items, total: rawResult.totalItems || items.length };
+    },
+    { params: { lang, max, author }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'googlebooks',
+    query: `author:${author}`,
+    total: result.total,
+    meta: { lang, locale, autoTrad, author },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// OPENLIBRARY - Recherche par auteur
+// ============================================================================
+router.get("/openlibrary/:author", validateSearchParams, asyncHandler(async (req, res) => {
+  const { author } = req.params;
+  const { lang, locale, max, autoTrad, refresh } = req.standardParams;
+  
+  if (!author || author.trim().length < 2) {
+    return res.status(400).json({ 
+      error: 'Author name must be at least 2 characters' 
+    });
+  }
+  
+  log.info(`OpenLibrary author search: ${author}`);
+  
+  const result = await openLibraryCache.searchWithCache(
+    `author:${author}`,
+    async () => {
+      const rawResult = await searchOpenLibraryByAuthor(author, { lang, max });
+      
+      const items = (rawResult.books || []).map(book => ({
+        type: 'book',
+        source: 'openlibrary',
+        sourceId: book.id,
+        name: book.title,
+        name_original: book.title,
+        description: book.synopsis || book.description || null,
+        year: book.releaseDate ? parseInt(book.releaseDate.substring(0, 4), 10) : null,
+        image: book.image?.[0] || book.thumbnail,
+        src_url: book.src_url || `https://openlibrary.org${book.key || book.id}`,
+        authors: book.authors,
+        publisher: book.editors?.[0] || book.publisher,
+        publishedDate: book.releaseDate,
+        isbn: book.isbn,
+        detailUrl: generateDetailUrl('openlibrary', book.id, 'book')
+      }));
+      
+      return { results: items, total: rawResult.totalDocs || items.length };
+    },
+    { params: { lang, max, author }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'openlibrary',
+    query: `author:${author}`,
+    total: result.total,
+    meta: { lang, locale, autoTrad, author },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// BEDETHEQUE - Recherche par auteur
+// ============================================================================
+router.get("/bedetheque/:author", validateSearchParams, asyncHandler(async (req, res) => {
+  const { author } = req.params;
+  const { lang, locale, max, autoTrad, refresh } = req.standardParams;
+  
+  if (!author || author.trim().length < 2) {
+    return res.status(400).json({ 
+      error: 'Author name must be at least 2 characters' 
+    });
+  }
+  
+  log.info(`Bedetheque author search: ${author}`);
+  
+  const result = await bedethequeCache.searchWithCache(
+    `author:${author}`,
+    async () => {
+      const rawResult = await searchBedethequeByAuthor(author, { lang, max });
+      
+      const items = (rawResult.albums || []).map(album => ({
+        type: 'book',
+        source: 'bedetheque',
+        sourceId: album.id,
+        name: album.title,
+        name_original: album.title,
+        description: album.synopsis || album.description || null,
+        year: album.releaseDate ? parseInt(album.releaseDate.substring(0, 4), 10) : null,
+        image: album.image?.[0] || album.thumbnail,
+        src_url: album.src_url || `https://www.bedetheque.com/album-${album.id}.html`,
+        authors: album.authors,
+        publisher: album.editors?.[0] || album.publisher,
+        publishedDate: album.releaseDate,
+        series: album.series,
+        detailUrl: generateDetailUrl('bedetheque', album.id, 'album')
+      }));
+      
+      return { results: items, total: items.length };
+    },
+    { params: { lang, max, author }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'bedetheque',
+    query: `author:${author}`,
+    total: result.total,
+    meta: { lang, locale, autoTrad, author },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+// ============================================================================
+// MANGADEX - Recherche par auteur
+// ============================================================================
+router.get("/mangadex/:author", validateSearchParams, asyncHandler(async (req, res) => {
+  const { author } = req.params;
+  const { lang, locale, max, autoTrad, refresh } = req.standardParams;
+  
+  if (!author || author.trim().length < 2) {
+    return res.status(400).json({ 
+      error: 'Author name must be at least 2 characters' 
+    });
+  }
+  
+  log.info(`MangaDex author search: ${author}`);
+  
+  const result = await mangadexCache.searchWithCache(
+    `author:${author}`,
+    async () => {
+      const rawResult = await searchMangaDexByAuthor(author, { lang, max });
+      
+      const items = (rawResult.manga || []).map(manga => ({
+        type: 'book',
+        source: 'mangadex',
+        sourceId: manga.id,
+        name: manga.title,
+        name_original: manga.title,
+        description: manga.synopsis || manga.description || null,
+        year: manga.releaseDate ? parseInt(manga.releaseDate.substring(0, 4), 10) : null,
+        image: manga.image?.[0] || manga.thumbnail,
+        src_url: manga.src_url || `https://mangadex.org/title/${manga.id}`,
+        authors: manga.authors,
+        genres: manga.genres,
+        status: manga.status,
+        detailUrl: generateDetailUrl('mangadex', manga.id, 'manga')
+      }));
+      
+      return { results: items, total: rawResult.total || items.length };
+    },
+    { params: { lang, max, author }, forceRefresh: refresh }
+  );
+  
+  const translatedResults = await translateSearchDescriptions(result.results || [], autoTrad, lang);
+  
+  addCacheHeaders(res, 300, getCacheInfo());
+  res.json(formatSearchResponse({
+    items: translatedResults,
+    provider: 'mangadex',
+    query: `author:${author}`,
+    total: result.total,
+    meta: { lang, locale, autoTrad, author },
+    cacheMatch: result._cacheMatch
+  }));
+}));
+
+export default router;
