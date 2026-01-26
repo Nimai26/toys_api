@@ -1,6 +1,6 @@
 {
   "name": "toys-api",
-  "version": "4.1.1",
+  "version": "4.1.2",
   "type": "module",
   "main": "index.js",
   "description": "API REST multi-sources pour jouets, LEGO, jeux vidéo, BD, musique et collectibles avec traduction automatique et cache PostgreSQL",
