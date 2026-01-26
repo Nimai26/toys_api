@@ -17,9 +17,6 @@ import {
   addCacheHeaders, 
   asyncHandler, 
   requireApiKey,
-  isAutoTradEnabled,
-  extractStandardParams,
-  validateSearchParams,
   generateDetailUrl,
   formatSearchResponse,
   translateSearchDescriptions
@@ -38,10 +35,22 @@ const mangadexCache = createProviderCache('mangadex', 'manga');
 
 const googleAuth = requireApiKey('Google Books', 'https://console.cloud.google.com/apis/credentials');
 
+// Middleware pour extraire les paramètres standards pour les routes d'auteur
+const extractAuthorParams = (req, res, next) => {
+  const lang = req.query.lang || null;
+  const locale = req.query.locale || null;
+  const max = parseInt(req.query.max) || 20;
+  const autoTrad = req.query.autoTrad === 'true' || req.query.auto_trad === 'true';
+  const refresh = req.query.refresh === 'true';
+  
+  req.standardParams = { lang, locale, max, autoTrad, refresh };
+  next();
+};
+
 // ============================================================================
 // GOOGLE BOOKS - Recherche par auteur
 // ============================================================================
-router.get("/googlebooks/:author", validateSearchParams, googleAuth, asyncHandler(async (req, res) => {
+router.get("/googlebooks/:author", extractAuthorParams, googleAuth, asyncHandler(async (req, res) => {
   const { author } = req.params;
   const { lang, locale, max, autoTrad, refresh } = req.standardParams;
   
@@ -96,7 +105,7 @@ router.get("/googlebooks/:author", validateSearchParams, googleAuth, asyncHandle
 // ============================================================================
 // OPENLIBRARY - Recherche par auteur
 // ============================================================================
-router.get("/openlibrary/:author", validateSearchParams, asyncHandler(async (req, res) => {
+router.get("/openlibrary/:author", extractAuthorParams, asyncHandler(async (req, res) => {
   const { author } = req.params;
   const { lang, locale, max, autoTrad, refresh } = req.standardParams;
   
@@ -151,7 +160,7 @@ router.get("/openlibrary/:author", validateSearchParams, asyncHandler(async (req
 // ============================================================================
 // BEDETHEQUE - Recherche par auteur
 // ============================================================================
-router.get("/bedetheque/:author", validateSearchParams, asyncHandler(async (req, res) => {
+router.get("/bedetheque/:author", extractAuthorParams, asyncHandler(async (req, res) => {
   const { author } = req.params;
   const { lang, locale, max, autoTrad, refresh } = req.standardParams;
   
@@ -206,7 +215,7 @@ router.get("/bedetheque/:author", validateSearchParams, asyncHandler(async (req,
 // ============================================================================
 // MANGADEX - Recherche par auteur
 // ============================================================================
-router.get("/mangadex/:author", validateSearchParams, asyncHandler(async (req, res) => {
+router.get("/mangadex/:author", extractAuthorParams, asyncHandler(async (req, res) => {
   const { author } = req.params;
   const { lang, locale, max, autoTrad, refresh } = req.standardParams;
   
